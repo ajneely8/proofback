@@ -1,5 +1,8 @@
 // Reference "today" for this dataset. Deadlines below are expressed relative to it.
-export const TODAY = new Date('2026-09-03')
+// Built with new Date(y, m, d) (local midnight) rather than new Date('2026-09-03')
+// (parsed as UTC midnight), which shifted this back a day in any timezone behind
+// UTC and threw off every "days remaining" calculation app-wide.
+export const TODAY = new Date(2026, 8, 3)
 
 // Photos are real Unsplash stock photos of the same shoe/TV/desk category —
 // not a photo of the literal unit each demo purchase represents, since no

@@ -14,8 +14,12 @@ export function PurchasesProvider({ children }) {
     setPurchases((prev) => [purchase, ...prev])
   }
 
+  function updatePurchase(id, patch) {
+    setPurchases((prev) => prev.map((p) => (p.id === id ? { ...p, ...patch } : p)))
+  }
+
   return (
-    <PurchasesContext.Provider value={{ purchases, addPurchase }}>
+    <PurchasesContext.Provider value={{ purchases, addPurchase, updatePurchase }}>
       {children}
     </PurchasesContext.Provider>
   )

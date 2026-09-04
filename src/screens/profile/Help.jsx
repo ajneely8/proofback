@@ -4,7 +4,7 @@ import { IconChevronLeft } from '../../components/Icons.jsx'
 const FAQS = [
   {
     q: 'How does receipt scanning work?',
-    a: 'A photo of your receipt is read by Claude, an AI model, to pull out the store, item, price, and purchase date. You can edit any field before saving.',
+    a: "A photo of your receipt is read by Google's Gemini AI to pull out the store, item, price, and purchase date. You can edit any field before saving.",
   },
   {
     q: 'Where do return and warranty dates come from?',

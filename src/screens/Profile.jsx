@@ -11,10 +11,12 @@ import {
   IconLogout,
   IconChevronRight,
   IconShield,
+  IconClock,
 } from '../components/Icons.jsx'
 
 const ROWS = [
   { Icon: IconUser, label: 'Account', to: '/profile/account' },
+  { Icon: IconClock, label: 'History', to: '/profile/history' },
   { Icon: IconBell, label: 'Notification settings', to: '/profile/notifications' },
   { Icon: IconMail, label: 'Email connections', to: '/profile/email' },
   { Icon: IconLock, label: 'Privacy', to: '/profile/privacy' },

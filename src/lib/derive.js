@@ -60,6 +60,58 @@ export function refundMissing(purchase) {
   return purchase.refund?.status === 'expected_missing'
 }
 
+export function todayISO() {
+  const y = TODAY.getFullYear()
+  const m = String(TODAY.getMonth() + 1).padStart(2, '0')
+  const d = String(TODAY.getDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
+}
+
+// Money actually recovered, as confirmed by the user's own actions (marking
+// a price adjustment applied, a refund received, or a return completed) —
+// not the same as the "potential" amounts in getOpportunities, which are
+// just things ProofBack noticed and hasn't been told the outcome of.
+export function getSavingsEvents(purchases) {
+  const events = []
+
+  purchases.forEach((p) => {
+    if (p.priceAdjustment) {
+      events.push({
+        id: `${p.id}-price-event`,
+        purchase: p,
+        date: p.priceAdjustment.claimedDate,
+        amount: p.priceAdjustment.amount,
+        label: 'Price adjustment applied',
+      })
+    }
+    if (p.refund?.status === 'received' && p.refund.receivedDate) {
+      events.push({
+        id: `${p.id}-refund-event`,
+        purchase: p,
+        date: p.refund.receivedDate,
+        amount: p.price,
+        label: 'Refund received',
+      })
+    }
+    if (p.returnStatus === 'completed' && p.returnCompletedDate) {
+      events.push({
+        id: `${p.id}-return-event`,
+        purchase: p,
+        date: p.returnCompletedDate,
+        amount: p.price,
+        label: 'Return completed',
+      })
+    }
+  })
+
+  return events.sort((a, b) => (a.date < b.date ? 1 : -1))
+}
+
+export function getTotalSaved(purchases) {
+  const total = getSavingsEvents(purchases).reduce((sum, e) => sum + e.amount, 0)
+  return Math.round(total * 100) / 100
+}
+
 // Opportunities: return deadlines closing soon, price drops worth acting on, missing refunds.
 // `notifications` gates each category off when the user has turned that alert type off in Profile.
 export function getOpportunities(purchases, notifications = DEFAULT_SETTINGS.notifications) {
@@ -74,7 +126,7 @@ export function getOpportunities(purchases, notifications = DEFAULT_SETTINGS.not
         amount: drop,
         title: 'Potential price adjustment',
         purchase: p,
-        detail: `${p.brand} ${p.product}`,
+        detail: productLabel(p),
         note: 'Current price is lower than your purchase price.',
         action: 'Review',
       })
@@ -126,6 +178,10 @@ export function totalRecoverable(purchases, notifications = DEFAULT_SETTINGS.not
   return Math.round(total * 100) / 100
 }
 
+function productLabel(p) {
+  return `${p.brand} ${p.product}${p.quantity > 1 ? ` ×${p.quantity}` : ''}`
+}
+
 export function getNeedsAttention(purchases, notifications = DEFAULT_SETTINGS.notifications) {
   const items = []
 
@@ -136,7 +192,7 @@ export function getNeedsAttention(purchases, notifications = DEFAULT_SETTINGS.no
       items.push({
         id: `${p.id}-attn-return`,
         purchase: p,
-        label: `${p.brand} ${p.product}`,
+        label: productLabel(p),
         primaryText: `Return deadline: ${formatDate(p.returnDeadline)}`,
         secondaryText: drop > 0 ? `Potential savings: ${formatMoney(drop)}` : null,
         urgent: daysLeft <= 7,
@@ -157,7 +213,7 @@ export function getNeedsAttention(purchases, notifications = DEFAULT_SETTINGS.no
       items.push({
         id: `${p.id}-attn-warranty`,
         purchase: p,
-        label: `${p.brand} ${p.product}`,
+        label: productLabel(p),
         primaryText: `Warranty expires: ${formatDate(p.warrantyExpires)}`,
         secondaryText: null,
         urgent: warrantyDaysLeft <= 7,

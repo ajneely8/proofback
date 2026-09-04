@@ -17,17 +17,65 @@ function readFileAsBase64(file) {
   })
 }
 
+// Keeps a copy of each scanned receipt page so it stays viewable on the
+// purchase later, without ballooning localStorage — downscaled and
+// re-encoded as a compressed JPEG rather than stored at full camera
+// resolution.
+function compressReceiptImage(file, maxWidth = 700, quality = 0.7) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => {
+      const img = new Image()
+      img.onload = () => {
+        const scale = Math.min(1, maxWidth / img.width)
+        const canvas = document.createElement('canvas')
+        canvas.width = img.width * scale
+        canvas.height = img.height * scale
+        const ctx = canvas.getContext('2d')
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
+        resolve(canvas.toDataURL('image/jpeg', quality))
+      }
+      img.onerror = reject
+      img.src = reader.result
+    }
+    reader.onerror = reject
+    reader.readAsDataURL(file)
+  })
+}
+
+const FIELD_LABELS = {
+  store: 'Store',
+  purchaseDate: 'Purchase date',
+  purchaseTime: 'Time',
+  product: 'Item name',
+  price: 'Price',
+  warrantyExpires: 'Warranty',
+}
+
+const FIELD_HINTS = {
+  store: 'Not found on receipt',
+  purchaseDate: 'Not found on receipt — defaulted to today',
+  purchaseTime: 'Not found on receipt',
+  product: 'Not found on receipt',
+  price: 'Not found on receipt',
+  warrantyExpires: 'No warranty tracked for this category',
+}
+
 const ERROR_MESSAGES = {
-  no_receipt_detected: "We couldn't read a receipt in that photo. Try again with better lighting.",
+  no_receipt_detected: "We couldn't read a receipt in those photos. Try again with better lighting.",
   server_missing_api_key: 'Receipt scanning is not set up yet. Add an Anthropic API key to the server.',
   missing_image: 'No photo was received. Try again.',
+  too_many_images: "That's too many pages for one receipt — try up to 6 photos.",
   extraction_failed: "We couldn't read that receipt. Try again.",
   scan_failed: 'Something went wrong scanning that receipt. Try again.',
   network: "Couldn't reach the scan service. Check your connection and try again.",
+  rate_limited: "You've used up today's free scans. Try again later, or add billing to your Gemini API key for a higher limit.",
+  model_overloaded: "Gemini is overloaded right now. Wait a moment and try again — this isn't something on our end.",
 }
 
 export default function AddPurchase() {
-  const [stage, setStage] = useState('scan') // scan | scanning | review | error | saved
+  const [stage, setStage] = useState('scan') // scan | capturing | scanning | review | error | saved
+  const [photos, setPhotos] = useState([]) // [{ file, previewUrl }]
   const [extracted, setExtracted] = useState(null)
   const [errorKey, setErrorKey] = useState(null)
   const { addPurchase } = usePurchases()
@@ -35,15 +83,40 @@ export default function AddPurchase() {
   const cameraInputRef = useRef(null)
   const uploadInputRef = useRef(null)
 
-  async function handleFile(file) {
+  function addPhoto(file) {
     if (!file) return
+    setPhotos((prev) => [...prev, { file, previewUrl: URL.createObjectURL(file) }])
+    setStage('capturing')
+  }
+
+  function removePhoto(index) {
+    setPhotos((prev) => {
+      const next = prev.filter((_, i) => i !== index)
+      if (next.length === 0) setStage('scan')
+      return next
+    })
+  }
+
+  function startOver() {
+    setPhotos([])
+    setStage('scan')
+  }
+
+  async function submitScan() {
+    if (!photos.length) return
     setStage('scanning')
     try {
-      const imageBase64 = await readFileAsBase64(file)
+      const prepared = await Promise.all(
+        photos.map(async (p) => ({
+          data: await readFileAsBase64(p.file),
+          mediaType: p.file.type || 'image/jpeg',
+          receiptImageUrl: await compressReceiptImage(p.file),
+        }))
+      )
       const res = await fetch('/api/scan-receipt', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ imageBase64, mediaType: file.type || 'image/jpeg' }),
+        body: JSON.stringify({ images: prepared.map(({ data, mediaType }) => ({ data, mediaType })) }),
       })
       const data = await res.json()
       if (!res.ok) {
@@ -51,7 +124,7 @@ export default function AddPurchase() {
         setStage('error')
         return
       }
-      setExtracted(data)
+      setExtracted({ ...data, receiptImageUrls: prepared.map((p) => p.receiptImageUrl) })
       setStage('review')
     } catch {
       setErrorKey('network')
@@ -59,16 +132,60 @@ export default function AddPurchase() {
     }
   }
 
-  function updateField(field, value) {
+  function updateShared(field, value) {
     setExtracted((prev) => ({ ...prev, [field]: value }))
   }
 
+  function updateItem(index, field, value) {
+    setExtracted((prev) => ({
+      ...prev,
+      items: prev.items.map((item, i) => (i === index ? { ...item, [field]: value } : item)),
+    }))
+  }
+
+  function sharedHint(field) {
+    if (!extracted.missingFields?.includes(field)) return null
+    return <p className="field-hint">{FIELD_HINTS[field]}</p>
+  }
+
+  function itemHint(item, field) {
+    if (!item.missingFields?.includes(field)) return null
+    return <p className="field-hint">{FIELD_HINTS[field]}</p>
+  }
+
   function save() {
-    addPurchase({
-      ...extracted,
-      price: Number(extracted.price),
-      currentPrice: Number(extracted.price),
-      id: `p-${Date.now()}`,
+    extracted.items.forEach((item, i) => {
+      addPurchase({
+        store: extracted.store,
+        brand: item.brand || extracted.store,
+        storeAddress: extracted.storeAddress,
+        receiptNumber: extracted.receiptNumber,
+        product: item.product,
+        quantity: item.quantity || 1,
+        price: Number(item.price),
+        currentPrice: Number(item.price),
+        purchaseDate: extracted.purchaseDate,
+        purchaseTime: extracted.purchaseTime,
+        subtotal: extracted.subtotal,
+        tax: extracted.tax,
+        tip: extracted.tip,
+        discount: extracted.discount,
+        total: extracted.total,
+        paymentMethod: extracted.paymentMethod,
+        itemDiscount: item.discount,
+        category: item.category,
+        returnDeadline: item.returnDeadline,
+        returnDeadlineSource: item.returnDeadlineSource,
+        warrantyExpires: item.warrantyExpires,
+        refund: extracted.refund,
+        receiptImageUrls: extracted.receiptImageUrls,
+        imageUrl: item.imageUrl,
+        imageSource: item.imageSource,
+        imageStoreDomain: item.imageStoreDomain,
+        imageSourcePage: item.imageSourcePage,
+        imageCredit: item.imageCredit,
+        id: `p-${Date.now()}-${i}`,
+      })
     })
     setStage('saved')
     setTimeout(() => navigate('/'), 700)
@@ -77,8 +194,13 @@ export default function AddPurchase() {
   function retry() {
     setExtracted(null)
     setErrorKey(null)
+    setPhotos([])
     setStage('scan')
   }
+
+  const canSave =
+    extracted?.items?.length > 0 &&
+    extracted.items.every((item) => item.product && item.price !== '' && !isNaN(Number(item.price)))
 
   return (
     <div className="screen">
@@ -91,31 +213,75 @@ export default function AddPurchase() {
         <h1>Add a purchase</h1>
       </div>
 
+      <input
+        ref={cameraInputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        hidden
+        onChange={(e) => {
+          addPhoto(e.target.files?.[0])
+          e.target.value = ''
+        }}
+      />
+      <input
+        ref={uploadInputRef}
+        type="file"
+        accept="image/*"
+        hidden
+        onChange={(e) => {
+          addPhoto(e.target.files?.[0])
+          e.target.value = ''
+        }}
+      />
+
       {stage === 'scan' && (
         <>
-          <input
-            ref={cameraInputRef}
-            type="file"
-            accept="image/*"
-            capture="environment"
-            hidden
-            onChange={(e) => handleFile(e.target.files?.[0])}
-          />
-          <input
-            ref={uploadInputRef}
-            type="file"
-            accept="image/*"
-            hidden
-            onChange={(e) => handleFile(e.target.files?.[0])}
-          />
-
           <button className="scan-area" onClick={() => cameraInputRef.current?.click()}>
             <IconCamera />
             <span>Take a photo of your receipt</span>
           </button>
+          <p className="scan-area__hint">Make sure the entire receipt is visible.</p>
           <button className="link-action" onClick={() => uploadInputRef.current?.click()}>
             <IconUpload />
             Upload from Photos
+          </button>
+        </>
+      )}
+
+      {stage === 'capturing' && (
+        <>
+          <p className="confirm-prompt confirm-prompt--top">
+            {photos.length} page{photos.length === 1 ? '' : 's'} added. Long receipt? Add more pages below.
+          </p>
+
+          <div className="page-strip">
+            {photos.map((p, i) => (
+              <div className="page-strip__item" key={i}>
+                <img src={p.previewUrl} alt={`Page ${i + 1}`} />
+                <button className="page-strip__remove" onClick={() => removePhoto(i)} aria-label="Remove page">
+                  ×
+                </button>
+              </div>
+            ))}
+          </div>
+
+          <div className="action-row">
+            <button className="btn btn--secondary" onClick={() => cameraInputRef.current?.click()}>
+              <IconCamera width={18} height={18} />
+              Add Page
+            </button>
+            <button className="btn btn--secondary" onClick={() => uploadInputRef.current?.click()}>
+              <IconUpload width={18} height={18} />
+              Upload
+            </button>
+          </div>
+
+          <button className="btn btn--primary btn--block" onClick={submitScan}>
+            Scan {photos.length > 1 ? `${photos.length} Pages` : 'Receipt'}
+          </button>
+          <button className="link-action" onClick={startOver}>
+            Start Over
           </button>
         </>
       )}
@@ -140,9 +306,29 @@ export default function AddPurchase() {
 
       {stage === 'review' && extracted && (
         <>
-          <p className="confirm-prompt confirm-prompt--top">Check the details below, then save.</p>
+          <p className="confirm-prompt confirm-prompt--top">
+            {extracted.items.length > 1
+              ? `Found ${extracted.items.length} items. Check the details below, then save.`
+              : 'Check the details below, then save.'}
+          </p>
 
-          <ProductImage purchase={extracted} />
+          {extracted.missingFields?.length > 0 && (
+            <div className="missing-fields-note">
+              <strong>Couldn't find on this receipt:</strong>{' '}
+              {extracted.missingFields.map((f) => FIELD_LABELS[f]).join(', ')}. Fill them in below if you know them.
+            </div>
+          )}
+
+          {extracted.receiptImageUrls?.length > 0 && (
+            <div className="receipt-photo receipt-photo--review">
+              <div className="page-strip">
+                {extracted.receiptImageUrls.map((url, i) => (
+                  <img key={i} src={url} alt={`Receipt page ${i + 1}`} className="page-strip__photo" />
+                ))}
+              </div>
+              <p className="receipt-photo__caption">Your scanned receipt — saved so you can look back at it later.</p>
+            </div>
+          )}
 
           <section className="detail-card">
             <div className="field-row">
@@ -150,63 +336,168 @@ export default function AddPurchase() {
               <input
                 type="text"
                 value={extracted.store}
-                onChange={(e) => updateField('store', e.target.value)}
+                onChange={(e) => updateShared('store', e.target.value)}
               />
             </div>
-            <div className="field-row">
-              <label>Item</label>
-              <input
-                type="text"
-                value={extracted.product}
-                onChange={(e) => updateField('product', e.target.value)}
-              />
-            </div>
-            <div className="field-row">
-              <label>Price</label>
-              <input
-                type="number"
-                step="0.01"
-                value={extracted.price}
-                onChange={(e) => updateField('price', e.target.value)}
-              />
-            </div>
+            {sharedHint('store')}
             <div className="field-row">
               <label>Purchased</label>
               <input
                 type="date"
                 value={extracted.purchaseDate}
-                onChange={(e) => updateField('purchaseDate', e.target.value)}
+                onChange={(e) => updateShared('purchaseDate', e.target.value)}
               />
             </div>
+            {sharedHint('purchaseDate')}
             <div className="field-row">
               <label>Time</label>
               <input
                 type="time"
                 value={extracted.purchaseTime || ''}
-                onChange={(e) => updateField('purchaseTime', e.target.value)}
+                onChange={(e) => updateShared('purchaseTime', e.target.value)}
               />
             </div>
-            <div className="field-row">
-              <label>Return by</label>
-              <input
-                type="date"
-                value={extracted.returnDeadline || ''}
-                onChange={(e) => updateField('returnDeadline', e.target.value)}
-              />
-            </div>
-            <div className="field-row">
-              <label>Warranty until</label>
-              <input
-                type="date"
-                value={extracted.warrantyExpires || ''}
-                onChange={(e) => updateField('warrantyExpires', e.target.value)}
-              />
-            </div>
+            {sharedHint('purchaseTime')}
+            {extracted.storeAddress && (
+              <div className="field-row">
+                <label>Address</label>
+                <span className="field-row__static">{extracted.storeAddress}</span>
+              </div>
+            )}
+            {extracted.receiptNumber && (
+              <div className="field-row">
+                <label>Receipt #</label>
+                <span className="field-row__static">{extracted.receiptNumber}</span>
+              </div>
+            )}
           </section>
 
+          {(extracted.subtotal != null ||
+            extracted.tax != null ||
+            extracted.tip != null ||
+            extracted.discount != null ||
+            extracted.total != null ||
+            extracted.paymentMethod) && (
+            <section className="detail-card">
+              <div className="detail-card__label">Receipt Totals</div>
+              {extracted.subtotal != null && (
+                <div className="detail-card__row">
+                  <span>Subtotal</span>
+                  <strong>${Number(extracted.subtotal).toFixed(2)}</strong>
+                </div>
+              )}
+              {extracted.discount != null && (
+                <div className="detail-card__row">
+                  <span>Discount</span>
+                  <strong className="text-accent">-${Number(extracted.discount).toFixed(2)}</strong>
+                </div>
+              )}
+              {extracted.tax != null && (
+                <div className="detail-card__row">
+                  <span>Tax</span>
+                  <strong>${Number(extracted.tax).toFixed(2)}</strong>
+                </div>
+              )}
+              {extracted.tip != null && (
+                <div className="detail-card__row">
+                  <span>Tip</span>
+                  <strong>${Number(extracted.tip).toFixed(2)}</strong>
+                </div>
+              )}
+              {extracted.total != null && (
+                <div className="detail-card__row">
+                  <span>Total</span>
+                  <strong>${Number(extracted.total).toFixed(2)}</strong>
+                </div>
+              )}
+              {extracted.paymentMethod && (
+                <div className="detail-card__row">
+                  <span>Payment</span>
+                  <strong>{extracted.paymentMethod}</strong>
+                </div>
+              )}
+            </section>
+          )}
+
+          {extracted.items.map((item, i) => (
+            <section key={i} className="detail-card">
+              {extracted.items.length > 1 && <div className="detail-card__label">Item {i + 1}</div>}
+
+              <ProductImage purchase={item} />
+
+              <div className="field-row">
+                <label>Item</label>
+                <input
+                  type="text"
+                  value={item.product}
+                  onChange={(e) => updateItem(i, 'product', e.target.value)}
+                />
+              </div>
+              {itemHint(item, 'product')}
+              {item.brand && item.brand !== extracted.store && (
+                <div className="field-row">
+                  <label>Brand</label>
+                  <input
+                    type="text"
+                    value={item.brand}
+                    onChange={(e) => updateItem(i, 'brand', e.target.value)}
+                  />
+                </div>
+              )}
+              {item.quantity > 1 && (
+                <div className="field-row">
+                  <label>Quantity</label>
+                  <input
+                    type="number"
+                    min="1"
+                    step="1"
+                    value={item.quantity}
+                    onChange={(e) => updateItem(i, 'quantity', e.target.value)}
+                  />
+                </div>
+              )}
+              <div className="field-row">
+                <label>Price</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={item.price}
+                  onChange={(e) => updateItem(i, 'price', e.target.value)}
+                />
+              </div>
+              {itemHint(item, 'price')}
+              {item.discount != null && (
+                <div className="field-row">
+                  <label>Discount</label>
+                  <span className="field-row__static text-accent">-${Number(item.discount).toFixed(2)}</span>
+                </div>
+              )}
+              <div className="field-row">
+                <label>Return by</label>
+                <input
+                  type="date"
+                  value={item.returnDeadline || ''}
+                  onChange={(e) => updateItem(i, 'returnDeadline', e.target.value)}
+                />
+              </div>
+              {item.returnDeadlineSource === 'receipt' && (
+                <p className="field-hint field-hint--good">From the receipt's own return policy</p>
+              )}
+              <div className="field-row">
+                <label>Warranty until</label>
+                <input
+                  type="date"
+                  value={item.warrantyExpires || ''}
+                  onChange={(e) => updateItem(i, 'warrantyExpires', e.target.value)}
+                />
+              </div>
+              {itemHint(item, 'warrantyExpires')}
+            </section>
+          ))}
+
           <p className="confirm-prompt">Does everything look correct?</p>
-          <button className="btn btn--primary btn--block" onClick={save}>
-            Save Purchase
+          <button className="btn btn--primary btn--block" disabled={!canSave} onClick={save}>
+            {extracted.items.length > 1 ? `Save ${extracted.items.length} Purchases` : 'Save Purchase'}
           </button>
         </>
       )}

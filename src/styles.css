@@ -40,7 +40,8 @@ a {
 }
 
 #root {
-  min-height: 100vh;
+  height: 100vh;
+  height: 100dvh;
   display: flex;
   justify-content: center;
 }
@@ -50,7 +51,7 @@ a {
 .app-shell {
   width: 100%;
   max-width: 430px;
-  min-height: 100vh;
+  height: 100%;
   background: var(--bg-app);
   display: flex;
   flex-direction: column;
@@ -290,6 +291,14 @@ a {
   gap: 16px;
   padding: 14px 0;
   border-bottom: 1px solid var(--border);
+  width: 100%;
+  background: none;
+  border-left: none;
+  border-right: none;
+  border-top: none;
+  text-align: left;
+  font-family: inherit;
+  cursor: pointer;
 }
 
 .thumb {
@@ -335,6 +344,26 @@ a {
   border-radius: var(--radius-md);
   border: 1px solid var(--border);
   display: block;
+}
+
+.receipt-photo img {
+  width: 100%;
+  max-height: 420px;
+  object-fit: contain;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--bg-subtle);
+  display: block;
+}
+
+.receipt-photo--review {
+  margin-bottom: 16px;
+}
+
+.receipt-photo__caption {
+  margin: 6px 0 0;
+  font-size: 12px;
+  color: var(--text-tertiary);
 }
 
 .list-row:last-child {
@@ -582,6 +611,67 @@ a {
   color: var(--text-tertiary);
 }
 
+.scan-area__hint {
+  margin: -6px 0 12px;
+  font-size: 12px;
+  color: var(--text-tertiary);
+  text-align: center;
+}
+
+.page-strip {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  margin-bottom: 14px;
+  padding-bottom: 2px;
+}
+
+.page-strip__item {
+  position: relative;
+  flex-shrink: 0;
+  width: 72px;
+  height: 96px;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  border: 1px solid var(--border);
+  background: var(--bg-subtle);
+}
+
+.page-strip__item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.page-strip__remove {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(23, 24, 26, 0.72);
+  color: #ffffff;
+  font-size: 13px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.page-strip__photo {
+  flex-shrink: 0;
+  width: 110px;
+  height: 146px;
+  object-fit: cover;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--bg-subtle);
+}
+
 .scan-area--loading {
   color: var(--text-secondary);
 }
@@ -599,6 +689,15 @@ a {
   font-weight: 600;
   padding: 10px;
   cursor: pointer;
+}
+
+.link-action--inline {
+  width: auto;
+  justify-content: flex-start;
+  padding: 8px 0 0;
+  font-size: 13px;
+  color: var(--text-secondary);
+  text-decoration: underline;
 }
 
 .spinner {
@@ -665,6 +764,38 @@ a {
   font-family: inherit;
   min-width: 0;
   flex: 1;
+}
+
+.field-hint {
+  margin: -5px 0 9px;
+  font-size: 12px;
+  color: var(--accent-warn);
+  text-align: right;
+}
+
+.field-hint--good {
+  color: var(--accent-green);
+}
+
+.field-row__static {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  text-align: right;
+}
+
+.missing-fields-note {
+  background: var(--accent-warn-bg);
+  color: var(--accent-warn);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  font-size: 13px;
+  line-height: 1.5;
+  margin-bottom: 16px;
+}
+
+.missing-fields-note strong {
+  font-weight: 700;
 }
 
 /* ---------- Profile ---------- */
@@ -851,12 +982,6 @@ a {
   padding-bottom: 40px;
 }
 
-.onboarding__logo {
-  width: 128px;
-  height: auto;
-  margin-bottom: 24px;
-}
-
 .onboarding__body h1 {
   font-size: 28px;
   font-weight: 800;
@@ -873,6 +998,19 @@ a {
   max-width: 320px;
 }
 
+.onboarding__detail {
+  margin-top: 8px !important;
+  font-size: 13px !important;
+  color: var(--text-tertiary) !important;
+}
+
+.onboarding__visual {
+  height: 148px;
+  display: flex;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
 .onboarding__dots {
   display: flex;
   gap: 6px;
@@ -884,6 +1022,373 @@ a {
   height: 4px;
   border-radius: 2px;
   background: var(--border-strong);
+}
+
+/* ---------- Onboarding: slide 1 — recovered-money counter ---------- */
+
+.ob-money {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 18px 20px;
+  width: 100%;
+  max-width: 280px;
+}
+
+.ob-money__label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+}
+
+.ob-money__amount {
+  font-size: 32px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--accent-green);
+  font-variant-numeric: tabular-nums;
+}
+
+.ob-features {
+  display: flex;
+  gap: 16px;
+  margin-top: 18px;
+}
+
+.ob-features__item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.ob-features__item svg {
+  color: var(--accent-green);
+  flex-shrink: 0;
+}
+
+/* ---------- Onboarding: slide 2 — receipt scan ---------- */
+
+.ob-scan {
+  display: flex;
+  align-items: center;
+}
+
+.ob-scan__receipt {
+  position: relative;
+  width: 120px;
+  padding: 16px 14px;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.ob-scan__line {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--border-strong);
+  margin-bottom: 8px;
+  width: 60%;
+}
+
+.ob-scan__line--wide {
+  width: 100%;
+}
+
+.ob-scan__line--total {
+  width: 45%;
+  background: var(--text-tertiary);
+  margin-top: 4px;
+}
+
+.ob-scan__beam {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 22px;
+  background: linear-gradient(
+    180deg,
+    rgba(30, 122, 76, 0) 0%,
+    rgba(30, 122, 76, 0.22) 50%,
+    rgba(30, 122, 76, 0) 100%
+  );
+  border-top: 1.5px solid var(--accent-green);
+  animation: ob-scan-sweep 2.8s ease-in-out infinite;
+}
+
+.ob-scan__check {
+  position: absolute;
+  bottom: 8px;
+  right: 8px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--accent-green);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  animation: ob-scan-check 2.8s ease-in-out infinite;
+}
+
+@keyframes ob-scan-sweep {
+  0% {
+    top: -22px;
+  }
+  55% {
+    top: 100%;
+  }
+  100% {
+    top: 100%;
+  }
+}
+
+@keyframes ob-scan-check {
+  0%,
+  60% {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+  72%,
+  92% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+}
+
+/* ---------- Onboarding: slide 3 — notification stack ---------- */
+
+.ob-notifs {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  max-width: 280px;
+}
+
+.ob-notifs__card {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  background: var(--bg-app);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  box-shadow: 0 1px 2px rgba(20, 20, 20, 0.06);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-primary);
+  opacity: 0;
+  transform: translateY(6px);
+  animation: ob-notif-in 4.2s ease-in-out infinite;
+}
+
+.ob-notifs__card svg {
+  color: var(--accent-green);
+  flex-shrink: 0;
+}
+
+@keyframes ob-notif-in {
+  0% {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  10%,
+  85% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+
+/* ---------- Onboarding: slide 2 extra — multi-page combine ---------- */
+
+.ob-combine {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  margin-top: 16px;
+  height: 74px;
+}
+
+.ob-combine__page {
+  width: 62px;
+  padding: 10px 10px;
+  background: var(--bg-app);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  box-shadow: 0 1px 2px rgba(20, 20, 20, 0.05);
+  animation: ob-combine-slide 3.6s ease-in-out infinite;
+}
+
+.ob-combine__page .ob-scan__line {
+  margin-bottom: 6px;
+  height: 4px;
+}
+
+.ob-combine__page--left {
+  animation-name: ob-combine-slide-left;
+  margin-right: -14px;
+  z-index: 1;
+}
+
+.ob-combine__page--right {
+  animation-name: ob-combine-slide-right;
+}
+
+.ob-combine__result {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 9px;
+  border-radius: 999px;
+  background: var(--accent-green-bg);
+  color: var(--accent-green);
+  font-size: 11px;
+  font-weight: 600;
+  opacity: 0;
+  animation: ob-combine-result 3.6s ease-in-out infinite;
+}
+
+@keyframes ob-combine-slide-left {
+  0%,
+  15% {
+    transform: translateX(0);
+  }
+  55%,
+  100% {
+    transform: translateX(8px);
+  }
+}
+
+@keyframes ob-combine-slide-right {
+  0%,
+  15% {
+    transform: translateX(0);
+  }
+  55%,
+  100% {
+    transform: translateX(-8px);
+  }
+}
+
+@keyframes ob-combine-result {
+  0%,
+  60% {
+    opacity: 0;
+    transform: translateY(4px) scale(0.9);
+  }
+  75%,
+  92% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(4px) scale(0.9);
+  }
+}
+
+/* ---------- Onboarding: slide 4 — how it works stepper ---------- */
+
+.onboarding__visual--tall {
+  height: auto;
+  margin-bottom: 16px;
+}
+
+.ob-steps {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 280px;
+}
+
+.ob-steps__row {
+  display: flex;
+  gap: 12px;
+}
+
+.ob-steps__rail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.ob-steps__node {
+  flex-shrink: 0;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 1.5px solid var(--border-strong);
+  color: var(--text-tertiary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: ob-step-pulse 7.6s ease-in-out infinite;
+}
+
+.ob-steps__connector {
+  width: 2px;
+  flex: 1;
+  min-height: 20px;
+  background: var(--border);
+  margin: 2px 0;
+  animation: ob-step-connector 7.6s ease-in-out infinite;
+}
+
+.ob-steps__text {
+  padding-bottom: 20px;
+}
+
+.ob-steps__label {
+  font-size: 14px;
+  font-weight: 700;
+  margin-bottom: 2px;
+}
+
+.ob-steps__detail {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+@keyframes ob-step-pulse {
+  0%,
+  100% {
+    border-color: var(--border-strong);
+    color: var(--text-tertiary);
+    background: transparent;
+  }
+  8%,
+  20% {
+    border-color: var(--accent-green);
+    color: #ffffff;
+    background: var(--accent-green);
+  }
+}
+
+@keyframes ob-step-connector {
+  0%,
+  15% {
+    background: var(--border);
+  }
+  28%,
+  100% {
+    background: var(--accent-green);
+  }
 }
 
 .dot.is-active {

@@ -75,7 +75,10 @@ export default function Purchases() {
           <Link to={`/purchases/${p.id}`} key={p.id} className="list-row list-row--simple">
             <Thumb purchase={p} />
             <div className="list-row__main">
-              <div className="list-row__title">{p.brand} {p.product}</div>
+              <div className="list-row__title">
+                {p.brand} {p.product}
+                {p.quantity > 1 ? ` ×${p.quantity}` : ''}
+              </div>
               <div className="list-row__line">{p.store}</div>
             </div>
             <div className="list-row__trailing">

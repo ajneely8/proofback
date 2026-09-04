@@ -18,6 +18,7 @@ import Privacy from './screens/profile/Privacy.jsx'
 import Subscription from './screens/profile/Subscription.jsx'
 import Help from './screens/profile/Help.jsx'
 import Terms from './screens/profile/Terms.jsx'
+import History from './screens/profile/History.jsx'
 
 function Shell({ children, showNav = true }) {
   return (
@@ -61,6 +62,7 @@ export default function App() {
             <Route path="/profile/subscription" element={<Subscription />} />
             <Route path="/profile/help" element={<Help />} />
             <Route path="/profile/terms" element={<Terms />} />
+            <Route path="/profile/history" element={<History />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </Shell>

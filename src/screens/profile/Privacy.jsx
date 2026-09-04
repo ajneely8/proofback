@@ -10,7 +10,7 @@ const POINTS = [
   {
     Icon: IconShield,
     title: 'Receipt photos are only used to read them',
-    body: "When you scan a receipt, the photo is sent once to Claude (Anthropic's AI) to read the store, item, price, and date off it. It isn't stored afterward.",
+    body: "When you scan a receipt, the photo is sent once to Google's Gemini AI to read the store, item, price, and date off it. It isn't stored afterward.",
   },
   {
     Icon: IconMail,

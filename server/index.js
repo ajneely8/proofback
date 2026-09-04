@@ -18,12 +18,12 @@ import express from 'express'
 import Anthropic from '@anthropic-ai/sdk'
 
 const PORT = Number(process.env.SCAN_PORT || 8789)
-const API_KEY = process.env.ANTHROPIC_API_KEY || ''
+const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY || ''
 const UNSPLASH_KEY = process.env.UNSPLASH_ACCESS_KEY || ''
 const GOOGLE_SEARCH_KEY = process.env.GOOGLE_SEARCH_API_KEY || ''
 const GOOGLE_SEARCH_CX = process.env.GOOGLE_SEARCH_CX || ''
 
-const anthropic = API_KEY ? new Anthropic({ apiKey: API_KEY }) : null
+const anthropic = ANTHROPIC_API_KEY ? new Anthropic({ apiKey: ANTHROPIC_API_KEY }) : null
 
 // Known store name -> domain, for restricting an image search to that
 // retailer's own site. Not exhaustive — unlisted stores fall through to a
@@ -171,81 +171,163 @@ function toISO(dt) {
   return `${y}-${m}-${d}`
 }
 
-const EXTRACT_TOOL = {
-  name: 'record_receipt',
-  description: 'Record the fields read off a purchase receipt photo.',
-  input_schema: {
-    type: 'object',
-    properties: {
-      found: {
-        type: 'boolean',
-        description: 'true if this image is a legible purchase receipt, false otherwise.',
-      },
-      reason: {
-        type: 'string',
-        description: 'If found is false, a short reason why (e.g. "blurry", "not a receipt").',
-      },
-      store: { type: 'string', description: 'Store or merchant name as printed on the receipt.' },
-      product: {
-        type: 'string',
-        description:
-          'The main item purchased. If there are several line items, name the most expensive one and mention "+N more" is not needed — just the single clearest item name.',
-      },
-      price: {
-        type: 'number',
-        description: 'Total amount paid, as printed (numeric, no currency symbol).',
-      },
-      purchaseDate: {
-        type: 'string',
-        description: 'Purchase date in YYYY-MM-DD format.',
-      },
-      purchaseTime: {
-        type: 'string',
-        description:
-          'Time of purchase in 24-hour HH:MM format (e.g. "14:32"), exactly as printed on the receipt. Omit this field entirely if no time is printed.',
-      },
-      category: {
-        type: 'string',
-        enum: ['Electronics', 'Apparel', 'Home', 'Grocery', 'Other'],
-        description: 'Best-guess category of the purchase.',
-      },
-      imageQuery: {
-        type: 'string',
-        description:
-          'A short 2-5 word visual description of the item, built ONLY from words that actually describe what it looks like on the receipt (e.g. "red running shoes", "stainless steel toaster", "65 inch flat screen tv"). Never include the store name, order numbers, SKUs, or model codes — those don\'t describe an appearance. If the receipt line is just an order number or a code with no descriptive words (e.g. "Order #112-4487205"), omit this field entirely rather than guessing.',
+const EXTRACT_SCHEMA = {
+  type: 'object',
+  properties: {
+    found: {
+      type: 'boolean',
+      description:
+        'true if this image shows any part of a purchase receipt with at least ONE usable field legible (a store name, a price, or a date) — set true even if other fields are cut off, blurry, or missing, and just omit those fields below. Only set false if nothing purchase-related is legible at all (e.g. a blank page, an unrelated photo, or a receipt fragment with no store/price/date anywhere on it).',
+    },
+    reason: {
+      type: 'string',
+      description: 'If found is false, a short reason why (e.g. "blurry", "not a receipt").',
+    },
+    store: { type: 'string', description: 'Store or merchant name as printed on the receipt.' },
+    storeAddress: {
+      type: 'string',
+      description: 'Store street address and/or city/state, as printed. Omit if not printed.',
+    },
+    receiptNumber: {
+      type: 'string',
+      description: 'Receipt, order, or transaction number/ID as printed. Omit if not printed.',
+    },
+    purchaseDate: {
+      type: 'string',
+      description: 'Purchase date in YYYY-MM-DD format.',
+    },
+    purchaseTime: {
+      type: 'string',
+      description:
+        'Time of purchase in 24-hour HH:MM format (e.g. "14:32"), exactly as printed on the receipt. Omit this field entirely if no time is printed.',
+    },
+    subtotal: {
+      type: 'number',
+      description: 'Subtotal before tax/tip, as printed. Omit if not printed.',
+    },
+    tax: {
+      type: 'number',
+      description: 'Tax amount, as printed. Omit if not printed.',
+    },
+    tip: {
+      type: 'number',
+      description: 'Tip/gratuity amount, as printed. Omit if not printed.',
+    },
+    discount: {
+      type: 'number',
+      description: 'Total discount amount applied to the whole receipt, as printed. Omit if not printed.',
+    },
+    total: {
+      type: 'number',
+      description: 'Final total amount paid, as printed. Omit if not printed.',
+    },
+    paymentMethod: {
+      type: 'string',
+      description:
+        'Payment method as printed, e.g. "Visa ending 1234", "Cash", "Mastercard ****5678". Omit if not printed.',
+    },
+    returnByDate: {
+      type: 'string',
+      description:
+        'ONLY if the receipt explicitly prints a return deadline, return policy window, or "receipt expires on" date — the resulting date in YYYY-MM-DD format. Omit entirely if the receipt does not explicitly state one; do not calculate or guess this.',
+    },
+    items: {
+      type: 'array',
+      description:
+        'One entry per DISTINCT product on the receipt — if two different pairs of shoes were bought, that\'s two entries, not one. Do not merge different line items together, and do not create an entry for tax, shipping, discounts, subtotal, or total lines. If you were given more than one photo, treat them as sections/pages of the SAME receipt — combine all their line items into this one list and do not repeat an item that appears in more than one photo (e.g. one photo\'s bottom edge overlapping the next photo\'s top edge).',
+      items: {
+        type: 'object',
+        properties: {
+          product: {
+            type: 'string',
+            description: 'This line item\'s product name/description, as printed on the receipt.',
+          },
+          brand: {
+            type: 'string',
+            description:
+              "This item's manufacturer/brand, if printed or obvious from the product name (e.g. \"Nike\", \"Samsung\") — NOT the store name unless the store's own house brand made it. Omit if not determinable.",
+          },
+          quantity: {
+            type: 'number',
+            description: 'Quantity purchased, as printed (e.g. "QTY 2" -> 2). Omit if not printed; assumed 1.',
+          },
+          price: {
+            type: 'number',
+            description:
+              "This specific line's total price, as printed (numeric, no currency symbol) — the line total (already accounting for quantity), not the receipt grand total.",
+          },
+          discount: {
+            type: 'number',
+            description: "This specific line item's discount amount, as printed. Omit if not printed.",
+          },
+          category: {
+            type: 'string',
+            enum: ['Electronics', 'Apparel', 'Home', 'Grocery', 'Other'],
+            description: "Best-guess category of this item.",
+          },
+          imageQuery: {
+            type: 'string',
+            description:
+              'A short 2-5 word visual description of this item, built ONLY from words that actually describe what it looks like on the receipt (e.g. "red running shoes", "stainless steel toaster", "65 inch flat screen tv"). Never include the store name, order numbers, SKUs, or model codes — those don\'t describe an appearance. Omit this field entirely if the line is just an order number or a code with no descriptive words.',
+          },
+        },
+        required: ['product', 'price'],
       },
     },
-    required: ['found'],
   },
+  required: ['found'],
 }
 
 const app = express()
 app.use(express.json({ limit: '15mb' }))
+
+const EXTRACT_TOOL = {
+  name: 'record_receipt',
+  description: 'Record the fields read off one or more receipt photos.',
+  input_schema: EXTRACT_SCHEMA,
+}
 
 app.post('/api/scan-receipt', async (req, res) => {
   if (!anthropic) {
     return res.status(500).json({ error: 'server_missing_api_key' })
   }
 
-  const { imageBase64, mediaType } = req.body || {}
-  if (!imageBase64 || !mediaType) {
+  // Accepts either a single { imageBase64, mediaType } (legacy) or
+  // { images: [{ data, mediaType }, ...] } for a multi-page receipt — several
+  // photos of one long receipt, sent together so the model can combine them
+  // into a single extraction instead of treating each as a separate purchase.
+  let images = Array.isArray(req.body?.images) ? req.body.images : null
+  if (!images && req.body?.imageBase64 && req.body?.mediaType) {
+    images = [{ data: req.body.imageBase64, mediaType: req.body.mediaType }]
+  }
+  if (!images || !images.length || images.some((img) => !img?.data || !img?.mediaType)) {
     return res.status(400).json({ error: 'missing_image' })
+  }
+  if (images.length > 6) {
+    return res.status(400).json({ error: 'too_many_images' })
   }
 
   try {
     const message = await anthropic.messages.create({
       model: 'claude-sonnet-5',
-      max_tokens: 1024,
+      max_tokens: 2048,
       tools: [EXTRACT_TOOL],
       tool_choice: { type: 'tool', name: 'record_receipt' },
       messages: [
         {
           role: 'user',
           content: [
-            { type: 'image', source: { type: 'base64', media_type: mediaType, data: imageBase64 } },
+            ...images.map((img) => ({
+              type: 'image',
+              source: { type: 'base64', media_type: img.mediaType, data: img.data },
+            })),
             {
               type: 'text',
-              text: 'Read this receipt photo and record its fields using the record_receipt tool. Only use words that are actually printed on the receipt — never invent a brand, model, or description that isn\'t there.',
+              text:
+                (images.length > 1
+                  ? `These ${images.length} photos are sections/pages of ONE SAME receipt, in order. Combine them into a single extraction — one store, one purchase date, one merged item list. If a line item appears in more than one photo (e.g. overlapping edges between shots), include it only once. `
+                  : '') +
+                'Read this receipt and record its fields using the record_receipt tool. Only use words that are actually printed on the receipt — never invent a brand, model, or description that isn\'t there. If you are unsure of a value, omit that field entirely rather than guessing.',
             },
           ],
         },
@@ -256,47 +338,100 @@ app.post('/api/scan-receipt', async (req, res) => {
     if (!toolUse) {
       return res.status(502).json({ error: 'extraction_failed' })
     }
-
     const data = toolUse.input
 
-    if (!data.found || !data.store || !data.price || !data.purchaseDate) {
+    // Only reject outright when the model couldn't read a receipt at all.
+    // A receipt missing individual fields (no visible date, price cut off,
+    // etc.) still goes through — the caller is told exactly which fields it
+    // couldn't find instead of being forced to retake the photo.
+    if (!data.found) {
       return res.status(422).json({ error: 'no_receipt_detected', reason: data.reason || null })
     }
 
-    const category = data.category && RETURN_WINDOW_DAYS[data.category] ? data.category : 'Other'
-    const returnDeadline = addDays(data.purchaseDate, RETURN_WINDOW_DAYS[category])
-    const warrantyYears = WARRANTY_YEARS[category]
-    const warrantyExpires = warrantyYears > 0 ? addYears(data.purchaseDate, warrantyYears) : null
+    const missingFields = []
+    if (!data.store) missingFields.push('store')
+    if (!data.purchaseDate) missingFields.push('purchaseDate')
+    if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(data.purchaseTime || '')) missingFields.push('purchaseTime')
 
-    const storeImage = await findStoreImage(data.store, data.imageQuery || '')
-    const stockImage = storeImage ? null : await findStockImage(data.imageQuery || '')
-    if (stockImage?.downloadLocation) {
-      // Required by Unsplash's API guidelines whenever a photo is actually shown to a user.
-      fetch(stockImage.downloadLocation, { headers: { Authorization: `Client-ID ${UNSPLASH_KEY}` } }).catch(() => {})
-    }
-
+    const purchaseDate = data.purchaseDate || toISO(new Date())
     const purchaseTime = /^([01]\d|2[0-3]):[0-5]\d$/.test(data.purchaseTime || '') ? data.purchaseTime : null
 
+    // Prefer a return deadline the receipt actually states over our generic
+    // category guess — it's the real policy, not an estimate.
+    const explicitReturnBy = /^\d{4}-\d{2}-\d{2}$/.test(data.returnByDate || '') ? data.returnByDate : null
+
+    // A missing/empty items array still gets one placeholder row so the user
+    // has something to fill in, rather than a receipt that silently vanishes.
+    const rawItems = Array.isArray(data.items) && data.items.length ? data.items : [{}]
+
+    const items = await Promise.all(
+      rawItems.map(async (raw) => {
+        const itemMissing = []
+        if (!raw.product) itemMissing.push('product')
+        if (!raw.price) itemMissing.push('price')
+
+        const category = raw.category && RETURN_WINDOW_DAYS[raw.category] ? raw.category : 'Other'
+        const returnDeadline = explicitReturnBy || addDays(purchaseDate, RETURN_WINDOW_DAYS[category])
+        const returnDeadlineSource = explicitReturnBy ? 'receipt' : 'estimated'
+        const warrantyYears = WARRANTY_YEARS[category]
+        const warrantyExpires = warrantyYears > 0 ? addYears(purchaseDate, warrantyYears) : null
+        if (warrantyYears === 0) itemMissing.push('warrantyExpires')
+
+        const storeImage = await findStoreImage(data.store, raw.imageQuery || '')
+        const stockImage = storeImage ? null : await findStockImage(raw.imageQuery || '')
+        if (stockImage?.downloadLocation) {
+          // Required by Unsplash's API guidelines whenever a photo is actually shown to a user.
+          fetch(stockImage.downloadLocation, {
+            headers: { Authorization: `Client-ID ${UNSPLASH_KEY}` },
+          }).catch(() => {})
+        }
+
+        return {
+          product: raw.product || '',
+          brand: raw.brand || data.store || '',
+          quantity: raw.quantity && raw.quantity > 1 ? Number(raw.quantity) : 1,
+          price: raw.price ? Number(raw.price) : '',
+          currentPrice: raw.price ? Number(raw.price) : '',
+          discount: raw.discount ?? null,
+          category,
+          returnDeadline,
+          returnDeadlineSource,
+          warrantyExpires,
+          missingFields: itemMissing,
+          imageUrl: storeImage?.url || stockImage?.url || null,
+          imageSource: storeImage ? 'store' : stockImage ? 'stock' : null,
+          imageStoreDomain: storeImage?.domain || null,
+          imageSourcePage: storeImage?.sourcePage || null,
+          imageCredit: stockImage ? { name: stockImage.photographerName, url: stockImage.photographerUrl } : null,
+        }
+      })
+    )
+
     res.json({
-      store: data.store,
-      brand: data.store,
-      product: data.product || 'Purchase',
-      price: Number(data.price),
-      currentPrice: Number(data.price),
-      purchaseDate: data.purchaseDate,
+      store: data.store || '',
+      brand: data.store || '',
+      storeAddress: data.storeAddress || null,
+      receiptNumber: data.receiptNumber || null,
+      purchaseDate,
       purchaseTime,
-      category,
-      returnDeadline,
-      warrantyExpires,
+      subtotal: data.subtotal ?? null,
+      tax: data.tax ?? null,
+      tip: data.tip ?? null,
+      discount: data.discount ?? null,
+      total: data.total ?? null,
+      paymentMethod: data.paymentMethod || null,
       refund: { status: 'not_applicable' },
-      imageUrl: storeImage?.url || stockImage?.url || null,
-      imageSource: storeImage ? 'store' : stockImage ? 'stock' : null,
-      imageStoreDomain: storeImage?.domain || null,
-      imageSourcePage: storeImage?.sourcePage || null,
-      imageCredit: stockImage ? { name: stockImage.photographerName, url: stockImage.photographerUrl } : null,
+      missingFields,
+      items,
     })
   } catch (err) {
-    console.error('scan-receipt failed:', err.message)
+    console.error('scan-receipt failed:', err.status, err.message)
+    if (err.status === 429) {
+      return res.status(429).json({ error: 'rate_limited' })
+    }
+    if (err.status === 529 || err.status === 503) {
+      return res.status(503).json({ error: 'model_overloaded' })
+    }
     res.status(500).json({ error: 'scan_failed' })
   }
 })
