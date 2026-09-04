@@ -184,6 +184,8 @@ export default function AddPurchase() {
         storeAddress: extracted.storeAddress,
         receiptNumber: extracted.receiptNumber,
         product: item.product,
+        size: item.size || null,
+        color: item.color || null,
         quantity: item.quantity || 1,
         price: Number(item.price),
         currentPrice: Number(item.price),
@@ -464,6 +466,26 @@ export default function AddPurchase() {
                     type="text"
                     value={item.brand}
                     onChange={(e) => updateItem(i, 'brand', e.target.value)}
+                  />
+                </div>
+              )}
+              {item.color != null && (
+                <div className="field-row">
+                  <label>Color</label>
+                  <input
+                    type="text"
+                    value={item.color || ''}
+                    onChange={(e) => updateItem(i, 'color', e.target.value)}
+                  />
+                </div>
+              )}
+              {item.size != null && (
+                <div className="field-row">
+                  <label>Size</label>
+                  <input
+                    type="text"
+                    value={item.size || ''}
+                    onChange={(e) => updateItem(i, 'size', e.target.value)}
                   />
                 </div>
               )}

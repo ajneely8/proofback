@@ -53,6 +53,8 @@ export default function PurchaseDetail() {
       store: purchase.store,
       brand: purchase.brand,
       product: purchase.product,
+      color: purchase.color || '',
+      size: purchase.size || '',
       quantity: purchase.quantity || 1,
       price: purchase.price,
       purchaseDate: purchase.purchaseDate,
@@ -65,6 +67,8 @@ export default function PurchaseDetail() {
       store: draft.store,
       brand: draft.brand,
       product: draft.product,
+      color: draft.color || null,
+      size: draft.size || null,
       quantity: Number(draft.quantity) || 1,
       price: Number(draft.price),
       currentPrice: Number(draft.price),
@@ -109,6 +113,22 @@ export default function PurchaseDetail() {
               type="text"
               value={draft.store}
               onChange={(e) => setDraft({ ...draft, store: e.target.value })}
+            />
+          </div>
+          <div className="field-row">
+            <label>Color</label>
+            <input
+              type="text"
+              value={draft.color}
+              onChange={(e) => setDraft({ ...draft, color: e.target.value })}
+            />
+          </div>
+          <div className="field-row">
+            <label>Size</label>
+            <input
+              type="text"
+              value={draft.size}
+              onChange={(e) => setDraft({ ...draft, size: e.target.value })}
             />
           </div>
           <div className="field-row">
@@ -166,6 +186,11 @@ export default function PurchaseDetail() {
           {purchase.quantity > 1 ? ` ×${purchase.quantity}` : ''}
         </div>
         <div className="detail-hero__price">{formatMoney(purchase.price)}</div>
+        {(purchase.color || purchase.size) && (
+          <div className="detail-hero__sub">
+            {[purchase.color, purchase.size && `Size ${purchase.size}`].filter(Boolean).join(' · ')}
+          </div>
+        )}
         <div className="detail-hero__sub">
           Purchased {formatDateTime(purchase.purchaseDate, purchase.purchaseTime)} at {purchase.store}
         </div>

@@ -247,6 +247,16 @@ const EXTRACT_SCHEMA = {
             description:
               "This item's manufacturer/brand, if printed or obvious from the product name (e.g. \"Nike\", \"Samsung\") — NOT the store name unless the store's own house brand made it. Omit if not determinable.",
           },
+          size: {
+            type: 'string',
+            description:
+              'Size as printed on the receipt, if this line item has one (e.g. shoe/clothing size "10.5", "MEN\'S 10.5", "M", "LARGE"). Omit entirely if no size is printed for this item.',
+          },
+          color: {
+            type: 'string',
+            description:
+              'Color as printed on the receipt, if this line item has one (e.g. "BLACK", "Red/White"). Omit entirely if no color is printed for this item.',
+          },
           quantity: {
             type: 'number',
             description: 'Quantity purchased, as printed (e.g. "QTY 2" -> 2). Omit if not printed; assumed 1.',
@@ -379,13 +389,16 @@ app.post('/api/scan-receipt', async (req, res) => {
 
         // Prefer the model's short visual description, but fall back to the
         // raw product name so a lookup is still attempted when the model
-        // omitted imageQuery (e.g. a line that's mostly a SKU/code) — and
-        // lead with the brand when known, since "Nike red running shoes" is
-        // a far more specific search than "red running shoes" alone.
+        // omitted imageQuery (e.g. a line that's mostly a SKU/code) — then
+        // lead with brand and color when known and not already part of that
+        // description, since "Nike black red running shoes" is a far more
+        // specific search than "red running shoes" alone. Size is left out —
+        // it doesn't change how the product looks and just adds search noise.
         const baseQuery = raw.imageQuery || raw.product || ''
-        const searchQuery = raw.brand && !baseQuery.toLowerCase().includes(raw.brand.toLowerCase())
-          ? `${raw.brand} ${baseQuery}`
-          : baseQuery
+        const searchQuery = [raw.brand, raw.color, baseQuery]
+          .filter(Boolean)
+          .filter((word) => word === baseQuery || !baseQuery.toLowerCase().includes(word.toLowerCase()))
+          .join(' ')
 
         const storeImage = await findStoreImage(data.store, searchQuery)
         const stockImage = storeImage ? null : await findStockImage(searchQuery)
@@ -399,6 +412,8 @@ app.post('/api/scan-receipt', async (req, res) => {
         return {
           product: raw.product || '',
           brand: raw.brand || data.store || '',
+          size: raw.size || null,
+          color: raw.color || null,
           quantity: raw.quantity && raw.quantity > 1 ? Number(raw.quantity) : 1,
           price: raw.price ? Number(raw.price) : '',
           currentPrice: raw.price ? Number(raw.price) : '',
