@@ -1,5 +1,16 @@
 import { useEffect, useRef, useState } from 'react'
-import { IconClock, IconTarget, IconMail, IconCheck, IconBell, IconShield, IconCamera, IconDoc } from './Icons.jsx'
+import {
+  IconClock,
+  IconTarget,
+  IconMail,
+  IconCheck,
+  IconBell,
+  IconShield,
+  IconCamera,
+  IconDoc,
+  IconHome,
+  IconLock,
+} from './Icons.jsx'
 
 // Counts up to a target dollar amount, holds, then loops — a quiet,
 // numbers-first animation instead of a decorative illustration, fitting a
@@ -193,6 +204,66 @@ export function NotificationStack() {
           key={text}
         >
           <Icon width={16} height={16} />
+          <span>{text}</span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+const DESTINATIONS = [
+  {
+    Icon: IconHome,
+    title: 'Home',
+    detail: '"Needs attention" surfaces whatever is most time-sensitive right now.',
+  },
+  {
+    Icon: IconTarget,
+    title: 'Opportunities',
+    detail: 'Every open alert in one list, sorted by how much money is involved.',
+  },
+]
+
+// Says where an alert actually shows up, since this is in-app surfacing —
+// not a phone push notification — and that distinction matters to set
+// correctly. Distinct from the capability list on slide 1: this is about
+// where you'll see it and how to control it, not what gets tracked.
+export function AlertDestinations() {
+  return (
+    <div className="ob-capabilities ob-capabilities--compact">
+      {DESTINATIONS.map(({ Icon, title, detail }) => (
+        <div className="ob-capabilities__row" key={title}>
+          <div className="ob-capabilities__icon">
+            <Icon width={16} height={16} />
+          </div>
+          <div>
+            <div className="ob-capabilities__title">{title}</div>
+            <div className="ob-capabilities__detail">{detail}</div>
+          </div>
+        </div>
+      ))}
+      <div className="ob-capabilities__footnote">
+        Turn any alert type on or off anytime — nothing is locked in at setup.
+      </div>
+    </div>
+  )
+}
+
+const TRUST_NOTES = [
+  { Icon: IconLock, text: 'Your purchases are stored on this device, not a server ProofBack controls.' },
+  { Icon: IconCamera, text: "A receipt photo is read once by Claude to extract it, then it isn't kept elsewhere." },
+  { Icon: IconTarget, text: "Product photos shown are representative — not a picture of the exact item you bought." },
+]
+
+// Sets expectations the other three slides don't cover — where data lives
+// and what a "product photo" actually is — instead of restating what's
+// already been said about scanning or notifications.
+export function TrustNotes() {
+  return (
+    <div className="ob-trust">
+      {TRUST_NOTES.map(({ Icon, text }) => (
+        <div className="ob-trust__row" key={text}>
+          <Icon width={15} height={15} />
           <span>{text}</span>
         </div>
       ))}

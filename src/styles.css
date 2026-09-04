@@ -1110,6 +1110,43 @@ a {
   line-height: 1.45;
 }
 
+.ob-capabilities--compact {
+  margin-top: 16px;
+  padding-top: 16px;
+}
+
+.ob-capabilities__footnote {
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--text-tertiary);
+  line-height: 1.45;
+}
+
+.ob-trust {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.ob-trust__row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 12.5px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.ob-trust__row svg {
+  flex-shrink: 0;
+  color: var(--text-tertiary);
+  margin-top: 1px;
+}
+
 .ob-checklist {
   display: flex;
   flex-direction: column;

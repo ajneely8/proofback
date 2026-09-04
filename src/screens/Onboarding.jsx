@@ -8,7 +8,9 @@ import {
   MultiPageCombine,
   ExtractChecklist,
   NotificationStack,
+  AlertDestinations,
   HowItWorksStepper,
+  TrustNotes,
 } from '../components/OnboardingVisuals.jsx'
 
 const SLIDES = [
@@ -29,13 +31,16 @@ const SLIDES = [
     title: 'Get notified.',
     body: "ProofBack tells you when there's something worth acting on, before it's too late to do anything about it.",
     Visual: NotificationStack,
-    detail: 'Choose which alerts you get anytime from Profile → Notification settings.',
+    detail: "These show up inside the app, not as phone notifications — here's exactly where to find them.",
+    extras: [AlertDestinations],
   },
   {
     title: 'How it all fits together.',
     body: 'One photo turns into a fully tracked purchase — here\'s the whole pipeline in one glance.',
     Visual: HowItWorksStepper,
     tall: true,
+    detail: 'A few things worth knowing about how that actually works:',
+    extras: [TrustNotes],
   },
 ]
 
