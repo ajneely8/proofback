@@ -310,7 +310,7 @@ app.post('/api/scan-receipt', async (req, res) => {
   try {
     const message = await anthropic.messages.create({
       model: 'claude-sonnet-5',
-      max_tokens: 2048,
+      max_tokens: 8192,
       tools: [EXTRACT_TOOL],
       tool_choice: { type: 'tool', name: 'record_receipt' },
       messages: [
@@ -377,8 +377,18 @@ app.post('/api/scan-receipt', async (req, res) => {
         const warrantyExpires = warrantyYears > 0 ? addYears(purchaseDate, warrantyYears) : null
         if (warrantyYears === 0) itemMissing.push('warrantyExpires')
 
-        const storeImage = await findStoreImage(data.store, raw.imageQuery || '')
-        const stockImage = storeImage ? null : await findStockImage(raw.imageQuery || '')
+        // Prefer the model's short visual description, but fall back to the
+        // raw product name so a lookup is still attempted when the model
+        // omitted imageQuery (e.g. a line that's mostly a SKU/code) — and
+        // lead with the brand when known, since "Nike red running shoes" is
+        // a far more specific search than "red running shoes" alone.
+        const baseQuery = raw.imageQuery || raw.product || ''
+        const searchQuery = raw.brand && !baseQuery.toLowerCase().includes(raw.brand.toLowerCase())
+          ? `${raw.brand} ${baseQuery}`
+          : baseQuery
+
+        const storeImage = await findStoreImage(data.store, searchQuery)
+        const stockImage = storeImage ? null : await findStockImage(searchQuery)
         if (stockImage?.downloadLocation) {
           // Required by Unsplash's API guidelines whenever a photo is actually shown to a user.
           fetch(stockImage.downloadLocation, {
