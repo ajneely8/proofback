@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { usePurchases } from '../lib/PurchasesContext.jsx'
 import { IconCamera, IconUpload, IconChevronLeft, IconCheck } from '../components/Icons.jsx'
@@ -61,6 +61,19 @@ const FIELD_HINTS = {
   warrantyExpires: 'No warranty tracked for this category',
 }
 
+// Roughly matches the real order of work while a scan is in flight (one
+// model call to read the receipt, then a per-item photo lookup afterward)
+// so this is a description of what's actually happening, not just a
+// generic spinner — even though it can't be synced to the exact moment
+// each field lands, since the model returns everything in one response.
+const SCAN_STEPS = [
+  'Reading your receipt…',
+  'Finding the store, date, and total…',
+  'Pulling out every item…',
+  'Looking up product photos…',
+  'Finishing up…',
+]
+
 const ERROR_MESSAGES = {
   no_receipt_detected: "We couldn't read a receipt in those photos. Try again with better lighting.",
   server_missing_api_key: 'Receipt scanning is not set up yet. Add an Anthropic API key to the server.',
@@ -78,10 +91,20 @@ export default function AddPurchase() {
   const [photos, setPhotos] = useState([]) // [{ file, previewUrl }]
   const [extracted, setExtracted] = useState(null)
   const [errorKey, setErrorKey] = useState(null)
+  const [scanStep, setScanStep] = useState(0)
   const { addPurchase } = usePurchases()
   const navigate = useNavigate()
   const cameraInputRef = useRef(null)
   const uploadInputRef = useRef(null)
+
+  useEffect(() => {
+    if (stage !== 'scanning') return
+    setScanStep(0)
+    const id = setInterval(() => {
+      setScanStep((i) => (i + 1) % SCAN_STEPS.length)
+    }, 1600)
+    return () => clearInterval(id)
+  }, [stage])
 
   function addPhoto(file) {
     if (!file) return
@@ -289,7 +312,7 @@ export default function AddPurchase() {
       {stage === 'scanning' && (
         <div className="scan-area scan-area--loading">
           <div className="spinner" />
-          <span>Reading receipt…</span>
+          <span>{SCAN_STEPS[scanStep]}</span>
         </div>
       )}
 
