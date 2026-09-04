@@ -1,69 +1,48 @@
 import { useEffect, useRef, useState } from 'react'
+import { BrowserMultiFormatReader } from '@zxing/browser'
 import { IconBarcode } from './Icons.jsx'
 
-const FORMATS = ['upc_a', 'upc_e', 'ean_13', 'ean_8', 'code_128', 'code_39', 'itf', 'qr_code']
-
 export function isBarcodeScanSupported() {
-  return typeof window !== 'undefined' && 'BarcodeDetector' in window
+  return typeof navigator !== 'undefined' && !!navigator.mediaDevices?.getUserMedia
 }
 
-// Opens the device camera and continuously runs the browser's native
-// BarcodeDetector against each frame until a code is found. Only decodes a
-// number — there's no product database wired up, so the caller is
-// responsible for what that number means (e.g. saving it as a reference).
+// Opens the device camera and continuously decodes frames with ZXing (a
+// JS/WASM barcode reader, not a browser API) so this works on every modern
+// browser — including desktop Chrome and iPhone Safari, which never
+// implemented the native BarcodeDetector API this used before. There's no
+// product database wired up, so the caller is responsible for what the
+// decoded number means (e.g. saving it as a reference).
 export default function BarcodeScanner({ onDetect, onClose }) {
   const videoRef = useRef(null)
-  const streamRef = useRef(null)
-  const rafRef = useRef(null)
+  const readerRef = useRef(null)
+  const controlsRef = useRef(null)
   const [error, setError] = useState(null)
 
   useEffect(() => {
     let cancelled = false
-    let detector
-    try {
-      detector = new window.BarcodeDetector({ formats: FORMATS })
-    } catch {
-      setError('Barcode scanning isn\'t supported on this device.')
-      return
-    }
+    const reader = new BrowserMultiFormatReader()
+    readerRef.current = reader
 
-    navigator.mediaDevices
-      .getUserMedia({ video: { facingMode: 'environment' } })
-      .then((stream) => {
-        if (cancelled) {
-          stream.getTracks().forEach((t) => t.stop())
-          return
-        }
-        streamRef.current = stream
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream
-          videoRef.current.play()
-        }
-
-        async function tick() {
-          if (cancelled || !videoRef.current) return
-          try {
-            const codes = await detector.detect(videoRef.current)
-            if (codes.length > 0) {
-              onDetect(codes[0].rawValue)
-              return
-            }
-          } catch {
-            // A detect() call can transiently fail on a not-yet-ready video
-            // frame — just keep scanning rather than surfacing that to the user.
+    reader
+      .decodeFromConstraints(
+        { video: { facingMode: 'environment' } },
+        videoRef.current,
+        (result, err, controls) => {
+          controlsRef.current = controls
+          if (cancelled) return
+          if (result) {
+            controls.stop()
+            onDetect(result.getText())
           }
-          rafRef.current = requestAnimationFrame(tick)
         }
-        rafRef.current = requestAnimationFrame(tick)
-      })
+      )
       .catch(() => {
         if (!cancelled) setError("Couldn't access the camera. Check camera permission and try again.")
       })
 
     return () => {
       cancelled = true
-      if (rafRef.current) cancelAnimationFrame(rafRef.current)
-      streamRef.current?.getTracks().forEach((t) => t.stop())
+      controlsRef.current?.stop()
     }
   }, [onDetect])
 
