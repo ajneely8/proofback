@@ -474,11 +474,11 @@ a {
 }
 
 .receipt-photo--review {
-  margin-bottom: 16px;
+  margin-bottom: 22px;
 }
 
 .receipt-photo__caption {
-  margin: 6px 0 0;
+  margin: 10px 0 0;
   font-size: 12px;
   color: var(--text-tertiary);
 }
@@ -624,8 +624,8 @@ a {
 .detail-card {
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
-  padding: 16px;
-  margin-bottom: 12px;
+  padding: 18px 16px;
+  margin-bottom: 16px;
   background: var(--bg-app);
   box-shadow: 0 1px 2px rgba(20, 20, 20, 0.03);
   animation: card-in 0.35s cubic-bezier(0.16, 1, 0.3, 1) backwards;
@@ -637,7 +637,7 @@ a {
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--text-tertiary);
-  margin-bottom: 10px;
+  margin-bottom: 14px;
 }
 
 .detail-card__row {
@@ -645,7 +645,7 @@ a {
   justify-content: space-between;
   align-items: baseline;
   font-size: 14px;
-  padding: 7px 0;
+  padding: 8px 0;
 }
 
 .detail-card__row span {
@@ -756,7 +756,7 @@ a {
   display: flex;
   gap: 10px;
   overflow-x: auto;
-  margin-bottom: 14px;
+  margin-bottom: 16px;
   padding-bottom: 2px;
 }
 
@@ -855,7 +855,7 @@ a {
 }
 
 .confirm-prompt--top {
-  margin: 0 0 16px;
+  margin: 0 0 20px;
   color: var(--text-secondary);
   font-weight: 500;
 }
@@ -873,7 +873,7 @@ a {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 9px 0;
+  padding: 12px 0;
   border-bottom: 1px solid var(--border);
 }
 
@@ -901,7 +901,7 @@ a {
 }
 
 .field-hint {
-  margin: -5px 0 9px;
+  margin: 6px 0 12px;
   font-size: 12px;
   color: var(--accent-warn);
   text-align: right;
@@ -928,10 +928,10 @@ a {
   background: var(--accent-warn-bg);
   color: var(--accent-warn);
   border-radius: var(--radius-sm);
-  padding: 12px 14px;
+  padding: 14px 16px;
   font-size: 13px;
   line-height: 1.5;
-  margin-bottom: 16px;
+  margin-bottom: 20px;
 }
 
 .missing-fields-note strong {
