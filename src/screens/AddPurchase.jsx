@@ -512,24 +512,6 @@ export default function AddPurchase() {
                   />
                 </div>
               )}
-              <div className="field-row">
-                <label>Barcode</label>
-                {item.barcode ? (
-                  <span className="field-row__static">{item.barcode}</span>
-                ) : isBarcodeScanSupported() ? (
-                  <button className="link-action link-action--inline" onClick={() => setBarcodeTarget(i)}>
-                    <IconBarcode width={15} height={15} />
-                    Scan
-                  </button>
-                ) : (
-                  <span className="field-row__static field-row__static--muted">Not supported on this device</span>
-                )}
-              </div>
-              {item.barcode && (
-                <button className="link-action" onClick={() => setBarcodeTarget(i)}>
-                  Rescan barcode
-                </button>
-              )}
               {item.quantity > 1 && (
                 <div className="field-row">
                   <label>Quantity</label>
@@ -578,6 +560,25 @@ export default function AddPurchase() {
                 />
               </div>
               {itemHint(item, 'warrantyExpires')}
+
+              <div className="field-row">
+                <label>Barcode</label>
+                {item.barcode ? (
+                  <span className="field-row__static">{item.barcode}</span>
+                ) : isBarcodeScanSupported() ? (
+                  <button className="link-action link-action--inline" onClick={() => setBarcodeTarget(i)}>
+                    <IconBarcode width={15} height={15} />
+                    Scan
+                  </button>
+                ) : (
+                  <span className="field-row__static field-row__static--muted">Not supported on this device</span>
+                )}
+              </div>
+              {item.barcode && (
+                <button className="link-action" onClick={() => setBarcodeTarget(i)}>
+                  Rescan barcode
+                </button>
+              )}
             </section>
           ))}
 
