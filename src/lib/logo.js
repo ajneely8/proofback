@@ -39,26 +39,29 @@ function guessDomain(name) {
   return guess ? `${guess}.com` : null
 }
 
-// Clearbit's free logo endpoint has gotten unreliable (slow, rate-limited, or
-// outright unreachable depending on network) — so this tries it first for
-// quality, then falls back to Google's favicon service, which is far more
-// consistently up even though the result is a lower-resolution icon rather
-// than a full logo. Returns [] (not null) when there's no name to guess a
-// domain from at all, so callers can just check .length.
+// Google's favicon service goes first — it's been stable for over a decade
+// and virtually always resolves, even though the result is a small icon
+// rather than a full logo. Clearbit's logo endpoint is tried second: when it
+// works it's a nicer, bigger brand mark, but it's proven too unreliable
+// (slow, rate-limited, or outright unreachable depending on network) to lead
+// with. Returns [] (not null) when there's no name to guess a domain from at
+// all, so callers can just check .length.
 export function logoCandidatesFor(name) {
   const domain = guessDomain(name)
   if (!domain) return []
   return [
-    `https://logo.clearbit.com/${domain}?size=160`,
     `https://www.google.com/s2/favicons?domain=${domain}&sz=128`,
+    `https://logo.clearbit.com/${domain}?size=160`,
   ]
 }
 
-// A purchase's own logoUrl (set at scan time) wins as the first candidate
-// when present; otherwise this computes candidates on the fly from
-// brand/store, so older saved purchases still get a logo instead of only
-// ever showing the initial-letter badge.
+// Candidates computed from brand/store lead (Google favicon, then Clearbit)
+// so this always tries the more reliable source first, regardless of which
+// one a scan happened to save. A purchase's own logoUrl is appended as a
+// last resort in case it points somewhere the domain guess wouldn't.
 export function purchaseLogoCandidates(purchase) {
   const computed = logoCandidatesFor(purchase.brand || purchase.store)
-  return purchase.logoUrl ? [purchase.logoUrl, ...computed] : computed
+  return purchase.logoUrl && !computed.includes(purchase.logoUrl)
+    ? [...computed, purchase.logoUrl]
+    : computed
 }
