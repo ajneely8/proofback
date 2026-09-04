@@ -4,10 +4,10 @@
 // UTC and threw off every "days remaining" calculation app-wide.
 export const TODAY = new Date(2026, 8, 3)
 
-// Photos are real Unsplash stock photos of the same shoe/TV/desk category —
-// not a photo of the literal unit each demo purchase represents, since no
-// service can produce that from a product name alone. Credited per Unsplash's
-// license terms.
+function logoUrl(domain) {
+  return `https://logo.clearbit.com/${domain}?size=160`
+}
+
 export const INITIAL_PURCHASES = [
   {
     id: 'p1',
@@ -21,8 +21,7 @@ export const INITIAL_PURCHASES = [
     warrantyExpires: '2027-09-03',
     currentPrice: 109.99,
     refund: { status: 'not_applicable' },
-    imageUrl: 'https://images.unsplash.com/photo-1600185365483-26d7a4cc7519?auto=format&fit=crop&w=800&q=80',
-    imageCredit: { name: 'Luis Felipe Lins', url: 'https://unsplash.com/@felipefxo' },
+    logoUrl: logoUrl('nike.com'),
   },
   {
     id: 'p2',
@@ -36,8 +35,7 @@ export const INITIAL_PURCHASES = [
     warrantyExpires: null,
     currentPrice: null,
     refund: { status: 'expected_missing', expectedDate: '2026-09-08' },
-    imageUrl: 'https://images.unsplash.com/photo-1633174524778-61a18ee54490?auto=format&fit=crop&w=800&q=80',
-    imageCredit: { name: 'lanirudhreddy', url: 'https://unsplash.com/@lanirudhreddy' },
+    logoUrl: logoUrl('amazon.com'),
   },
   {
     id: 'p3',
@@ -51,8 +49,7 @@ export const INITIAL_PURCHASES = [
     warrantyExpires: '2026-10-05',
     currentPrice: 599.99,
     refund: { status: 'not_applicable' },
-    imageUrl: 'https://images.unsplash.com/photo-1567690187548-f07b1d7bf5a9?auto=format&fit=crop&w=800&q=80',
-    imageCredit: { name: 'Dario', url: 'https://unsplash.com/@dariox' },
+    logoUrl: logoUrl('samsung.com'),
   },
   {
     id: 'p4',
@@ -66,8 +63,7 @@ export const INITIAL_PURCHASES = [
     warrantyExpires: null,
     currentPrice: 84.5,
     refund: { status: 'not_applicable' },
-    imageUrl: 'https://images.unsplash.com/photo-1633174524778-61a18ee54490?auto=format&fit=crop&w=800&q=80',
-    imageCredit: { name: 'lanirudhreddy', url: 'https://unsplash.com/@lanirudhreddy' },
+    logoUrl: logoUrl('amazon.com'),
   },
   {
     id: 'p5',
@@ -81,8 +77,7 @@ export const INITIAL_PURCHASES = [
     warrantyExpires: '2031-07-02',
     currentPrice: 419.0,
     refund: { status: 'not_applicable' },
-    imageUrl: 'https://images.unsplash.com/photo-1623177623442-979c1e42c255?auto=format&fit=crop&w=800&q=80',
-    imageCredit: { name: 'ergonofis', url: 'https://unsplash.com/@ergonofis' },
+    logoUrl: logoUrl('fully.com'),
   },
   {
     id: 'p6',
@@ -96,8 +91,7 @@ export const INITIAL_PURCHASES = [
     warrantyExpires: '2027-08-28',
     currentPrice: 139.99,
     refund: { status: 'not_applicable' },
-    imageUrl: 'https://images.unsplash.com/photo-1637437757614-6491c8e915b5?auto=format&fit=crop&w=800&q=80',
-    imageCredit: { name: 'Mostafa Mahmoudi', url: 'https://unsplash.com/@mostafa_mahmoudi24' },
+    logoUrl: logoUrl('brooksrunning.com'),
   },
   {
     id: 'p7',
@@ -111,8 +105,7 @@ export const INITIAL_PURCHASES = [
     warrantyExpires: '2027-08-25',
     currentPrice: 229.0,
     refund: { status: 'not_applicable' },
-    imageUrl: 'https://images.unsplash.com/photo-1572569511254-d8f925fe2cbb?auto=format&fit=crop&w=800&q=80',
-    imageCredit: { name: 'Daniel Romero', url: 'https://unsplash.com/@rmrdnl' },
+    logoUrl: logoUrl('apple.com'),
   },
   {
     id: 'p8',
@@ -126,8 +119,7 @@ export const INITIAL_PURCHASES = [
     warrantyExpires: '2027-08-05',
     currentPrice: 349.99,
     refund: { status: 'not_applicable' },
-    imageUrl: 'https://images.unsplash.com/photo-1746645297698-306ef29852ca?auto=format&fit=crop&w=800&q=80',
-    imageCredit: { name: 'Andrey Matveev', url: 'https://unsplash.com/@zelebb' },
+    logoUrl: logoUrl('dyson.com'),
   },
   {
     id: 'p9',
@@ -141,8 +133,7 @@ export const INITIAL_PURCHASES = [
     warrantyExpires: '2027-07-20',
     currentPrice: 89.99,
     refund: { status: 'not_applicable' },
-    imageUrl: 'https://images.unsplash.com/photo-1608354580875-30bd4168b351?auto=format&fit=crop&w=800&q=80',
-    imageCredit: { name: 'Nathan Dumlao', url: 'https://unsplash.com/@nate_dumlao' },
+    logoUrl: logoUrl('keurig.com'),
   },
   {
     id: 'p10',
@@ -156,8 +147,7 @@ export const INITIAL_PURCHASES = [
     warrantyExpires: null,
     currentPrice: 99.0,
     refund: { status: 'not_applicable' },
-    imageUrl: 'https://images.unsplash.com/photo-1624548140129-74786c5f1279?auto=format&fit=crop&w=800&q=80',
-    imageCredit: { name: 'Bulbul Ahmed', url: 'https://unsplash.com/@bulbul252' },
+    logoUrl: logoUrl('thenorthface.com'),
   },
   {
     id: 'p11',
@@ -171,8 +161,7 @@ export const INITIAL_PURCHASES = [
     warrantyExpires: '2027-08-10',
     currentPrice: 349.99,
     refund: { status: 'expected_missing', expectedDate: '2026-08-15' },
-    imageUrl: 'https://images.unsplash.com/photo-1618366712010-f4ae9c647dcb?auto=format&fit=crop&w=800&q=80',
-    imageCredit: { name: 'Luke Peterson', url: 'https://unsplash.com/@ldpeterson11' },
+    logoUrl: logoUrl('sony.com'),
   },
 ]
 

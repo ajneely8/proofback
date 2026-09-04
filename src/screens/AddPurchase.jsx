@@ -213,11 +213,7 @@ export default function AddPurchase() {
         warrantyExpires: item.warrantyExpires,
         refund: extracted.refund,
         receiptImageUrls: extracted.receiptImageUrls,
-        imageUrl: item.imageUrl,
-        imageSource: item.imageSource,
-        imageStoreDomain: item.imageStoreDomain,
-        imageSourcePage: item.imageSourcePage,
-        imageCredit: item.imageCredit,
+        logoUrl: item.logoUrl,
         id: `p-${Date.now()}-${i}`,
       })
     })

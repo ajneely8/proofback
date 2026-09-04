@@ -5,23 +5,16 @@
  * gets back structured fields, never the key. Return-window and warranty
  * lengths are generic category defaults (not real per-retailer policy,
  * which nothing in this app has access to) so they're applied here rather
- * than trusted from the model. The product photo is looked up from a
- * description the model is required to ground in words actually printed
- * on the receipt (see imageQuery below) — never from the store name or an
- * order number, which produced unrelated photos before this existed.
- * It's first searched against the store's own site (findStoreImage) so it
- * has a real chance of being that retailer's actual product photo, falling
- * back to a generic stock photo (findStockImage) only when that search
- * can't find or reach the store's site.
+ * than trusted from the model. Rather than guessing at a photo of the exact
+ * item (which a text-based image search kept getting wrong), each item just
+ * shows its brand's company logo — a much more reliable thing to fetch by
+ * name, via Clearbit's public logo API (see logoUrlFor below).
  */
 import express from 'express'
 import Anthropic from '@anthropic-ai/sdk'
 
 const PORT = Number(process.env.SCAN_PORT || 8789)
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY || ''
-const UNSPLASH_KEY = process.env.UNSPLASH_ACCESS_KEY || ''
-const GOOGLE_SEARCH_KEY = process.env.GOOGLE_SEARCH_API_KEY || ''
-const GOOGLE_SEARCH_CX = process.env.GOOGLE_SEARCH_CX || ''
 
 const anthropic = ANTHROPIC_API_KEY ? new Anthropic({ apiKey: ANTHROPIC_API_KEY }) : null
 
@@ -67,73 +60,16 @@ function guessStoreDomain(store) {
 }
 
 /**
- * Looks up a photo actually hosted on the store's own site (via a
- * site-restricted Google image search), so the photo has a real chance of
- * being that retailer's own product shot rather than an unrelated stock
- * photo. Still not a guarantee of the exact item — it's whatever image best
- * matches a short text description on that domain, and stores that don't
- * publish product photos, or whose site the domain guess misses, will
- * return nothing. Returns null (never throws) so a lookup failure never
- * blocks saving the purchase.
+ * Clearbit's logo API serves a company's logo directly from its domain —
+ * https://logo.clearbit.com/nike.com — with no key or request needed on our
+ * end; the browser just loads the URL as an <img src>. Since it's a direct
+ * image URL rather than a search result, there's nothing to fetch or
+ * validate server-side: an unrecognized domain simply 404s in the browser,
+ * which the client already treats as "no logo" for that item.
  */
-async function findStoreImage(store, query) {
-  if (!GOOGLE_SEARCH_KEY || !GOOGLE_SEARCH_CX || !query) return null
-  const domain = guessStoreDomain(store)
-  if (!domain) return null
-  try {
-    const params = new URLSearchParams({
-      key: GOOGLE_SEARCH_KEY,
-      cx: GOOGLE_SEARCH_CX,
-      q: query,
-      searchType: 'image',
-      num: '1',
-      safe: 'active',
-      siteSearch: domain,
-      siteSearchFilter: 'i',
-    })
-    const res = await fetch(`https://www.googleapis.com/customsearch/v1?${params}`)
-    if (!res.ok) return null
-    const data = await res.json()
-    const item = data.items?.[0]
-    if (!item?.link) return null
-    return {
-      url: item.link,
-      sourcePage: item.image?.contextLink || `https://${domain}`,
-      domain,
-    }
-  } catch {
-    return null
-  }
-}
-
-/**
- * A receipt line never carries a product photo, so absent a store-site
- * match this can only ever return a representative stock photo for a short
- * visual description drawn from what's actually printed on the receipt
- * (e.g. "red running shoes") — not the exact item, color, or model
- * purchased. Callers should treat it as decorative, not evidence. Returns
- * null (never throws) so a lookup failure can't block saving the purchase.
- */
-async function findStockImage(query) {
-  if (!UNSPLASH_KEY || !query) return null
-  try {
-    const res = await fetch(
-      `https://api.unsplash.com/search/photos?query=${encodeURIComponent(query)}&per_page=1&content_filter=high`,
-      { headers: { Authorization: `Client-ID ${UNSPLASH_KEY}` } }
-    )
-    if (!res.ok) return null
-    const data = await res.json()
-    const photo = data.results?.[0]
-    if (!photo) return null
-    return {
-      url: photo.urls.small,
-      photographerName: photo.user?.name || 'Unknown',
-      photographerUrl: photo.user?.links?.html || 'https://unsplash.com',
-      downloadLocation: photo.links?.download_location || null,
-    }
-  } catch {
-    return null
-  }
+function logoUrlFor(name) {
+  const domain = guessStoreDomain(name)
+  return domain ? `https://logo.clearbit.com/${domain}?size=160` : null
 }
 
 const RETURN_WINDOW_DAYS = {
@@ -280,11 +216,6 @@ const EXTRACT_SCHEMA = {
             enum: ['Electronics', 'Apparel', 'Home', 'Grocery', 'Other'],
             description: "Best-guess category of this item.",
           },
-          imageQuery: {
-            type: 'string',
-            description:
-              'A short 2-5 word visual description of this item, built ONLY from words that actually describe what it looks like on the receipt (e.g. "red running shoes", "stainless steel toaster", "65 inch flat screen tv"). Never include the store name, order numbers, SKUs, or model codes — those don\'t describe an appearance. Omit this field entirely if the line is just an order number or a code with no descriptive words.',
-          },
         },
         required: ['product', 'price'],
       },
@@ -379,64 +310,36 @@ app.post('/api/scan-receipt', async (req, res) => {
     // has something to fill in, rather than a receipt that silently vanishes.
     const rawItems = Array.isArray(data.items) && data.items.length ? data.items : [{}]
 
-    const items = await Promise.all(
-      rawItems.map(async (raw) => {
-        const itemMissing = []
-        if (!raw.product) itemMissing.push('product')
-        if (!raw.price) itemMissing.push('price')
+    const items = rawItems.map((raw) => {
+      const itemMissing = []
+      if (!raw.product) itemMissing.push('product')
+      if (!raw.price) itemMissing.push('price')
 
-        const category = raw.category && RETURN_WINDOW_DAYS[raw.category] ? raw.category : 'Other'
-        const returnDeadline = explicitReturnBy || addDays(purchaseDate, RETURN_WINDOW_DAYS[category])
-        const returnDeadlineSource = explicitReturnBy ? 'receipt' : 'estimated'
-        const warrantyYears = WARRANTY_YEARS[category]
-        const warrantyExpires = warrantyYears > 0 ? addYears(purchaseDate, warrantyYears) : null
-        if (warrantyYears === 0) itemMissing.push('warrantyExpires')
+      const category = raw.category && RETURN_WINDOW_DAYS[raw.category] ? raw.category : 'Other'
+      const returnDeadline = explicitReturnBy || addDays(purchaseDate, RETURN_WINDOW_DAYS[category])
+      const returnDeadlineSource = explicitReturnBy ? 'receipt' : 'estimated'
+      const warrantyYears = WARRANTY_YEARS[category]
+      const warrantyExpires = warrantyYears > 0 ? addYears(purchaseDate, warrantyYears) : null
+      if (warrantyYears === 0) itemMissing.push('warrantyExpires')
 
-        // Prefer the model's short visual description, but fall back to the
-        // raw product name so a lookup is still attempted when the model
-        // omitted imageQuery (e.g. a line that's mostly a SKU/code) — then
-        // lead with brand and color when known and not already part of that
-        // description, since "Nike black red running shoes" is a far more
-        // specific search than "red running shoes" alone. Size is left out —
-        // it doesn't change how the product looks and just adds search noise.
-        const baseQuery = raw.imageQuery || raw.product || ''
-        const searchQuery = [raw.brand, raw.color, baseQuery]
-          .filter(Boolean)
-          .filter((word) => word === baseQuery || !baseQuery.toLowerCase().includes(word.toLowerCase()))
-          .join(' ')
-
-        const storeImage = await findStoreImage(data.store, searchQuery)
-        const stockImage = storeImage ? null : await findStockImage(searchQuery)
-        if (stockImage?.downloadLocation) {
-          // Required by Unsplash's API guidelines whenever a photo is actually shown to a user.
-          fetch(stockImage.downloadLocation, {
-            headers: { Authorization: `Client-ID ${UNSPLASH_KEY}` },
-          }).catch(() => {})
-        }
-
-        return {
-          product: raw.product || '',
-          brand: raw.brand || data.store || '',
-          size: raw.size || null,
-          color: raw.color || null,
-          sku: raw.sku || null,
-          quantity: raw.quantity && raw.quantity > 1 ? Number(raw.quantity) : 1,
-          price: raw.price ? Number(raw.price) : '',
-          currentPrice: raw.price ? Number(raw.price) : '',
-          discount: raw.discount ?? null,
-          category,
-          returnDeadline,
-          returnDeadlineSource,
-          warrantyExpires,
-          missingFields: itemMissing,
-          imageUrl: storeImage?.url || stockImage?.url || null,
-          imageSource: storeImage ? 'store' : stockImage ? 'stock' : null,
-          imageStoreDomain: storeImage?.domain || null,
-          imageSourcePage: storeImage?.sourcePage || null,
-          imageCredit: stockImage ? { name: stockImage.photographerName, url: stockImage.photographerUrl } : null,
-        }
-      })
-    )
+      return {
+        product: raw.product || '',
+        brand: raw.brand || data.store || '',
+        size: raw.size || null,
+        color: raw.color || null,
+        sku: raw.sku || null,
+        quantity: raw.quantity && raw.quantity > 1 ? Number(raw.quantity) : 1,
+        price: raw.price ? Number(raw.price) : '',
+        currentPrice: raw.price ? Number(raw.price) : '',
+        discount: raw.discount ?? null,
+        category,
+        returnDeadline,
+        returnDeadlineSource,
+        warrantyExpires,
+        missingFields: itemMissing,
+        logoUrl: logoUrlFor(raw.brand || data.store),
+      }
+    })
 
     res.json({
       store: data.store || '',
@@ -470,7 +373,5 @@ app.post('/api/scan-receipt', async (req, res) => {
 app.listen(PORT, () => {
   const warnings = []
   if (!anthropic) warnings.push('no ANTHROPIC_API_KEY set — scans will fail')
-  if (!GOOGLE_SEARCH_KEY || !GOOGLE_SEARCH_CX) warnings.push('no GOOGLE_SEARCH_API_KEY/GOOGLE_SEARCH_CX set — no store product photos')
-  if (!UNSPLASH_KEY) warnings.push('no UNSPLASH_ACCESS_KEY set — no stock photo fallback')
   console.log(`ProofBack scan service listening on :${PORT}${warnings.length ? ' (' + warnings.join('; ') + ')' : ''}`)
 })

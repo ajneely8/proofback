@@ -428,6 +428,17 @@ a {
   justify-content: center;
 }
 
+.thumb--logo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px;
+}
+
+.thumb--logo img {
+  object-fit: contain;
+}
+
 .thumb--fallback span {
   font-size: 15px;
   font-weight: 700;
@@ -436,17 +447,20 @@ a {
 
 .product-image {
   margin-bottom: 16px;
+  display: flex;
+  justify-content: center;
+  padding: 20px;
+  background: var(--bg-subtle);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  animation: card-in 0.4s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .product-image img {
-  width: 100%;
-  aspect-ratio: 4 / 3;
-  object-fit: cover;
-  border-radius: var(--radius-md);
-  border: 1px solid var(--border);
+  max-width: 140px;
+  max-height: 72px;
+  object-fit: contain;
   display: block;
-  box-shadow: 0 4px 16px -8px rgba(20, 20, 20, 0.25);
-  animation: card-in 0.4s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .receipt-photo img {
