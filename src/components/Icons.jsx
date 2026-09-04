@@ -181,6 +181,20 @@ export function IconLogout(props) {
   )
 }
 
+export function IconBarcode(props) {
+  return (
+    <svg viewBox="0 0 24 24" width="18" height="18" {...base} {...props}>
+      <path d="M4 5v14" />
+      <path d="M7.5 5v14" />
+      <path d="M10 5v14" />
+      <path d="M13 5v14" />
+      <path d="M15.5 5v14" />
+      <path d="M18 5v14" />
+      <path d="M20 5v14" />
+    </svg>
+  )
+}
+
 export function IconClock(props) {
   return (
     <svg viewBox="0 0 24 24" width="16" height="16" {...base} {...props}>

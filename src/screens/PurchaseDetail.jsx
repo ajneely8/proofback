@@ -55,6 +55,7 @@ export default function PurchaseDetail() {
       product: purchase.product,
       color: purchase.color || '',
       size: purchase.size || '',
+      sku: purchase.sku || '',
       quantity: purchase.quantity || 1,
       price: purchase.price,
       purchaseDate: purchase.purchaseDate,
@@ -69,6 +70,7 @@ export default function PurchaseDetail() {
       product: draft.product,
       color: draft.color || null,
       size: draft.size || null,
+      sku: draft.sku || null,
       quantity: Number(draft.quantity) || 1,
       price: Number(draft.price),
       currentPrice: Number(draft.price),
@@ -129,6 +131,14 @@ export default function PurchaseDetail() {
               type="text"
               value={draft.size}
               onChange={(e) => setDraft({ ...draft, size: e.target.value })}
+            />
+          </div>
+          <div className="field-row">
+            <label>SKU</label>
+            <input
+              type="text"
+              value={draft.sku}
+              onChange={(e) => setDraft({ ...draft, sku: e.target.value })}
             />
           </div>
           <div className="field-row">
@@ -243,6 +253,24 @@ export default function PurchaseDetail() {
             <div className="detail-card__row">
               <span>Payment</span>
               <strong>{purchase.paymentMethod}</strong>
+            </div>
+          )}
+        </section>
+      )}
+
+      {(purchase.sku || purchase.barcode) && (
+        <section className="detail-card">
+          <div className="detail-card__label">Item Code</div>
+          {purchase.sku && (
+            <div className="detail-card__row">
+              <span>SKU</span>
+              <strong>{purchase.sku}</strong>
+            </div>
+          )}
+          {purchase.barcode && (
+            <div className="detail-card__row">
+              <span>Barcode</span>
+              <strong>{purchase.barcode}</strong>
             </div>
           )}
         </section>

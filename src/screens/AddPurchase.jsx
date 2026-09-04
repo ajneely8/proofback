@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { usePurchases } from '../lib/PurchasesContext.jsx'
-import { IconCamera, IconUpload, IconChevronLeft, IconCheck } from '../components/Icons.jsx'
+import { IconCamera, IconUpload, IconChevronLeft, IconCheck, IconBarcode } from '../components/Icons.jsx'
 import ProductImage from '../components/ProductImage.jsx'
+import BarcodeScanner, { isBarcodeScanSupported } from '../components/BarcodeScanner.jsx'
 
 function readFileAsBase64(file) {
   return new Promise((resolve, reject) => {
@@ -92,6 +93,7 @@ export default function AddPurchase() {
   const [extracted, setExtracted] = useState(null)
   const [errorKey, setErrorKey] = useState(null)
   const [scanStep, setScanStep] = useState(0)
+  const [barcodeTarget, setBarcodeTarget] = useState(null) // item index currently being scanned
   const { addPurchase } = usePurchases()
   const navigate = useNavigate()
   const cameraInputRef = useRef(null)
@@ -171,6 +173,11 @@ export default function AddPurchase() {
     return <p className="field-hint">{FIELD_HINTS[field]}</p>
   }
 
+  function handleBarcodeDetected(value) {
+    if (barcodeTarget != null) updateItem(barcodeTarget, 'barcode', value)
+    setBarcodeTarget(null)
+  }
+
   function itemHint(item, field) {
     if (!item.missingFields?.includes(field)) return null
     return <p className="field-hint">{FIELD_HINTS[field]}</p>
@@ -186,6 +193,8 @@ export default function AddPurchase() {
         product: item.product,
         size: item.size || null,
         color: item.color || null,
+        sku: item.sku || null,
+        barcode: item.barcode || null,
         quantity: item.quantity || 1,
         price: Number(item.price),
         currentPrice: Number(item.price),
@@ -229,6 +238,10 @@ export default function AddPurchase() {
 
   return (
     <div className="screen">
+      {barcodeTarget != null && (
+        <BarcodeScanner onDetect={handleBarcodeDetected} onClose={() => setBarcodeTarget(null)} />
+      )}
+
       <button className="back-link" onClick={() => navigate(-1)}>
         <IconChevronLeft />
         Back
@@ -488,6 +501,34 @@ export default function AddPurchase() {
                     onChange={(e) => updateItem(i, 'size', e.target.value)}
                   />
                 </div>
+              )}
+              {item.sku != null && (
+                <div className="field-row">
+                  <label>SKU</label>
+                  <input
+                    type="text"
+                    value={item.sku || ''}
+                    onChange={(e) => updateItem(i, 'sku', e.target.value)}
+                  />
+                </div>
+              )}
+              <div className="field-row">
+                <label>Barcode</label>
+                {item.barcode ? (
+                  <span className="field-row__static">{item.barcode}</span>
+                ) : isBarcodeScanSupported() ? (
+                  <button className="link-action link-action--inline" onClick={() => setBarcodeTarget(i)}>
+                    <IconBarcode width={15} height={15} />
+                    Scan
+                  </button>
+                ) : (
+                  <span className="field-row__static field-row__static--muted">Not supported on this device</span>
+                )}
+              </div>
+              {item.barcode && (
+                <button className="link-action" onClick={() => setBarcodeTarget(i)}>
+                  Rescan barcode
+                </button>
               )}
               {item.quantity > 1 && (
                 <div className="field-row">

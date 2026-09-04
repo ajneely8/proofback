@@ -257,6 +257,11 @@ const EXTRACT_SCHEMA = {
             description:
               'Color as printed on the receipt, if this line item has one (e.g. "BLACK", "Red/White"). Omit entirely if no color is printed for this item.',
           },
+          sku: {
+            type: 'string',
+            description:
+              'SKU, item number, or product code as printed on the receipt for this line (e.g. "SKU 4502761", "ITEM# 88291", a UPC number). Omit entirely if nothing like that is printed for this item.',
+          },
           quantity: {
             type: 'number',
             description: 'Quantity purchased, as printed (e.g. "QTY 2" -> 2). Omit if not printed; assumed 1.',
@@ -414,6 +419,7 @@ app.post('/api/scan-receipt', async (req, res) => {
           brand: raw.brand || data.store || '',
           size: raw.size || null,
           color: raw.color || null,
+          sku: raw.sku || null,
           quantity: raw.quantity && raw.quantity > 1 ? Number(raw.quantity) : 1,
           price: raw.price ? Number(raw.price) : '',
           currentPrice: raw.price ? Number(raw.price) : '',
