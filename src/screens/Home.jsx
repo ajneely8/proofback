@@ -16,7 +16,7 @@ export default function Home() {
       <div className="page-header">
         <div className="page-header__brand">
           <span className="brand-icon" />
-          ProofBack
+          <span><span className="brand-word">Proof</span><span className="brand-word brand-word--accent">Back</span></span>
         </div>
       </div>
 

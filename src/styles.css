@@ -83,7 +83,7 @@ a {
 
 .bottom-nav {
   display: flex;
-  border-top: 1px solid var(--border);
+  border-top: 2px solid var(--text-primary);
   background: var(--bg-app);
   padding: 8px 8px calc(8px + env(safe-area-inset-bottom));
 }
@@ -111,7 +111,7 @@ a {
 }
 
 .bottom-nav__item.is-active {
-  color: var(--accent-green);
+  color: var(--text-primary);
 }
 
 .bottom-nav__item.is-active svg {
@@ -171,6 +171,14 @@ a {
   font-size: 15px;
   font-weight: 700;
   letter-spacing: -0.01em;
+}
+
+.brand-word {
+  color: var(--accent-green);
+}
+
+.brand-word--accent {
+  color: var(--text-primary);
 }
 
 .brand-icon {
