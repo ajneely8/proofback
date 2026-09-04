@@ -9,6 +9,8 @@
   --text-tertiary: #9A9EA3;
   --border: #E7E7E5;
   --border-strong: #D8D9D6;
+  --accent-navy: #1B4B85;
+  --accent-navy-bg: #E8EFF7;
   --accent-green: #279A49;
   --accent-green-bg: #E7F4EB;
   --accent-warn: #B5502A;
@@ -83,7 +85,7 @@ a {
 
 .bottom-nav {
   display: flex;
-  border-top: 2px solid var(--text-primary);
+  border-top: 2px solid var(--accent-navy);
   background: var(--bg-app);
   padding: 8px 8px calc(8px + env(safe-area-inset-bottom));
 }
@@ -111,7 +113,7 @@ a {
 }
 
 .bottom-nav__item.is-active {
-  color: var(--text-primary);
+  color: var(--accent-navy);
 }
 
 .bottom-nav__item.is-active svg {
@@ -178,7 +180,7 @@ a {
 }
 
 .brand-word--accent {
-  color: var(--text-primary);
+  color: var(--accent-navy);
 }
 
 .brand-icon {
