@@ -1,15 +1,15 @@
-import { useState } from 'react'
-import { purchaseLogoUrl } from '../lib/logo.js'
+import { useMemo, useState } from 'react'
+import { purchaseLogoCandidates } from '../lib/logo.js'
 
 export default function Thumb({ purchase, size = 'md' }) {
-  const [failed, setFailed] = useState(false)
+  const candidates = useMemo(() => purchaseLogoCandidates(purchase), [purchase])
+  const [index, setIndex] = useState(0)
   const initial = (purchase.brand || purchase.store || '?').trim().charAt(0).toUpperCase()
-  const logoUrl = purchaseLogoUrl(purchase)
 
-  if (logoUrl && !failed) {
+  if (index < candidates.length) {
     return (
       <div className={`thumb thumb--${size} thumb--logo`}>
-        <img src={logoUrl} alt="" onError={() => setFailed(true)} />
+        <img src={candidates[index]} alt="" onError={() => setIndex((i) => i + 1)} />
       </div>
     )
   }

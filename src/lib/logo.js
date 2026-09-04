@@ -39,14 +39,26 @@ function guessDomain(name) {
   return guess ? `${guess}.com` : null
 }
 
-export function logoUrlFor(name) {
+// Clearbit's free logo endpoint has gotten unreliable (slow, rate-limited, or
+// outright unreachable depending on network) — so this tries it first for
+// quality, then falls back to Google's favicon service, which is far more
+// consistently up even though the result is a lower-resolution icon rather
+// than a full logo. Returns [] (not null) when there's no name to guess a
+// domain from at all, so callers can just check .length.
+export function logoCandidatesFor(name) {
   const domain = guessDomain(name)
-  return domain ? `https://logo.clearbit.com/${domain}?size=160` : null
+  if (!domain) return []
+  return [
+    `https://logo.clearbit.com/${domain}?size=160`,
+    `https://www.google.com/s2/favicons?domain=${domain}&sz=128`,
+  ]
 }
 
-// A purchase's own logoUrl (set at scan time) wins when present; otherwise
-// this computes one on the fly from brand/store, so older saved purchases
-// still get a logo instead of only ever showing the initial-letter badge.
-export function purchaseLogoUrl(purchase) {
-  return purchase.logoUrl || logoUrlFor(purchase.brand || purchase.store)
+// A purchase's own logoUrl (set at scan time) wins as the first candidate
+// when present; otherwise this computes candidates on the fly from
+// brand/store, so older saved purchases still get a logo instead of only
+// ever showing the initial-letter badge.
+export function purchaseLogoCandidates(purchase) {
+  const computed = logoCandidatesFor(purchase.brand || purchase.store)
+  return purchase.logoUrl ? [purchase.logoUrl, ...computed] : computed
 }
