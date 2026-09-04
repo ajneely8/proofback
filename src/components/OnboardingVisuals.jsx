@@ -63,6 +63,50 @@ export function FeatureRow() {
   )
 }
 
+const CAPABILITIES = [
+  {
+    Icon: IconClock,
+    title: 'Return deadlines, tracked automatically',
+    detail: 'Every purchase gets a countdown, so a window never closes without you knowing.',
+  },
+  {
+    Icon: IconTarget,
+    title: 'Price drops, caught for you',
+    detail: "If an item you bought gets cheaper, ProofBack flags it as money you're owed back.",
+  },
+  {
+    Icon: IconMail,
+    title: 'Refunds followed up automatically',
+    detail: "Expected a refund that never showed? ProofBack keeps it on your radar until it does.",
+  },
+  {
+    Icon: IconShield,
+    title: 'Warranties, never forgotten',
+    detail: 'Coverage windows are tracked in the background so a claim is never missed.',
+  },
+]
+
+// A fuller, denser rundown of what ProofBack automates in the background —
+// used on the first onboarding slide once the quick icon row isn't enough
+// detail on its own.
+export function CapabilityList() {
+  return (
+    <div className="ob-capabilities">
+      {CAPABILITIES.map(({ Icon, title, detail }) => (
+        <div className="ob-capabilities__row" key={title}>
+          <div className="ob-capabilities__icon">
+            <Icon width={16} height={16} />
+          </div>
+          <div>
+            <div className="ob-capabilities__title">{title}</div>
+            <div className="ob-capabilities__detail">{detail}</div>
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 // A minimal receipt outline with a scan line sweeping down it on a loop,
 // finishing with a brief checkmark — no camera icon or cartoon graphics,
 // just the shape of the thing being scanned.
@@ -104,6 +148,30 @@ export function MultiPageCombine() {
         <IconCheck width={12} height={12} />
         <span>1 purchase</span>
       </div>
+    </div>
+  )
+}
+
+const EXTRACTED_FIELDS = [
+  'Store name & location',
+  'Purchase date & time',
+  'Every item, not just one',
+  'Quantities & individual prices',
+  'Discounts, tax, and total',
+  "Return policy, when it's printed",
+]
+
+// What gets pulled off the photo automatically, so nothing has to be typed
+// in by hand — the concrete list, not just a vague "smart scanning" claim.
+export function ExtractChecklist() {
+  return (
+    <div className="ob-checklist">
+      {EXTRACTED_FIELDS.map((text) => (
+        <div className="ob-checklist__row" key={text}>
+          <IconCheck width={14} height={14} />
+          <span>{text}</span>
+        </div>
+      ))}
     </div>
   )
 }

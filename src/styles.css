@@ -978,7 +978,8 @@ a {
   flex: 1;
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  justify-content: flex-start;
+  padding-top: 8px;
   padding-bottom: 40px;
 }
 
@@ -1067,6 +1068,76 @@ a {
 .ob-features__item svg {
   color: var(--accent-green);
   flex-shrink: 0;
+}
+
+.ob-capabilities {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  margin-top: 20px;
+  padding-top: 18px;
+  border-top: 1px solid var(--border);
+}
+
+.ob-capabilities__row {
+  display: flex;
+  gap: 12px;
+  padding: 11px 0;
+}
+
+.ob-capabilities__icon {
+  flex-shrink: 0;
+  width: 30px;
+  height: 30px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  color: var(--accent-green);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ob-capabilities__title {
+  font-size: 13.5px;
+  font-weight: 700;
+  margin-bottom: 2px;
+}
+
+.ob-capabilities__detail {
+  font-size: 12.5px;
+  color: var(--text-secondary);
+  line-height: 1.45;
+}
+
+.ob-checklist {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.ob-checklist__row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 7px 0;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.ob-checklist__row svg {
+  flex-shrink: 0;
+  color: var(--accent-green);
+  background: var(--accent-green-bg);
+  border-radius: 50%;
+  padding: 3px;
+  width: 20px;
+  height: 20px;
+  box-sizing: border-box;
 }
 
 /* ---------- Onboarding: slide 2 — receipt scan ---------- */

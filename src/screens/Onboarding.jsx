@@ -3,8 +3,10 @@ import { setOnboarded } from '../lib/storage.js'
 import {
   MoneyCounter,
   FeatureRow,
+  CapabilityList,
   ReceiptScan,
   MultiPageCombine,
+  ExtractChecklist,
   NotificationStack,
   HowItWorksStepper,
 } from '../components/OnboardingVisuals.jsx'
@@ -12,15 +14,15 @@ import {
 const SLIDES = [
   {
     title: 'Stop leaving money behind.',
-    body: "ProofBack keeps track of returns, refunds, warranties, and price changes so you don't have to.",
+    body: "ProofBack watches every purchase you add and automatically works out what it's still worth acting on — no manual checking, no spreadsheets.",
     Visual: MoneyCounter,
-    Extra: FeatureRow,
+    extras: [FeatureRow, CapabilityList],
   },
   {
     title: 'Add your purchases.',
-    body: 'Scan a receipt or upload one from your phone — ProofBack reads the store, items, prices, and dates for you.',
+    body: "Scan a receipt or upload one from your phone. ProofBack reads it automatically — you shouldn't have to type in anything it can already see.",
     Visual: ReceiptScan,
-    Extra: MultiPageCombine,
+    extras: [MultiPageCombine, ExtractChecklist],
     detail: "Long receipt? Add multiple pages and they'll combine into one purchase — no duplicate items.",
   },
   {
@@ -42,7 +44,7 @@ export default function Onboarding({ onDone }) {
   const isLast = index === SLIDES.length - 1
   const slide = SLIDES[index]
   const Visual = slide.Visual
-  const Extra = slide.Extra
+  const extras = slide.extras || []
 
   function handleNext() {
     if (isLast) {
@@ -67,7 +69,9 @@ export default function Onboarding({ onDone }) {
         <h1>{slide.title}</h1>
         <p>{slide.body}</p>
         {slide.detail && <p className="onboarding__detail">{slide.detail}</p>}
-        {Extra && <Extra />}
+        {extras.map((Extra, i) => (
+          <Extra key={i} />
+        ))}
       </div>
 
       <div className="onboarding__dots">
