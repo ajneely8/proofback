@@ -1,5 +1,4 @@
 import {
-  INITIAL_PURCHASES,
   STORAGE_KEY,
   ONBOARDING_KEY,
   SETTINGS_KEY,
@@ -9,11 +8,11 @@ import {
 export function loadPurchases() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
-    if (!raw) return INITIAL_PURCHASES
+    if (!raw) return []
     const parsed = JSON.parse(raw)
-    return Array.isArray(parsed) && parsed.length ? parsed : INITIAL_PURCHASES
+    return Array.isArray(parsed) ? parsed : []
   } catch {
-    return INITIAL_PURCHASES
+    return []
   }
 }
 
