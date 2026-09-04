@@ -2,13 +2,15 @@
   --bg-page: #EDEDEB;
   --bg-app: #FFFFFF;
   --bg-subtle: #FAFAF9;
-  --text-primary: #17181A;
+  /* Brand navy & green, sampled directly from the ProofBack logo — not a
+     generic dark/green pair, the actual on-brand colors. */
+  --text-primary: #112334;
   --text-secondary: #6B7075;
   --text-tertiary: #9A9EA3;
   --border: #E7E7E5;
   --border-strong: #D8D9D6;
-  --accent-green: #1E7A4C;
-  --accent-green-bg: #EAF4EE;
+  --accent-green: #279A49;
+  --accent-green-bg: #E7F4EB;
   --accent-warn: #B5502A;
   --accent-warn-bg: #FBEEE7;
   --radius-sm: 8px;
@@ -1399,29 +1401,34 @@ a {
 
 /* ---------- Onboarding: slide 3 — notification stack ---------- */
 
+/* One card visible at a time in a fixed-height slot, cross-fading through
+   the list — the previous version stacked all cards permanently with only
+   8px between them and let several be visible mid-fade at once, which read
+   as crowded rather than a rotating notification. */
 .ob-notifs {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+  position: relative;
   width: 100%;
   max-width: 280px;
+  height: 60px;
 }
 
 .ob-notifs__card {
+  position: absolute;
+  inset: 0;
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 10px 12px;
+  gap: 10px;
+  padding: 14px 16px;
   background: var(--bg-app);
   border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  box-shadow: 0 1px 2px rgba(20, 20, 20, 0.06);
-  font-size: 12px;
-  font-weight: 500;
+  border-radius: var(--radius-md);
+  box-shadow: 0 2px 8px -2px rgba(20, 20, 20, 0.1);
+  font-size: 13px;
+  font-weight: 600;
   color: var(--text-primary);
   opacity: 0;
   transform: translateY(6px);
-  animation: ob-notif-in 4.2s ease-in-out infinite;
+  animation: ob-notif-in 5.2s ease-in-out infinite;
 }
 
 .ob-notifs__card svg {
@@ -1430,16 +1437,17 @@ a {
 }
 
 @keyframes ob-notif-in {
-  0% {
+  0%,
+  100% {
     opacity: 0;
     transform: translateY(6px);
   }
-  10%,
-  85% {
+  4%,
+  21% {
     opacity: 1;
     transform: translateY(0);
   }
-  100% {
+  25% {
     opacity: 0;
     transform: translateY(-4px);
   }
