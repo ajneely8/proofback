@@ -500,13 +500,13 @@ export default function AddPurchase() {
               {extracted.tax != null && (
                 <div className="detail-card__row">
                   <span>Tax</span>
-                  <strong className="text-accent">${Number(extracted.tax).toFixed(2)}</strong>
+                  <strong className="text-accent">+${Number(extracted.tax).toFixed(2)}</strong>
                 </div>
               )}
               {extracted.tip != null && (
                 <div className="detail-card__row">
                   <span>Tip</span>
-                  <strong className="text-accent">${Number(extracted.tip).toFixed(2)}</strong>
+                  <strong className="text-accent">+${Number(extracted.tip).toFixed(2)}</strong>
                 </div>
               )}
               {extracted.total != null && (

@@ -265,13 +265,13 @@ export default function PurchaseDetail() {
           {purchase.tax != null && (
             <div className="detail-card__row">
               <span>Tax</span>
-              <strong className="text-accent">{formatMoney(purchase.tax)}</strong>
+              <strong className="text-accent">+{formatMoney(purchase.tax)}</strong>
             </div>
           )}
           {purchase.tip != null && (
             <div className="detail-card__row">
               <span>Tip</span>
-              <strong className="text-accent">{formatMoney(purchase.tip)}</strong>
+              <strong className="text-accent">+{formatMoney(purchase.tip)}</strong>
             </div>
           )}
           {purchase.total != null && (
