@@ -939,6 +939,7 @@ a {
   display: flex;
   align-items: center;
   justify-content: flex-end;
+  gap: 2px;
   flex: 1;
   min-width: 0;
 }
@@ -951,7 +952,9 @@ a {
 
 .field-row__money input {
   flex: 0 1 auto;
-  width: 4.5em;
+  width: 4em;
+  padding: 0;
+  text-align: left;
 }
 
 .field-hint {
