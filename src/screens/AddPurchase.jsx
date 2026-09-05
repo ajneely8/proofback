@@ -606,12 +606,15 @@ export default function AddPurchase() {
               )}
               <div className="field-row">
                 <label>Price</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={item.price}
-                  onChange={(e) => updateItem(i, 'price', e.target.value)}
-                />
+                <div className="field-row__money">
+                  <span>$</span>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={item.price}
+                    onChange={(e) => updateItem(i, 'price', e.target.value)}
+                  />
+                </div>
               </div>
               {itemHint(item, 'price')}
               {item.discount != null && (

@@ -935,6 +935,25 @@ a {
   flex: 1;
 }
 
+.field-row__money {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex: 1;
+  min-width: 0;
+}
+
+.field-row__money span {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.field-row__money input {
+  flex: 0 1 auto;
+  width: 4.5em;
+}
+
 .field-hint {
   margin: 6px 0 12px;
   font-size: 12px;

@@ -178,12 +178,15 @@ export default function PurchaseDetail() {
           </div>
           <div className="field-row">
             <label>Price</label>
-            <input
-              type="number"
-              step="0.01"
-              value={draft.price}
-              onChange={(e) => setDraft({ ...draft, price: e.target.value })}
-            />
+            <div className="field-row__money">
+              <span>$</span>
+              <input
+                type="number"
+                step="0.01"
+                value={draft.price}
+                onChange={(e) => setDraft({ ...draft, price: e.target.value })}
+              />
+            </div>
           </div>
           <div className="field-row">
             <label>Purchased</label>
