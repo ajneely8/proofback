@@ -70,7 +70,7 @@ export default function Insights() {
             <div className="category-bars__row" key={c.category}>
               <div className="category-bars__head">
                 <span>{c.category}</span>
-                <strong>{formatMoney(c.total)}</strong>
+                <strong className="text-accent">{formatMoney(c.total)}</strong>
               </div>
               <div className="category-bars__track">
                 <div

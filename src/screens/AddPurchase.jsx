@@ -488,31 +488,31 @@ export default function AddPurchase() {
               {extracted.subtotal != null && (
                 <div className="detail-card__row">
                   <span>Subtotal</span>
-                  <strong>${Number(extracted.subtotal).toFixed(2)}</strong>
+                  <strong className="text-accent">${Number(extracted.subtotal).toFixed(2)}</strong>
                 </div>
               )}
               {extracted.discount != null && (
                 <div className="detail-card__row">
                   <span>Discount</span>
-                  <strong className="text-accent">-${Number(extracted.discount).toFixed(2)}</strong>
+                  <strong className="text-warning">-${Number(extracted.discount).toFixed(2)}</strong>
                 </div>
               )}
               {extracted.tax != null && (
                 <div className="detail-card__row">
                   <span>Tax</span>
-                  <strong>${Number(extracted.tax).toFixed(2)}</strong>
+                  <strong className="text-accent">${Number(extracted.tax).toFixed(2)}</strong>
                 </div>
               )}
               {extracted.tip != null && (
                 <div className="detail-card__row">
                   <span>Tip</span>
-                  <strong>${Number(extracted.tip).toFixed(2)}</strong>
+                  <strong className="text-accent">${Number(extracted.tip).toFixed(2)}</strong>
                 </div>
               )}
               {extracted.total != null && (
                 <div className="detail-card__row">
                   <span>Total</span>
-                  <strong>${Number(extracted.total).toFixed(2)}</strong>
+                  <strong className="text-accent">${Number(extracted.total).toFixed(2)}</strong>
                 </div>
               )}
               {extracted.paymentMethod && (
@@ -620,7 +620,7 @@ export default function AddPurchase() {
               {item.discount != null && (
                 <div className="field-row">
                   <label>Discount</label>
-                  <span className="field-row__static text-accent">-${Number(item.discount).toFixed(2)}</span>
+                  <span className="field-row__static text-warning">-${Number(item.discount).toFixed(2)}</span>
                 </div>
               )}
               <div className="field-row">

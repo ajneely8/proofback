@@ -253,31 +253,31 @@ export default function PurchaseDetail() {
           {purchase.subtotal != null && (
             <div className="detail-card__row">
               <span>Subtotal</span>
-              <strong>{formatMoney(purchase.subtotal)}</strong>
+              <strong className="text-accent">{formatMoney(purchase.subtotal)}</strong>
             </div>
           )}
           {purchase.discount != null && (
             <div className="detail-card__row">
               <span>Discount</span>
-              <strong className="text-accent">-{formatMoney(purchase.discount)}</strong>
+              <strong className="text-warning">-{formatMoney(purchase.discount)}</strong>
             </div>
           )}
           {purchase.tax != null && (
             <div className="detail-card__row">
               <span>Tax</span>
-              <strong>{formatMoney(purchase.tax)}</strong>
+              <strong className="text-accent">{formatMoney(purchase.tax)}</strong>
             </div>
           )}
           {purchase.tip != null && (
             <div className="detail-card__row">
               <span>Tip</span>
-              <strong>{formatMoney(purchase.tip)}</strong>
+              <strong className="text-accent">{formatMoney(purchase.tip)}</strong>
             </div>
           )}
           {purchase.total != null && (
             <div className="detail-card__row">
               <span>Total</span>
-              <strong>{formatMoney(purchase.total)}</strong>
+              <strong className="text-accent">{formatMoney(purchase.total)}</strong>
             </div>
           )}
           {purchase.paymentMethod && (
@@ -312,7 +312,7 @@ export default function PurchaseDetail() {
           <div className="detail-card__label">Item Discount</div>
           <div className="detail-card__row">
             <span>Discount applied to this item</span>
-            <strong className="text-accent">-{formatMoney(purchase.itemDiscount)}</strong>
+            <strong className="text-warning">-{formatMoney(purchase.itemDiscount)}</strong>
           </div>
         </section>
       )}
