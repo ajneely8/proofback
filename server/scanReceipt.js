@@ -28,7 +28,12 @@ dns.setDefaultResultOrder('ipv4first')
 
 let anthropic = null
 function getClient() {
-  const key = process.env.ANTHROPIC_API_KEY || ''
+  // A stray trailing newline or space pasted into an env var UI (Vercel's
+  // included) makes the SDK reject it while building the request headers —
+  // a TypeError, not an auth error, which the SDK's fetch wrapper then
+  // reports as a generic, misleading "Connection error". Trimming here
+  // means a slightly-off paste still works instead of failing this way.
+  const key = (process.env.ANTHROPIC_API_KEY || '').trim()
   if (!key) return null
   if (!anthropic) anthropic = new Anthropic({ apiKey: key, maxRetries: 2 })
   return anthropic
