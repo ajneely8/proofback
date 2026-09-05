@@ -2127,29 +2127,23 @@ a {
 .status-chips {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 4px 14px;
   margin-top: 8px;
 }
 
 .status-chip {
   font-size: 12px;
   font-weight: 600;
-  padding: 4px 10px;
-  border-radius: 999px;
-  white-space: nowrap;
 }
 
 .status-chip--good {
   color: var(--accent-green);
-  background: var(--accent-green-bg);
 }
 
 .status-chip--warn {
   color: var(--accent-warn);
-  background: var(--accent-warn-bg);
 }
 
 .status-chip--neutral {
   color: var(--text-tertiary);
-  background: var(--bg-subtle);
 }
