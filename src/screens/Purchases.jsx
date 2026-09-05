@@ -1,9 +1,10 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { usePurchases } from '../lib/PurchasesContext.jsx'
-import { formatDate, formatMoney, priceDrop, productLabel, refundMissing, returnIsOpen } from '../lib/derive.js'
-import { IconSearch } from '../components/Icons.jsx'
+import { formatDate, formatMoney, priceDrop, productLabel, refundMissing, returnIsOpen, categoryColor } from '../lib/derive.js'
+import { IconSearch, IconList } from '../components/Icons.jsx'
 import Thumb from '../components/Thumb.jsx'
+import EmptyState from '../components/EmptyState.jsx'
 
 const FILTERS = ['All', 'Returns', 'Warranties', 'Refunds', 'Price Drops']
 
@@ -70,9 +71,20 @@ export default function Purchases() {
       </div>
 
       <div className="list">
-        {filtered.length === 0 && <p className="empty-note">No purchases match.</p>}
+        {filtered.length === 0 && (
+          <EmptyState
+            icon={IconList}
+            title="No purchases match"
+            detail="Try a different filter or search term."
+          />
+        )}
         {filtered.map((p) => (
-          <Link to={`/purchases/${p.id}`} key={p.id} className="list-row list-row--simple">
+          <Link
+            to={`/purchases/${p.id}`}
+            key={p.id}
+            className="list-row list-row--simple"
+            style={{ '--row-accent': categoryColor(p.category) }}
+          >
             <Thumb purchase={p} />
             <div className="list-row__main">
               <div className="list-row__title">{productLabel(p)}</div>

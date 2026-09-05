@@ -266,6 +266,13 @@ a {
   font-size: 28px;
 }
 
+.summary--with-chart {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
 /* ---------- Buttons ---------- */
 
 .btn {
@@ -364,7 +371,7 @@ a {
   align-items: flex-start;
   justify-content: space-between;
   gap: 16px;
-  padding: 14px 8px;
+  padding: 14px 8px 14px 13px;
   margin: 0 -8px;
   border-radius: var(--radius-sm);
   border-bottom: 1px solid var(--border);
@@ -378,6 +385,7 @@ a {
   cursor: pointer;
   transition: background 0.15s ease, transform 0.15s ease;
   animation: card-in 0.3s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+  box-shadow: inset 3px 0 0 0 var(--row-accent, transparent);
 }
 
 .list-row:nth-child(1) { animation-delay: 0.02s; }
@@ -543,6 +551,17 @@ a {
   flex-shrink: 0;
 }
 
+.list-row__action--stacked {
+  flex-direction: column;
+  gap: 6px;
+}
+
+.list-row__view {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
 .list-row__trailing {
   text-align: right;
   flex-shrink: 0;
@@ -685,9 +704,10 @@ a {
   display: flex;
   align-items: flex-start;
   gap: 16px;
-  padding: 16px 0;
+  padding: 16px 0 16px 11px;
   border-bottom: 1px solid var(--border);
   animation: card-in 0.3s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+  box-shadow: inset 3px 0 0 0 var(--row-accent, transparent);
 }
 
 .opp-row:last-child {
@@ -842,19 +862,6 @@ a {
   font-size: 13px;
   color: var(--text-secondary);
   text-decoration: underline;
-}
-
-.spinner {
-  width: 22px;
-  height: 22px;
-  border: 2.5px solid var(--border-strong);
-  border-top-color: var(--text-primary);
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
 }
 
 .confirm-prompt {
@@ -1826,4 +1833,92 @@ a {
   background: rgba(255, 255, 255, 0.12);
   padding: 6px 14px;
   border-radius: 999px;
+}
+
+/* ---------- Radial progress (days-left ring) ---------- */
+
+.radial-progress {
+  flex-shrink: 0;
+}
+
+.radial-progress circle:nth-child(2) {
+  transition: stroke-dashoffset 0.5s ease;
+}
+
+.radial-progress__text {
+  font-size: 11px;
+  font-weight: 700;
+  fill: var(--text-primary);
+  font-family: var(--font);
+}
+
+/* ---------- Sparkline (savings trend) ---------- */
+
+.sparkline {
+  overflow: visible;
+}
+
+.sparkline__area {
+  fill: var(--accent-green);
+  opacity: 0.12;
+}
+
+.sparkline__line {
+  fill: none;
+  stroke: var(--accent-green);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.sparkline__dot {
+  fill: var(--accent-green);
+}
+
+/* ---------- Empty state ---------- */
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 32px 20px;
+  gap: 10px;
+}
+
+.empty-state__icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-tertiary);
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  animation: empty-icon-pulse 2.6s ease-in-out infinite;
+}
+
+.empty-state__title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.empty-state__detail {
+  font-size: 13px;
+  color: var(--text-tertiary);
+  line-height: 1.5;
+  max-width: 280px;
+}
+
+@keyframes empty-icon-pulse {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(39, 154, 73, 0.12);
+  }
+  50% {
+    transform: scale(1.05);
+    box-shadow: 0 0 0 8px rgba(39, 154, 73, 0);
+  }
 }

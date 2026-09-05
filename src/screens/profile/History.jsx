@@ -1,8 +1,10 @@
 import { useNavigate } from 'react-router-dom'
 import { usePurchases } from '../../lib/PurchasesContext.jsx'
-import { getSavingsEvents, getTotalSaved, formatDate, formatMoney, productLabel } from '../../lib/derive.js'
-import { IconChevronLeft, IconChevronRight } from '../../components/Icons.jsx'
+import { getSavingsEvents, getTotalSaved, formatDate, formatMoney, productLabel, categoryColor } from '../../lib/derive.js'
+import { IconChevronLeft, IconChevronRight, IconClock, IconDoc } from '../../components/Icons.jsx'
 import Thumb from '../../components/Thumb.jsx'
+import Sparkline from '../../components/Sparkline.jsx'
+import EmptyState from '../../components/EmptyState.jsx'
 
 export default function History() {
   const navigate = useNavigate()
@@ -23,21 +25,25 @@ export default function History() {
         <h1>History</h1>
       </div>
 
-      <section className="summary summary--compact">
-        <div className="summary__label">Saved over time</div>
-        <div className="summary__amount">{formatMoney(totalSaved)}</div>
-        <div className="summary__hint">
-          From {events.length} confirmed return{events.length === 1 ? '' : 's'}, refund{events.length === 1 ? '' : 's'}, and price adjustment{events.length === 1 ? '' : 's'}
+      <section className="summary summary--compact summary--with-chart">
+        <div>
+          <div className="summary__label">Saved over time</div>
+          <div className="summary__amount">{formatMoney(totalSaved)}</div>
+          <div className="summary__hint">
+            From {events.length} confirmed return{events.length === 1 ? '' : 's'}, refund{events.length === 1 ? '' : 's'}, and price adjustment{events.length === 1 ? '' : 's'}
+          </div>
         </div>
+        <Sparkline events={events} />
       </section>
 
       <section className="section">
         <div className="section__title">Savings timeline</div>
         {events.length === 0 ? (
-          <p className="empty-note">
-            Nothing confirmed yet — mark a return complete, a refund received, or a price adjustment
-            applied on a purchase to start building your savings history.
-          </p>
+          <EmptyState
+            icon={IconClock}
+            title="Nothing confirmed yet"
+            detail="Mark a return complete, a refund received, or a price adjustment applied on a purchase to start building your savings history."
+          />
         ) : (
           <div className="list">
             {events.map((e) => (
@@ -45,6 +51,7 @@ export default function History() {
                 key={e.id}
                 className="list-row"
                 onClick={() => navigate(`/purchases/${e.purchase.id}`)}
+                style={{ '--row-accent': categoryColor(e.purchase.category) }}
               >
                 <Thumb purchase={e.purchase} />
                 <div className="list-row__main">
@@ -65,30 +72,39 @@ export default function History() {
 
       <section className="section">
         <div className="section__title">All receipts</div>
-        <div className="list">
-          {receipts.map((p) => {
-            const receiptPhoto = p.receiptImageUrls?.[0] || p.receiptImageUrl || null
-            return (
-              <button key={p.id} className="list-row list-row--simple" onClick={() => navigate(`/purchases/${p.id}`)}>
-                {receiptPhoto ? (
-                  <div className="thumb thumb--md">
-                    <img src={receiptPhoto} alt="" />
+        {receipts.length === 0 ? (
+          <EmptyState icon={IconDoc} title="No receipts yet" detail="Scan or add a purchase to see it here." />
+        ) : (
+          <div className="list">
+            {receipts.map((p) => {
+              const receiptPhoto = p.receiptImageUrls?.[0] || p.receiptImageUrl || null
+              return (
+                <button
+                  key={p.id}
+                  className="list-row list-row--simple"
+                  onClick={() => navigate(`/purchases/${p.id}`)}
+                  style={{ '--row-accent': categoryColor(p.category) }}
+                >
+                  {receiptPhoto ? (
+                    <div className="thumb thumb--md">
+                      <img src={receiptPhoto} alt="" />
+                    </div>
+                  ) : (
+                    <Thumb purchase={p} />
+                  )}
+                  <div className="list-row__main">
+                    <div className="list-row__title">{productLabel(p)}</div>
+                    <div className="list-row__line">{formatDate(p.purchaseDate)}</div>
                   </div>
-                ) : (
-                  <Thumb purchase={p} />
-                )}
-                <div className="list-row__main">
-                  <div className="list-row__title">{productLabel(p)}</div>
-                  <div className="list-row__line">{formatDate(p.purchaseDate)}</div>
-                </div>
-                <div className="list-row__trailing">
-                  <div className="list-row__price">{formatMoney(p.price)}</div>
-                  {!receiptPhoto && <div className="list-row__line">No receipt photo</div>}
-                </div>
-              </button>
-            )
-          })}
-        </div>
+                  <div className="list-row__trailing">
+                    <div className="list-row__price">{formatMoney(p.price)}</div>
+                    {!receiptPhoto && <div className="list-row__line">No receipt photo</div>}
+                  </div>
+                </button>
+              )
+            })}
+          </div>
+        )}
       </section>
     </div>
   )

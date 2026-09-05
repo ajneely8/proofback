@@ -1,9 +1,11 @@
 import { Link } from 'react-router-dom'
 import { usePurchases } from '../lib/PurchasesContext.jsx'
 import { useSettings } from '../lib/SettingsContext.jsx'
-import { getNeedsAttention, totalRecoverable, formatMoney } from '../lib/derive.js'
-import { IconPlus, IconCamera, IconChevronRight } from '../components/Icons.jsx'
+import { getNeedsAttention, totalRecoverable, formatMoney, categoryColor } from '../lib/derive.js'
+import { IconPlus, IconCamera, IconChevronRight, IconCheck } from '../components/Icons.jsx'
 import Thumb from '../components/Thumb.jsx'
+import RadialProgress from '../components/RadialProgress.jsx'
+import EmptyState from '../components/EmptyState.jsx'
 
 export default function Home() {
   const { purchases } = usePurchases()
@@ -41,11 +43,20 @@ export default function Home() {
         <div className="section__title">Needs attention</div>
 
         {needsAttention.length === 0 ? (
-          <p className="empty-note">Nothing needs your attention right now.</p>
+          <EmptyState
+            icon={IconCheck}
+            title="Nothing needs your attention"
+            detail="Return windows, warranties, and refunds are all caught up."
+          />
         ) : (
           <div className="list">
             {needsAttention.map((item) => (
-              <Link to={`/purchases/${item.purchase.id}`} key={item.id} className="list-row">
+              <Link
+                to={`/purchases/${item.purchase.id}`}
+                key={item.id}
+                className="list-row"
+                style={{ '--row-accent': categoryColor(item.purchase.category) }}
+              >
                 <Thumb purchase={item.purchase} />
                 <div className="list-row__main">
                   <div className="list-row__title">{item.label}</div>
@@ -57,9 +68,14 @@ export default function Home() {
                     <div className="list-row__line list-row__line--accent">{item.secondaryText}</div>
                   )}
                 </div>
-                <div className="list-row__action">
-                  View
-                  <IconChevronRight />
+                <div className="list-row__action list-row__action--stacked">
+                  {item.daysLeft != null && (
+                    <RadialProgress daysLeft={item.daysLeft} windowDays={item.windowDays} urgent={item.urgent} />
+                  )}
+                  <span className="list-row__view">
+                    View
+                    <IconChevronRight />
+                  </span>
                 </div>
               </Link>
             ))}

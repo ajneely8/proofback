@@ -5,6 +5,7 @@ import { IconCamera, IconUpload, IconChevronLeft, IconCheck, IconBarcode } from 
 import ProductImage from '../components/ProductImage.jsx'
 import BarcodeScanner, { isBarcodeScanSupported } from '../components/BarcodeScanner.jsx'
 import ReceiptViewer from '../components/ReceiptViewer.jsx'
+import { ReceiptScan } from '../components/OnboardingVisuals.jsx'
 
 // Downscales and re-encodes a photo as a compressed JPEG data URL, rather
 // than sending/storing it at full camera resolution — a phone photo can
@@ -331,7 +332,7 @@ export default function AddPurchase() {
 
       {stage === 'scanning' && (
         <div className="scan-area scan-area--loading">
-          <div className="spinner" />
+          <ReceiptScan />
           <span>{SCAN_STEPS[scanStep]}</span>
         </div>
       )}

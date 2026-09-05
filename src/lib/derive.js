@@ -187,6 +187,21 @@ export function productLabel(p) {
   return `${p.brand} ${p.product}${p.quantity > 1 ? ` ×${p.quantity}` : ''}${suffix ? ` — ${suffix}` : ''}`
 }
 
+// One color per category, used as a quick-scan left-border/badge accent on
+// list rows so the list reads at a glance instead of every row looking
+// identical regardless of what it actually is.
+const CATEGORY_COLORS = {
+  Electronics: '#2E6FBF',
+  Apparel: '#8A5CF6',
+  Home: '#279A49',
+  Grocery: '#C98A12',
+  Other: '#9A9EA3',
+}
+
+export function categoryColor(category) {
+  return CATEGORY_COLORS[category] || CATEGORY_COLORS.Other
+}
+
 export function getNeedsAttention(purchases, notifications = DEFAULT_SETTINGS.notifications) {
   const items = []
 
@@ -201,6 +216,8 @@ export function getNeedsAttention(purchases, notifications = DEFAULT_SETTINGS.no
         primaryText: `Return deadline: ${formatDate(p.returnDeadline)}`,
         secondaryText: drop > 0 ? `Potential savings: ${formatMoney(drop)}` : null,
         urgent: daysLeft <= 7,
+        daysLeft,
+        windowDays: 30,
       })
     } else if (refundMissing(p) && notifications.refundAlerts) {
       items.push({
@@ -210,6 +227,8 @@ export function getNeedsAttention(purchases, notifications = DEFAULT_SETTINGS.no
         primaryText: `Refund expected: ${formatDate(p.refund.expectedDate)}`,
         secondaryText: 'Refund not received',
         urgent: true,
+        daysLeft: null,
+        windowDays: null,
       })
     }
 
@@ -222,6 +241,8 @@ export function getNeedsAttention(purchases, notifications = DEFAULT_SETTINGS.no
         primaryText: `Warranty expires: ${formatDate(p.warrantyExpires)}`,
         secondaryText: null,
         urgent: warrantyDaysLeft <= 7,
+        daysLeft: warrantyDaysLeft,
+        windowDays: 30,
       })
     }
   })
