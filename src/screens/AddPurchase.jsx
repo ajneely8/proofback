@@ -4,6 +4,7 @@ import { usePurchases } from '../lib/PurchasesContext.jsx'
 import { IconCamera, IconUpload, IconChevronLeft, IconCheck, IconBarcode } from '../components/Icons.jsx'
 import ProductImage from '../components/ProductImage.jsx'
 import BarcodeScanner, { isBarcodeScanSupported } from '../components/BarcodeScanner.jsx'
+import ReceiptViewer from '../components/ReceiptViewer.jsx'
 
 function readFileAsBase64(file) {
   return new Promise((resolve, reject) => {
@@ -94,6 +95,7 @@ export default function AddPurchase() {
   const [errorKey, setErrorKey] = useState(null)
   const [scanStep, setScanStep] = useState(0)
   const [barcodeTarget, setBarcodeTarget] = useState(null) // item index currently being scanned
+  const [viewerIndex, setViewerIndex] = useState(null) // receipt page index currently being viewed closely
   const { addPurchase } = usePurchases()
   const navigate = useNavigate()
   const cameraInputRef = useRef(null)
@@ -358,11 +360,26 @@ export default function AddPurchase() {
             <div className="receipt-photo receipt-photo--review">
               <div className="page-strip">
                 {extracted.receiptImageUrls.map((url, i) => (
-                  <img key={i} src={url} alt={`Receipt page ${i + 1}`} className="page-strip__photo" />
+                  <button
+                    key={i}
+                    className="page-strip__photo-btn"
+                    onClick={() => setViewerIndex(i)}
+                    aria-label={`View receipt page ${i + 1} closely`}
+                  >
+                    <img src={url} alt={`Receipt page ${i + 1}`} className="page-strip__photo" />
+                  </button>
                 ))}
               </div>
-              <p className="receipt-photo__caption">Your scanned receipt — saved so you can look back at it later.</p>
+              <p className="receipt-photo__caption">Your scanned receipt — tap a page to view it closely.</p>
             </div>
+          )}
+
+          {viewerIndex !== null && (
+            <ReceiptViewer
+              images={extracted.receiptImageUrls}
+              startIndex={viewerIndex}
+              onClose={() => setViewerIndex(null)}
+            />
           )}
 
           <section className="detail-card">

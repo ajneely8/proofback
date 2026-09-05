@@ -4,6 +4,7 @@ import { usePurchases } from '../lib/PurchasesContext.jsx'
 import { daysUntil, formatDate, formatDateTime, formatMoney, priceDrop, productLabel, todayISO } from '../lib/derive.js'
 import { IconChevronLeft } from '../components/Icons.jsx'
 import ProductImage from '../components/ProductImage.jsx'
+import ReceiptViewer from '../components/ReceiptViewer.jsx'
 
 export default function PurchaseDetail() {
   const { id } = useParams()
@@ -11,6 +12,7 @@ export default function PurchaseDetail() {
   const navigate = useNavigate()
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(null)
+  const [viewerIndex, setViewerIndex] = useState(null) // receipt page index currently being viewed closely
 
   const purchase = purchases.find((p) => p.id === id)
 
@@ -393,15 +395,30 @@ export default function PurchaseDetail() {
           {receiptPhotos.length > 1 ? (
             <div className="page-strip">
               {receiptPhotos.map((url, i) => (
-                <img key={i} src={url} alt={`Receipt page ${i + 1}`} className="page-strip__photo" />
+                <button
+                  key={i}
+                  className="page-strip__photo-btn"
+                  onClick={() => setViewerIndex(i)}
+                  aria-label={`View receipt page ${i + 1} closely`}
+                >
+                  <img src={url} alt={`Receipt page ${i + 1}`} className="page-strip__photo" />
+                </button>
               ))}
             </div>
           ) : (
-            <div className="receipt-photo">
+            <button
+              className="receipt-photo-btn receipt-photo"
+              onClick={() => setViewerIndex(0)}
+              aria-label="View receipt closely"
+            >
               <img src={receiptPhotos[0]} alt="Scanned receipt" />
-            </div>
+            </button>
           )}
         </section>
+      )}
+
+      {viewerIndex !== null && (
+        <ReceiptViewer images={receiptPhotos} startIndex={viewerIndex} onClose={() => setViewerIndex(null)} />
       )}
     </div>
   )
