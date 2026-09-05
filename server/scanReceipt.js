@@ -15,7 +15,16 @@
  * kept getting wrong), each item just shows its brand's company logo — a
  * much more reliable thing to fetch by name, via Clearbit's public logo API.
  */
+import dns from 'node:dns'
 import Anthropic from '@anthropic-ai/sdk'
+
+// Node resolves hostnames IPv6-first by default. Some serverless platforms
+// can't actually route outbound IPv6 traffic to certain hosts even though
+// DNS happily returns an AAAA record, which surfaces as a bare, generic
+// "Connection error" with no other detail — exactly what api.anthropic.com
+// requests were failing with here. Preferring IPv4 avoids ever attempting
+// the connection that was silently failing.
+dns.setDefaultResultOrder('ipv4first')
 
 let anthropic = null
 function getClient() {
