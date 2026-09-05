@@ -9,7 +9,7 @@ import EmptyState from '../components/EmptyState.jsx'
 export default function Opportunities() {
   const { purchases } = usePurchases()
   const { settings } = useSettings()
-  const opportunities = getOpportunities(purchases, settings.notifications)
+  const opportunities = getOpportunities(purchases, settings)
 
   return (
     <div className="screen">

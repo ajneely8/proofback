@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { usePurchases } from '../lib/PurchasesContext.jsx'
+import { useSettings } from '../lib/SettingsContext.jsx'
 import { daysUntil, formatDate, formatDateTime, formatMoney, priceDrop, productLabel, getPurchaseStatuses, todayISO } from '../lib/derive.js'
 import { IconChevronLeft } from '../components/Icons.jsx'
 import ProductImage from '../components/ProductImage.jsx'
@@ -10,6 +11,7 @@ import { sharePurchase } from '../lib/share.js'
 export default function PurchaseDetail() {
   const { id } = useParams()
   const { purchases, updatePurchase } = usePurchases()
+  const { settings } = useSettings()
   const navigate = useNavigate()
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(null)
@@ -29,7 +31,7 @@ export default function PurchaseDetail() {
 
   const daysLeft = daysUntil(purchase.returnDeadline)
   const drop = priceDrop(purchase)
-  const statuses = getPurchaseStatuses(purchase)
+  const statuses = getPurchaseStatuses(purchase, settings)
   const refund = purchase.refund
   const receiptPhotos = purchase.receiptImageUrls?.length
     ? purchase.receiptImageUrls
@@ -339,7 +341,7 @@ export default function PurchaseDetail() {
           </div>
           <div className="detail-card__row">
             <span>Days remaining</span>
-            <strong className={daysLeft <= 7 ? 'text-warning' : ''}>
+            <strong className={daysLeft <= settings.urgentWindowDays ? 'text-warning' : ''}>
               {daysLeft >= 0 ? `${daysLeft} days` : 'Closed'}
             </strong>
           </div>

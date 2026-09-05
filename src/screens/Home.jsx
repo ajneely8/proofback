@@ -10,8 +10,8 @@ import EmptyState from '../components/EmptyState.jsx'
 export default function Home() {
   const { purchases } = usePurchases()
   const { settings } = useSettings()
-  const needsAttention = getNeedsAttention(purchases, settings.notifications)
-  const total = totalRecoverable(purchases, settings.notifications)
+  const needsAttention = getNeedsAttention(purchases, settings)
+  const total = totalRecoverable(purchases, settings)
   const discountSaved = getTotalDiscountSaved(purchases)
 
   return (

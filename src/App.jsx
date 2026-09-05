@@ -4,6 +4,7 @@ import { PurchasesProvider } from './lib/PurchasesContext.jsx'
 import { SettingsProvider } from './lib/SettingsContext.jsx'
 import { hasOnboarded } from './lib/storage.js'
 import BottomNav from './components/BottomNav.jsx'
+import NotificationWatcher from './components/NotificationWatcher.jsx'
 import Onboarding from './screens/Onboarding.jsx'
 import Home from './screens/Home.jsx'
 import Purchases from './screens/Purchases.jsx'
@@ -48,6 +49,7 @@ export default function App() {
   return (
     <SettingsProvider>
       <PurchasesProvider>
+        <NotificationWatcher />
         <Shell showNav={showNav}>
           <Routes>
             <Route path="/" element={<Home />} />

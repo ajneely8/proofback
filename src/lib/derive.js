@@ -67,7 +67,8 @@ export function refundMissing(purchase) {
 // (no receipt states "exchange only"); it's inferred as available whenever
 // a physical good is still inside its own return window, since a store
 // that will take something back will almost always also swap it.
-export function getPurchaseStatuses(purchase) {
+export function getPurchaseStatuses(purchase, settings = DEFAULT_SETTINGS) {
+  const urgentWindowDays = settings.urgentWindowDays ?? DEFAULT_SETTINGS.urgentWindowDays
   const statuses = []
   const daysLeft = daysUntil(purchase.returnDeadline)
   const isOpen = daysLeft !== null && daysLeft >= 0
@@ -75,7 +76,7 @@ export function getPurchaseStatuses(purchase) {
   const drop = priceDrop(purchase)
 
   if (!returnDone && purchase.returnDeadline) {
-    if (isOpen && daysLeft > 7) {
+    if (isOpen && daysLeft > urgentWindowDays) {
       statuses.push({ key: 'returnable', label: 'Still returnable', tone: 'good' })
     } else if (isOpen) {
       statuses.push({
@@ -170,8 +171,11 @@ export function getTotalDiscountSaved(purchases) {
 }
 
 // Opportunities: return deadlines closing soon, price drops worth acting on, missing refunds.
-// `notifications` gates each category off when the user has turned that alert type off in Profile.
-export function getOpportunities(purchases, notifications = DEFAULT_SETTINGS.notifications) {
+// `settings.notifications` gates each category off when the user has turned that alert type off in Profile;
+// `settings.reminderWindowDays` controls how many days out a closing return deadline counts as one.
+export function getOpportunities(purchases, settings = DEFAULT_SETTINGS) {
+  const notifications = settings.notifications ?? DEFAULT_SETTINGS.notifications
+  const urgentWindowDays = settings.urgentWindowDays ?? DEFAULT_SETTINGS.urgentWindowDays
   const opps = []
 
   purchases.forEach((p) => {
@@ -203,7 +207,7 @@ export function getOpportunities(purchases, notifications = DEFAULT_SETTINGS.not
     }
 
     const daysLeft = daysUntil(p.returnDeadline)
-    if (daysLeft !== null && daysLeft >= 0 && daysLeft <= 10 && notifications.returnDeadlines) {
+    if (daysLeft !== null && daysLeft >= 0 && daysLeft <= urgentWindowDays && notifications.returnDeadlines) {
       opps.push({
         id: `${p.id}-return`,
         type: 'return_deadline',
@@ -220,8 +224,8 @@ export function getOpportunities(purchases, notifications = DEFAULT_SETTINGS.not
   return opps.sort((a, b) => b.amount - a.amount)
 }
 
-export function totalRecoverable(purchases, notifications = DEFAULT_SETTINGS.notifications) {
-  const opps = getOpportunities(purchases, notifications)
+export function totalRecoverable(purchases, settings = DEFAULT_SETTINGS) {
+  const opps = getOpportunities(purchases, settings)
   const seen = new Set()
   let total = 0
   opps.forEach((o) => {
@@ -295,22 +299,25 @@ export function getSpendByMonth(purchases, months = 6) {
   return buckets.map((b) => ({ ...b, total: Math.round(b.total * 100) / 100 }))
 }
 
-export function getNeedsAttention(purchases, notifications = DEFAULT_SETTINGS.notifications) {
+export function getNeedsAttention(purchases, settings = DEFAULT_SETTINGS) {
+  const notifications = settings.notifications ?? DEFAULT_SETTINGS.notifications
+  const reminderWindowDays = settings.reminderWindowDays ?? DEFAULT_SETTINGS.reminderWindowDays
+  const urgentWindowDays = settings.urgentWindowDays ?? DEFAULT_SETTINGS.urgentWindowDays
   const items = []
 
   purchases.forEach((p) => {
     const daysLeft = daysUntil(p.returnDeadline)
     const drop = priceDrop(p)
-    if (daysLeft !== null && daysLeft >= 0 && daysLeft <= 30 && notifications.returnDeadlines) {
+    if (daysLeft !== null && daysLeft >= 0 && daysLeft <= reminderWindowDays && notifications.returnDeadlines) {
       items.push({
         id: `${p.id}-attn-return`,
         purchase: p,
         label: productLabel(p),
         primaryText: `Return deadline: ${formatDate(p.returnDeadline)}`,
         secondaryText: drop > 0 ? `Potential savings: ${formatMoney(drop)}` : null,
-        urgent: daysLeft <= 7,
+        urgent: daysLeft <= urgentWindowDays,
         daysLeft,
-        windowDays: 30,
+        windowDays: reminderWindowDays,
       })
     } else if (refundMissing(p) && notifications.refundAlerts) {
       items.push({
@@ -326,16 +333,16 @@ export function getNeedsAttention(purchases, notifications = DEFAULT_SETTINGS.no
     }
 
     const warrantyDaysLeft = daysUntil(p.warrantyExpires)
-    if (warrantyDaysLeft !== null && warrantyDaysLeft >= 0 && warrantyDaysLeft <= 30 && notifications.warrantyAlerts) {
+    if (warrantyDaysLeft !== null && warrantyDaysLeft >= 0 && warrantyDaysLeft <= reminderWindowDays && notifications.warrantyAlerts) {
       items.push({
         id: `${p.id}-attn-warranty`,
         purchase: p,
         label: productLabel(p),
         primaryText: `Warranty expires: ${formatDate(p.warrantyExpires)}`,
         secondaryText: null,
-        urgent: warrantyDaysLeft <= 7,
+        urgent: warrantyDaysLeft <= urgentWindowDays,
         daysLeft: warrantyDaysLeft,
-        windowDays: 30,
+        windowDays: reminderWindowDays,
       })
     }
   })

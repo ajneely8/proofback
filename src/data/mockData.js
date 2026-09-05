@@ -18,4 +18,9 @@ export const DEFAULT_SETTINGS = {
     refundAlerts: true,
     warrantyAlerts: true,
   },
+  // How many days before a deadline ProofBack starts surfacing it under
+  // Needs Attention/Opportunities, and how many days out counts as
+  // "urgent" (closing soon) rather than just "still returnable".
+  reminderWindowDays: 30,
+  urgentWindowDays: 7,
 }
