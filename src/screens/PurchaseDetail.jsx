@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { usePurchases } from '../lib/PurchasesContext.jsx'
-import { daysUntil, formatDate, formatDateTime, formatMoney, priceDrop, productLabel, todayISO } from '../lib/derive.js'
+import { daysUntil, formatDate, formatDateTime, formatMoney, priceDrop, productLabel, getPurchaseStatuses, todayISO } from '../lib/derive.js'
 import { IconChevronLeft } from '../components/Icons.jsx'
 import ProductImage from '../components/ProductImage.jsx'
 import ReceiptViewer from '../components/ReceiptViewer.jsx'
@@ -30,6 +30,7 @@ export default function PurchaseDetail() {
 
   const daysLeft = daysUntil(purchase.returnDeadline)
   const drop = priceDrop(purchase)
+  const statuses = getPurchaseStatuses(purchase)
   const refund = purchase.refund
   const receiptPhotos = purchase.receiptImageUrls?.length
     ? purchase.receiptImageUrls
@@ -221,6 +222,15 @@ export default function PurchaseDetail() {
       <div className="detail-hero">
         <div className="detail-hero__title">{productLabel(purchase)}</div>
         <div className="detail-hero__price">{formatMoney(purchase.price)}</div>
+        {statuses.length > 0 && (
+          <div className="status-chips">
+            {statuses.map((s) => (
+              <span key={s.key} className={`status-chip status-chip--${s.tone}`}>
+                {s.label}
+              </span>
+            ))}
+          </div>
+        )}
         {purchase.color && <div className="detail-hero__sub">{purchase.color}</div>}
         <div className="detail-hero__sub">
           Purchased {formatDateTime(purchase.purchaseDate, purchase.purchaseTime)} at {purchase.store}

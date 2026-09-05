@@ -60,6 +60,53 @@ export function refundMissing(purchase) {
   return purchase.refund?.status === 'expected_missing'
 }
 
+// A purchase's return/refund state, as however many of these are true at
+// once — not a single exclusive status, since e.g. a price adjustment and a
+// closing return window can both apply to the same item at the same time.
+// "Eligible for exchange" isn't a separate signal ProofBack actually has
+// (no receipt states "exchange only"); it's inferred as available whenever
+// a physical good is still inside its own return window, since a store
+// that will take something back will almost always also swap it.
+export function getPurchaseStatuses(purchase) {
+  const statuses = []
+  const daysLeft = daysUntil(purchase.returnDeadline)
+  const isOpen = daysLeft !== null && daysLeft >= 0
+  const returnDone = purchase.returnStatus === 'completed'
+  const drop = priceDrop(purchase)
+
+  if (!returnDone && purchase.returnDeadline) {
+    if (isOpen && daysLeft > 7) {
+      statuses.push({ key: 'returnable', label: 'Still returnable', tone: 'good' })
+    } else if (isOpen) {
+      statuses.push({
+        key: 'closing_soon',
+        label: `Return closes in ${daysLeft} day${daysLeft === 1 ? '' : 's'}`,
+        tone: 'warn',
+      })
+    } else {
+      statuses.push({ key: 'closed', label: 'Return window closed', tone: 'neutral' })
+    }
+
+    if (isOpen && ['Apparel', 'Electronics', 'Home'].includes(purchase.category)) {
+      statuses.push({ key: 'exchange', label: 'Eligible for exchange', tone: 'good' })
+    }
+  }
+
+  if (drop > 0 && !purchase.priceAdjustment) {
+    statuses.push({ key: 'price_adjustment', label: 'Eligible for price adjustment', tone: 'good' })
+  }
+
+  if (purchase.returnStatus === 'started') {
+    statuses.push({ key: 'refund_pending', label: 'Waiting for refund', tone: 'warn' })
+  }
+
+  if (refundMissing(purchase)) {
+    statuses.push({ key: 'refund_missing', label: 'Refund may be missing', tone: 'warn' })
+  }
+
+  return statuses
+}
+
 export function todayISO() {
   const y = TODAY.getFullYear()
   const m = String(TODAY.getMonth() + 1).padStart(2, '0')
