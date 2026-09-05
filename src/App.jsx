@@ -7,6 +7,7 @@ import BottomNav from './components/BottomNav.jsx'
 import Onboarding from './screens/Onboarding.jsx'
 import Home from './screens/Home.jsx'
 import Purchases from './screens/Purchases.jsx'
+import Insights from './screens/Insights.jsx'
 import PurchaseDetail from './screens/PurchaseDetail.jsx'
 import AddPurchase from './screens/AddPurchase.jsx'
 import Opportunities from './screens/Opportunities.jsx'
@@ -51,6 +52,7 @@ export default function App() {
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/purchases" element={<Purchases />} />
+            <Route path="/insights" element={<Insights />} />
             <Route path="/purchases/:id" element={<PurchaseDetail />} />
             <Route path="/add" element={<AddPurchase />} />
             <Route path="/opportunities" element={<Opportunities />} />

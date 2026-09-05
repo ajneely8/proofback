@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { useNavigate, Link } from 'react-router-dom'
 import { usePurchases } from '../lib/PurchasesContext.jsx'
 import { IconCamera, IconUpload, IconChevronLeft, IconCheck, IconBarcode } from '../components/Icons.jsx'
 import ProductImage from '../components/ProductImage.jsx'
@@ -49,6 +49,29 @@ function compressForStorage(file) {
 
 function dataUrlToBase64(dataUrl) {
   return dataUrl.slice(dataUrl.indexOf(',') + 1)
+}
+
+// Flags a likely re-scan of a receipt already saved — same store and date,
+// plus either a matching receipt number or a matching total (whichever both
+// records have), rather than blocking the save outright, since it's only a
+// guess and a real duplicate purchase (two separate trips, same store, same
+// day) is possible.
+function findDuplicateReceipt(extracted, purchases) {
+  if (!extracted?.store || !extracted?.purchaseDate) return null
+  const store = extracted.store.trim().toLowerCase()
+  return (
+    purchases.find((p) => {
+      if (!p.store || p.store.trim().toLowerCase() !== store) return false
+      if (p.purchaseDate !== extracted.purchaseDate) return false
+      if (extracted.receiptNumber && p.receiptNumber) {
+        return p.receiptNumber === extracted.receiptNumber
+      }
+      if (extracted.total != null && p.total != null) {
+        return Math.abs(Number(p.total) - Number(extracted.total)) < 0.01
+      }
+      return false
+    }) || null
+  )
 }
 
 const FIELD_LABELS = {
@@ -103,10 +126,16 @@ export default function AddPurchase() {
   const [scanStep, setScanStep] = useState(0)
   const [barcodeTarget, setBarcodeTarget] = useState(null) // item index currently being scanned
   const [viewerIndex, setViewerIndex] = useState(null) // receipt page index currently being viewed closely
-  const { addPurchase } = usePurchases()
+  const [duplicateDismissed, setDuplicateDismissed] = useState(false)
+  const { addPurchase, purchases } = usePurchases()
   const navigate = useNavigate()
   const cameraInputRef = useRef(null)
   const uploadInputRef = useRef(null)
+
+  const duplicate = useMemo(
+    () => (extracted ? findDuplicateReceipt(extracted, purchases) : null),
+    [extracted, purchases]
+  )
 
   useEffect(() => {
     if (stage !== 'scanning') return
@@ -133,6 +162,7 @@ export default function AddPurchase() {
 
   function startOver() {
     setPhotos([])
+    setDuplicateDismissed(false)
     setStage('scan')
   }
 
@@ -235,6 +265,7 @@ export default function AddPurchase() {
     setExtracted(null)
     setErrorKey(null)
     setPhotos([])
+    setDuplicateDismissed(false)
     setStage('scan')
   }
 
@@ -360,6 +391,21 @@ export default function AddPurchase() {
             <div className="missing-fields-note">
               <strong>Couldn't find on this receipt:</strong>{' '}
               {extracted.missingFields.map((f) => FIELD_LABELS[f]).join(', ')}. Fill them in below if you know them.
+            </div>
+          )}
+
+          {duplicate && !duplicateDismissed && (
+            <div className="duplicate-note">
+              <strong>This looks like a receipt you already added</strong> — same store, date, and
+              {duplicate.receiptNumber && extracted.receiptNumber ? ' receipt number' : ' total'}.
+              <div className="duplicate-note__actions">
+                <Link to={`/purchases/${duplicate.id}`} className="link-action link-action--inline">
+                  View existing purchase
+                </Link>
+                <button className="link-action link-action--inline" onClick={() => setDuplicateDismissed(true)}>
+                  This is a different purchase
+                </button>
+              </div>
             </div>
           )}
 
@@ -584,6 +630,9 @@ export default function AddPurchase() {
               </div>
               {item.returnDeadlineSource === 'receipt' && (
                 <p className="field-hint field-hint--good">From the receipt's own return policy</p>
+              )}
+              {item.returnDeadlineSource === 'store_policy' && (
+                <p className="field-hint field-hint--good">Based on {extracted.store}'s typical return policy</p>
               )}
               <div className="field-row">
                 <label>Warranty until</label>

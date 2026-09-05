@@ -202,6 +202,42 @@ export function categoryColor(category) {
   return CATEGORY_COLORS[category] || CATEGORY_COLORS.Other
 }
 
+// Total spent per category, largest first — skips categories with nothing
+// spent so the Insights screen doesn't show a row of zeroes.
+export function getSpendByCategory(purchases) {
+  const totals = {}
+  purchases.forEach((p) => {
+    const cat = p.category || 'Other'
+    totals[cat] = (totals[cat] || 0) + (Number(p.price) || 0)
+  })
+  return Object.entries(totals)
+    .map(([category, total]) => ({ category, total: Math.round(total * 100) / 100 }))
+    .sort((a, b) => b.total - a.total)
+}
+
+// Total spent per calendar month over the trailing `months` months
+// (default 6), oldest first — always includes every month in that range
+// even at $0, so the chart's x-axis stays evenly spaced.
+export function getSpendByMonth(purchases, months = 6) {
+  const today = new Date(TODAY.getFullYear(), TODAY.getMonth(), 1)
+  const buckets = []
+  for (let i = months - 1; i >= 0; i--) {
+    const d = new Date(today.getFullYear(), today.getMonth() - i, 1)
+    buckets.push({
+      key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`,
+      label: d.toLocaleDateString('en-US', { month: 'short' }),
+      total: 0,
+    })
+  }
+  const byKey = Object.fromEntries(buckets.map((b) => [b.key, b]))
+  purchases.forEach((p) => {
+    if (!p.purchaseDate) return
+    const key = p.purchaseDate.slice(0, 7)
+    if (byKey[key]) byKey[key].total += Number(p.price) || 0
+  })
+  return buckets.map((b) => ({ ...b, total: Math.round(b.total * 100) / 100 }))
+}
+
 export function getNeedsAttention(purchases, notifications = DEFAULT_SETTINGS.notifications) {
   const items = []
 

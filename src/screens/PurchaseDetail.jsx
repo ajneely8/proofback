@@ -5,6 +5,8 @@ import { daysUntil, formatDate, formatDateTime, formatMoney, priceDrop, productL
 import { IconChevronLeft } from '../components/Icons.jsx'
 import ProductImage from '../components/ProductImage.jsx'
 import ReceiptViewer from '../components/ReceiptViewer.jsx'
+import { downloadReminderICS } from '../lib/calendar.js'
+import { sharePurchase } from '../lib/share.js'
 
 export default function PurchaseDetail() {
   const { id } = useParams()
@@ -13,6 +15,7 @@ export default function PurchaseDetail() {
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(null)
   const [viewerIndex, setViewerIndex] = useState(null) // receipt page index currently being viewed closely
+  const [shareStatus, setShareStatus] = useState(null) // brief confirmation after a share/copy action
 
   const purchase = purchases.find((p) => p.id === id)
 
@@ -48,6 +51,13 @@ export default function PurchaseDetail() {
 
   function markRefundReceived() {
     updatePurchase(purchase.id, { refund: { ...refund, status: 'received', receivedDate: todayISO() } })
+  }
+
+  async function handleShare() {
+    const result = await sharePurchase(purchase)
+    if (result === 'cancelled') return
+    setShareStatus(result)
+    setTimeout(() => setShareStatus(null), 2500)
   }
 
   function startEditing() {
@@ -214,9 +224,19 @@ export default function PurchaseDetail() {
         </div>
         {purchase.storeAddress && <div className="detail-hero__sub">{purchase.storeAddress}</div>}
         {purchase.receiptNumber && <div className="detail-hero__sub">Receipt #{purchase.receiptNumber}</div>}
-        <button className="link-action link-action--inline" onClick={startEditing}>
-          Edit Purchase
-        </button>
+        <div className="detail-hero__actions">
+          <button className="link-action link-action--inline" onClick={startEditing}>
+            Edit Purchase
+          </button>
+          <button className="link-action link-action--inline" onClick={handleShare}>
+            Share Purchase
+          </button>
+        </div>
+        {shareStatus === 'copied' && <p className="field-hint field-hint--good">Details copied to clipboard</p>}
+        {shareStatus === 'shared' && <p className="field-hint field-hint--good">Shared</p>}
+        {shareStatus === 'unsupported' && (
+          <p className="field-hint">Sharing isn't supported on this device/browser</p>
+        )}
       </div>
 
       {(purchase.subtotal != null ||
@@ -298,7 +318,11 @@ export default function PurchaseDetail() {
         <section className="detail-card">
           <div className="detail-card__label">Return</div>
           <div className="detail-card__row">
-            <span>Return deadline{purchase.returnDeadlineSource === 'receipt' ? ' (from receipt)' : ''}</span>
+            <span>
+              Return deadline
+              {purchase.returnDeadlineSource === 'receipt' && ' (from receipt)'}
+              {purchase.returnDeadlineSource === 'store_policy' && ` (${purchase.store}'s typical policy)`}
+            </span>
             <strong>{formatDate(purchase.returnDeadline)}</strong>
           </div>
           <div className="detail-card__row">
@@ -317,9 +341,23 @@ export default function PurchaseDetail() {
             </button>
           ) : (
             daysLeft >= 0 && (
-              <button className="btn btn--primary btn--block" onClick={startReturn}>
-                Start Return
-              </button>
+              <>
+                <button className="btn btn--primary btn--block" onClick={startReturn}>
+                  Start Return
+                </button>
+                <button
+                  className="btn btn--secondary btn--block"
+                  onClick={() =>
+                    downloadReminderICS({
+                      title: `Return by: ${productLabel(purchase)}`,
+                      dateStr: purchase.returnDeadline,
+                      description: `Return window closes at ${purchase.store}.`,
+                    })
+                  }
+                >
+                  Add to Calendar
+                </button>
+              </>
             )
           )}
         </section>
@@ -353,6 +391,18 @@ export default function PurchaseDetail() {
             <span>Warranty expires</span>
             <strong>{formatDate(purchase.warrantyExpires)}</strong>
           </div>
+          <button
+            className="btn btn--secondary btn--block"
+            onClick={() =>
+              downloadReminderICS({
+                title: `Warranty expires: ${productLabel(purchase)}`,
+                dateStr: purchase.warrantyExpires,
+                description: `Warranty from ${purchase.store} expires today.`,
+              })
+            }
+          >
+            Add to Calendar
+          </button>
         </section>
       )}
 

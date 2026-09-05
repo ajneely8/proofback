@@ -119,6 +119,41 @@ const RETURN_WINDOW_DAYS = {
   Other: 30,
 }
 
+// General published return-window policies for common retailers, by the
+// same domain guessStoreDomain() resolves — a real (if approximate) number
+// beats the flat category default above whenever the store is recognized.
+// These are each store's general/unworn-item policy as publicly stated;
+// actual terms vary by item, sale status, and membership tier, and change
+// over time, so this is still an estimate, just a much better-informed one
+// than a generic category guess. null means "no general time limit stated".
+const STORE_RETURN_WINDOW_DAYS = {
+  'nike.com': 60,
+  'adidas.com': 30,
+  'amazon.com': 30,
+  'bestbuy.com': 15,
+  'target.com': 90,
+  'walmart.com': 90,
+  'costco.com': null,
+  'homedepot.com': 90,
+  'lowes.com': 90,
+  'apple.com': 14,
+  'samsung.com': 30,
+  'macys.com': 90,
+  'kohls.com': null,
+  'ikea.com': 365,
+  'wayfair.com': 30,
+  'fleetfeet.com': 60,
+  'brooksrunning.com': 45,
+  'rei.com': 365,
+  'dickssportinggoods.com': 90,
+}
+
+// Used in place of an actual date for a "no stated time limit" store policy,
+// so every consumer of returnDeadline (daysUntil, returnIsOpen, the Needs
+// Attention list) can keep treating it as a plain date rather than needing
+// a special null/"forever" case threaded through the whole app.
+const NO_LIMIT_WINDOW_DAYS = 3650
+
 const WARRANTY_YEARS = {
   Electronics: 1,
   Home: 1,
@@ -350,9 +385,18 @@ export async function scanReceipt(reqBody) {
     const purchaseDate = data.purchaseDate || toISO(new Date())
     const purchaseTime = /^([01]\d|2[0-3]):[0-5]\d$/.test(data.purchaseTime || '') ? data.purchaseTime : null
 
-    // Prefer a return deadline the receipt actually states over our generic
-    // category guess — it's the real policy, not an estimate.
+    // Prefer a return deadline the receipt actually states over any guess —
+    // it's the real policy, not an estimate.
     const explicitReturnBy = /^\d{4}-\d{2}-\d{2}$/.test(data.returnByDate || '') ? data.returnByDate : null
+
+    // Next best: a real published policy for this specific store, when it's
+    // one we recognize — a much closer estimate than a flat category default
+    // that doesn't know Target from Best Buy.
+    const storeDomain = guessStoreDomain(data.store)
+    const storeWindowDays = storeDomain && storeDomain in STORE_RETURN_WINDOW_DAYS
+      ? STORE_RETURN_WINDOW_DAYS[storeDomain]
+      : undefined
+    const storeWindowDaysResolved = storeWindowDays === null ? NO_LIMIT_WINDOW_DAYS : storeWindowDays
 
     // A missing/empty items array still gets one placeholder row so the user
     // has something to fill in, rather than a receipt that silently vanishes.
@@ -364,8 +408,13 @@ export async function scanReceipt(reqBody) {
       if (!raw.price) itemMissing.push('price')
 
       const category = raw.category && RETURN_WINDOW_DAYS[raw.category] ? raw.category : 'Other'
-      const returnDeadline = explicitReturnBy || addDays(purchaseDate, RETURN_WINDOW_DAYS[category])
-      const returnDeadlineSource = explicitReturnBy ? 'receipt' : 'estimated'
+      const windowDays = storeWindowDaysResolved !== undefined ? storeWindowDaysResolved : RETURN_WINDOW_DAYS[category]
+      const returnDeadline = explicitReturnBy || addDays(purchaseDate, windowDays)
+      const returnDeadlineSource = explicitReturnBy
+        ? 'receipt'
+        : storeWindowDaysResolved !== undefined
+          ? 'store_policy'
+          : 'estimated'
       const warrantyYears = WARRANTY_YEARS[category]
       const warrantyExpires = warrantyYears > 0 ? addYears(purchaseDate, warrantyYears) : null
       if (warrantyYears === 0) itemMissing.push('warrantyExpires')

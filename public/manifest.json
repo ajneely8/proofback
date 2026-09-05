@@ -1,0 +1,14 @@
+{
+  "name": "ProofBack",
+  "short_name": "ProofBack",
+  "description": "Track receipts, return windows, warranties, and refunds automatically.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#EDEDEB",
+  "theme_color": "#112334",
+  "icons": [
+    { "src": "/logo.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/logo.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}

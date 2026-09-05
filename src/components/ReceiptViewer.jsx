@@ -18,8 +18,21 @@ export default function ReceiptViewer({ images, startIndex = 0, onClose }) {
     setIndex((i) => (i + 1) % images.length)
   }
 
+  function save(e) {
+    e.stopPropagation()
+    const a = document.createElement('a')
+    a.href = images[index]
+    a.download = `receipt-page-${index + 1}.jpg`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+  }
+
   return (
     <div className="receipt-viewer" onClick={onClose}>
+      <button className="receipt-viewer__save" onClick={save} aria-label="Save this photo">
+        Save
+      </button>
       <button className="receipt-viewer__close" onClick={onClose} aria-label="Close">
         ×
       </button>
