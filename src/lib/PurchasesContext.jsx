@@ -1,15 +1,20 @@
 import { createContext, useContext, useEffect, useState, useCallback } from 'react'
-import { supabase } from './supabaseClient.js'
+import { supabase, isSupabaseConfigured } from './supabaseClient.js'
 import { useAuth } from './AuthContext.jsx'
+import { loadPurchases, savePurchases } from './storage.js'
 
 const PurchasesContext = createContext(null)
 
 export function PurchasesProvider({ children }) {
   const { user } = useAuth()
-  const [purchases, setPurchases] = useState([])
-  const [loading, setLoading] = useState(true)
+  // Accounts are opt-in until Supabase is configured — until then this
+  // behaves exactly as it did before accounts existed, reading/writing
+  // local storage directly with no login required.
+  const [purchases, setPurchases] = useState(isSupabaseConfigured ? [] : loadPurchases)
+  const [loading, setLoading] = useState(isSupabaseConfigured)
 
   const refresh = useCallback(async () => {
+    if (!isSupabaseConfigured) return
     if (!user) {
       setPurchases([])
       setLoading(false)
@@ -29,7 +34,15 @@ export function PurchasesProvider({ children }) {
     refresh()
   }, [refresh])
 
+  useEffect(() => {
+    if (!isSupabaseConfigured) savePurchases(purchases)
+  }, [purchases])
+
   async function addPurchase(purchase) {
+    if (!isSupabaseConfigured) {
+      setPurchases((prev) => [purchase, ...prev])
+      return
+    }
     if (!user) return
     setPurchases((prev) => [purchase, ...prev])
     const { error } = await supabase.from('purchases').insert({
@@ -42,6 +55,10 @@ export function PurchasesProvider({ children }) {
   }
 
   async function updatePurchase(id, patch) {
+    if (!isSupabaseConfigured) {
+      setPurchases((prev) => prev.map((p) => (p.id === id ? { ...p, ...patch } : p)))
+      return
+    }
     if (!user) return
     let updated = null
     setPurchases((prev) =>

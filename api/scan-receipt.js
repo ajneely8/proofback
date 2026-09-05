@@ -12,7 +12,7 @@
  * gitignored and never reaches the deployed build.
  */
 import { scanReceipt } from '../server/scanReceipt.js'
-import { getAuthedUser } from '../server/auth.js'
+import { getAuthedUser, isAuthConfigured } from '../server/auth.js'
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -20,10 +20,12 @@ export default async function handler(req, res) {
     return
   }
 
-  const user = await getAuthedUser(req.headers.authorization)
-  if (!user) {
-    res.status(401).json({ error: 'unauthorized' })
-    return
+  if (isAuthConfigured()) {
+    const user = await getAuthedUser(req.headers.authorization)
+    if (!user) {
+      res.status(401).json({ error: 'unauthorized' })
+      return
+    }
   }
 
   const { status, body } = await scanReceipt(req.body)

@@ -3,6 +3,7 @@ import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { PurchasesProvider } from './lib/PurchasesContext.jsx'
 import { SettingsProvider } from './lib/SettingsContext.jsx'
 import { useAuth } from './lib/AuthContext.jsx'
+import { isSupabaseConfigured } from './lib/supabaseClient.js'
 import { hasOnboarded } from './lib/storage.js'
 import BottomNav from './components/BottomNav.jsx'
 import NotificationWatcher from './components/NotificationWatcher.jsx'
@@ -46,16 +47,22 @@ export default function App() {
     )
   }
 
-  if (loading) {
-    return <Shell showNav={false}>{null}</Shell>
-  }
+  // Accounts are opt-in until VITE_SUPABASE_URL/VITE_SUPABASE_ANON_KEY are
+  // set — until then, skip straight to the app exactly as it worked before
+  // accounts existed, using local storage. Once those env vars are added,
+  // this switches over on its own with no code change.
+  if (isSupabaseConfigured) {
+    if (loading) {
+      return <Shell showNav={false}>{null}</Shell>
+    }
 
-  if (!user) {
-    return (
-      <Shell showNav={false}>
-        <Auth />
-      </Shell>
-    )
+    if (!user) {
+      return (
+        <Shell showNav={false}>
+          <Auth />
+        </Shell>
+      )
+    }
   }
 
   const noNavRoutes = ['/add']

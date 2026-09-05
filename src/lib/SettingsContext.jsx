@@ -1,16 +1,21 @@
 import { createContext, useContext, useEffect, useState } from 'react'
-import { supabase } from './supabaseClient.js'
+import { supabase, isSupabaseConfigured } from './supabaseClient.js'
 import { useAuth } from './AuthContext.jsx'
 import { DEFAULT_SETTINGS } from '../data/mockData.js'
+import { loadSettings, saveSettings } from './storage.js'
 
 const SettingsContext = createContext(null)
 
 export function SettingsProvider({ children }) {
   const { user } = useAuth()
-  const [settings, setSettings] = useState(DEFAULT_SETTINGS)
-  const [loaded, setLoaded] = useState(false)
+  // Accounts are opt-in until Supabase is configured — until then this
+  // behaves exactly as it did before accounts existed, reading/writing
+  // local storage directly with no login required.
+  const [settings, setSettings] = useState(isSupabaseConfigured ? DEFAULT_SETTINGS : loadSettings)
+  const [loaded, setLoaded] = useState(!isSupabaseConfigured)
 
   useEffect(() => {
+    if (!isSupabaseConfigured) return
     if (!user) {
       setSettings(DEFAULT_SETTINGS)
       setLoaded(false)
@@ -35,6 +40,10 @@ export function SettingsProvider({ children }) {
   // Persists after the initial load only — otherwise this would immediately
   // overwrite a just-fetched row with DEFAULT_SETTINGS on every login.
   useEffect(() => {
+    if (!isSupabaseConfigured) {
+      saveSettings(settings)
+      return
+    }
     if (!user || !loaded) return
     supabase.from('user_settings').upsert({ user_id: user.id, data: settings, updated_at: new Date().toISOString() })
   }, [settings, user, loaded])

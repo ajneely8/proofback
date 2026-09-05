@@ -7,7 +7,7 @@
  */
 import express from 'express'
 import { scanReceipt, scanReceiptWarnings } from './scanReceipt.js'
-import { getAuthedUser } from './auth.js'
+import { getAuthedUser, isAuthConfigured } from './auth.js'
 
 const PORT = Number(process.env.SCAN_PORT || 8789)
 
@@ -15,10 +15,12 @@ const app = express()
 app.use(express.json({ limit: '15mb' }))
 
 app.post('/api/scan-receipt', async (req, res) => {
-  const user = await getAuthedUser(req.headers.authorization)
-  if (!user) {
-    res.status(401).json({ error: 'unauthorized' })
-    return
+  if (isAuthConfigured()) {
+    const user = await getAuthedUser(req.headers.authorization)
+    if (!user) {
+      res.status(401).json({ error: 'unauthorized' })
+      return
+    }
   }
   const { status, body } = await scanReceipt(req.body)
   res.status(status).json(body)

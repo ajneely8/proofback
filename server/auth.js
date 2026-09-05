@@ -17,6 +17,14 @@ function getClient() {
   return client
 }
 
+// Accounts are opt-in until Supabase is configured — while that's true, the
+// scan endpoint stays open exactly as it was before accounts existed,
+// rather than 401ing every request because there's no login system to
+// have logged into yet.
+export function isAuthConfigured() {
+  return getClient() !== null
+}
+
 export async function getAuthedUser(authHeader) {
   const supabase = getClient()
   if (!supabase || !authHeader?.startsWith('Bearer ')) return null
