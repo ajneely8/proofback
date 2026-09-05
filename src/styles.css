@@ -2137,7 +2137,7 @@ a {
 }
 
 .status-chip--good {
-  color: var(--accent-green);
+  color: var(--accent-navy);
 }
 
 .status-chip--warn {
