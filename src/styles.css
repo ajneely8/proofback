@@ -1904,10 +1904,19 @@ a {
 }
 
 .radial-progress__text {
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 700;
   fill: var(--text-primary);
   font-family: var(--font);
+}
+
+.radial-progress__label {
+  font-size: 7px;
+  font-weight: 600;
+  fill: var(--text-tertiary);
+  font-family: var(--font);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
 }
 
 /* ---------- Sparkline (savings trend) ---------- */

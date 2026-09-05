@@ -2,7 +2,7 @@
 // = just started, empty ring = closing today. Purely decorative alongside
 // the existing text (which still states the actual date), so a glance at
 // list catches urgency before reading any words.
-export default function RadialProgress({ daysLeft, windowDays, size = 36, urgent }) {
+export default function RadialProgress({ daysLeft, windowDays, size = 46, urgent }) {
   if (daysLeft == null || windowDays == null) return null
 
   const fraction = Math.max(0, Math.min(1, daysLeft / windowDays))
@@ -33,14 +33,11 @@ export default function RadialProgress({ daysLeft, windowDays, size = 36, urgent
         strokeDashoffset={offset}
         transform={`rotate(-90 ${size / 2} ${size / 2})`}
       />
-      <text
-        x="50%"
-        y="52%"
-        textAnchor="middle"
-        dominantBaseline="middle"
-        className="radial-progress__text"
-      >
+      <text x="50%" y="46%" textAnchor="middle" dominantBaseline="middle" className="radial-progress__text">
         {daysLeft}
+      </text>
+      <text x="50%" y="68%" textAnchor="middle" dominantBaseline="middle" className="radial-progress__label">
+        {daysLeft === 1 ? 'day' : 'days'}
       </text>
     </svg>
   )
