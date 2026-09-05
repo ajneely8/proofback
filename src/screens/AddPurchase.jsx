@@ -6,24 +6,12 @@ import ProductImage from '../components/ProductImage.jsx'
 import BarcodeScanner, { isBarcodeScanSupported } from '../components/BarcodeScanner.jsx'
 import ReceiptViewer from '../components/ReceiptViewer.jsx'
 
-function readFileAsBase64(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = () => {
-      const dataUrl = reader.result
-      const base64 = dataUrl.slice(dataUrl.indexOf(',') + 1)
-      resolve(base64)
-    }
-    reader.onerror = reject
-    reader.readAsDataURL(file)
-  })
-}
-
-// Keeps a copy of each scanned receipt page so it stays viewable on the
-// purchase later, without ballooning localStorage — downscaled and
-// re-encoded as a compressed JPEG rather than stored at full camera
-// resolution.
-function compressReceiptImage(file, maxWidth = 700, quality = 0.7) {
+// Downscales and re-encodes a photo as a compressed JPEG data URL, rather
+// than sending/storing it at full camera resolution — a phone photo can
+// easily be several MB, which is both slow to upload and, in production,
+// well over the ~4.5MB request body limit Vercel's serverless functions
+// enforce on the scan API.
+function compressImage(file, maxWidth, quality) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader()
     reader.onload = () => {
@@ -43,6 +31,23 @@ function compressReceiptImage(file, maxWidth = 700, quality = 0.7) {
     reader.onerror = reject
     reader.readAsDataURL(file)
   })
+}
+
+// What actually gets read by the model — big enough to keep receipt text
+// legible, small enough to stay well under the request size limit even
+// with several pages attached.
+function compressForScan(file) {
+  return compressImage(file, 1500, 0.82)
+}
+
+// A smaller copy kept on the saved purchase so it stays viewable later,
+// without ballooning localStorage.
+function compressForStorage(file) {
+  return compressImage(file, 700, 0.7)
+}
+
+function dataUrlToBase64(dataUrl) {
+  return dataUrl.slice(dataUrl.indexOf(',') + 1)
 }
 
 const FIELD_LABELS = {
@@ -135,9 +140,9 @@ export default function AddPurchase() {
     try {
       const prepared = await Promise.all(
         photos.map(async (p) => ({
-          data: await readFileAsBase64(p.file),
-          mediaType: p.file.type || 'image/jpeg',
-          receiptImageUrl: await compressReceiptImage(p.file),
+          data: dataUrlToBase64(await compressForScan(p.file)),
+          mediaType: 'image/jpeg',
+          receiptImageUrl: await compressForStorage(p.file),
         }))
       )
       const res = await fetch('/api/scan-receipt', {
