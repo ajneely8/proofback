@@ -397,7 +397,10 @@ export async function scanReceipt(reqBody) {
       },
     }
   } catch (err) {
-    console.error('scan-receipt failed:', err.status, err.message)
+    // err.message on an APIConnectionError is always the generic
+    // "Connection error." — the actual DNS/TLS/timeout reason is nested in
+    // err.cause, which the earlier version of this log didn't print at all.
+    console.error('scan-receipt failed:', err.status, err.message, err.cause || err)
     if (err.status === 429) {
       return { status: 429, body: { error: 'rate_limited' } }
     }
