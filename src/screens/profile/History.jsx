@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom'
 import { usePurchases } from '../../lib/PurchasesContext.jsx'
-import { getSavingsEvents, getTotalSaved, formatDate, formatMoney } from '../../lib/derive.js'
+import { getSavingsEvents, getTotalSaved, formatDate, formatMoney, productLabel } from '../../lib/derive.js'
 import { IconChevronLeft, IconChevronRight } from '../../components/Icons.jsx'
 import Thumb from '../../components/Thumb.jsx'
 
@@ -51,7 +51,7 @@ export default function History() {
                   <div className="list-row__title">{e.label}</div>
                   <div className="list-row__price">{formatMoney(e.amount)}</div>
                   <div className="list-row__line">
-                    {e.purchase.brand} {e.purchase.product} &middot; {formatDate(e.date)}
+                    {productLabel(e.purchase)} &middot; {formatDate(e.date)}
                   </div>
                 </div>
                 <div className="list-row__action">
@@ -78,7 +78,7 @@ export default function History() {
                   <Thumb purchase={p} />
                 )}
                 <div className="list-row__main">
-                  <div className="list-row__title">{p.brand} {p.product}</div>
+                  <div className="list-row__title">{productLabel(p)}</div>
                   <div className="list-row__line">{formatDate(p.purchaseDate)}</div>
                 </div>
                 <div className="list-row__trailing">
