@@ -178,8 +178,13 @@ export function totalRecoverable(purchases, notifications = DEFAULT_SETTINGS.not
   return Math.round(total * 100) / 100
 }
 
-function productLabel(p) {
-  return `${p.brand} ${p.product}${p.quantity > 1 ? ` ×${p.quantity}` : ''}`
+// Shoes and clothing are ambiguous without a size and gender/fit ("Nike
+// P-6000" alone doesn't say which), so both are appended wherever a
+// product's name is shown — not just on its own detail page — whenever the
+// receipt had them.
+export function productLabel(p) {
+  const suffix = [p.gender, p.size ? `Size ${p.size}` : null].filter(Boolean).join(', ')
+  return `${p.brand} ${p.product}${p.quantity > 1 ? ` ×${p.quantity}` : ''}${suffix ? ` — ${suffix}` : ''}`
 }
 
 export function getNeedsAttention(purchases, notifications = DEFAULT_SETTINGS.notifications) {

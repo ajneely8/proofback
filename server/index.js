@@ -186,7 +186,13 @@ const EXTRACT_SCHEMA = {
           size: {
             type: 'string',
             description:
-              'Size as printed on the receipt, if this line item has one (e.g. shoe/clothing size "10.5", "MEN\'S 10.5", "M", "LARGE"). Omit entirely if no size is printed for this item.',
+              'The size itself, if this line item has one — just the number/letter (e.g. "10.5", "M", "LARGE"), without the gender/fit word even if the receipt prints them together (e.g. "MEN\'S 10.5" -> size "10.5", gender "Men\'s"). Omit entirely if no size is printed for this item.',
+          },
+          gender: {
+            type: 'string',
+            enum: ["Men's", "Women's", "Boys'", "Girls'", 'Unisex'],
+            description:
+              "This shoe/clothing item's gender or fit, ONLY if printed or clearly abbreviated on the receipt (e.g. \"MENS\", \"WMNS\", \"BOYS\", \"M\" next to a shoe line). Omit entirely for non-apparel items or when nothing on the receipt indicates one — never guess this from the product name alone.",
           },
           color: {
             type: 'string',
@@ -326,6 +332,7 @@ app.post('/api/scan-receipt', async (req, res) => {
         product: raw.product || '',
         brand: raw.brand || data.store || '',
         size: raw.size || null,
+        gender: raw.gender || null,
         color: raw.color || null,
         sku: raw.sku || null,
         quantity: raw.quantity && raw.quantity > 1 ? Number(raw.quantity) : 1,

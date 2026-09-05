@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { usePurchases } from '../lib/PurchasesContext.jsx'
-import { daysUntil, formatDate, formatDateTime, formatMoney, priceDrop, todayISO } from '../lib/derive.js'
+import { daysUntil, formatDate, formatDateTime, formatMoney, priceDrop, productLabel, todayISO } from '../lib/derive.js'
 import { IconChevronLeft } from '../components/Icons.jsx'
 import ProductImage from '../components/ProductImage.jsx'
 
@@ -55,6 +55,7 @@ export default function PurchaseDetail() {
       product: purchase.product,
       color: purchase.color || '',
       size: purchase.size || '',
+      gender: purchase.gender || '',
       sku: purchase.sku || '',
       quantity: purchase.quantity || 1,
       price: purchase.price,
@@ -70,6 +71,7 @@ export default function PurchaseDetail() {
       product: draft.product,
       color: draft.color || null,
       size: draft.size || null,
+      gender: draft.gender || null,
       sku: draft.sku || null,
       quantity: Number(draft.quantity) || 1,
       price: Number(draft.price),
@@ -134,6 +136,17 @@ export default function PurchaseDetail() {
             />
           </div>
           <div className="field-row">
+            <label>Gender</label>
+            <select value={draft.gender} onChange={(e) => setDraft({ ...draft, gender: e.target.value })}>
+              <option value="">—</option>
+              <option value="Men's">Men's</option>
+              <option value="Women's">Women's</option>
+              <option value="Boys'">Boys'</option>
+              <option value="Girls'">Girls'</option>
+              <option value="Unisex">Unisex</option>
+            </select>
+          </div>
+          <div className="field-row">
             <label>SKU</label>
             <input
               type="text"
@@ -191,16 +204,9 @@ export default function PurchaseDetail() {
       <ProductImage purchase={purchase} />
 
       <div className="detail-hero">
-        <div className="detail-hero__title">
-          {purchase.brand} {purchase.product}
-          {purchase.quantity > 1 ? ` ×${purchase.quantity}` : ''}
-        </div>
+        <div className="detail-hero__title">{productLabel(purchase)}</div>
         <div className="detail-hero__price">{formatMoney(purchase.price)}</div>
-        {(purchase.color || purchase.size) && (
-          <div className="detail-hero__sub">
-            {[purchase.color, purchase.size && `Size ${purchase.size}`].filter(Boolean).join(' · ')}
-          </div>
-        )}
+        {purchase.color && <div className="detail-hero__sub">{purchase.color}</div>}
         <div className="detail-hero__sub">
           Purchased {formatDateTime(purchase.purchaseDate, purchase.purchaseTime)} at {purchase.store}
         </div>

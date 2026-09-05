@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { usePurchases } from '../lib/PurchasesContext.jsx'
-import { formatDate, formatMoney, priceDrop, refundMissing, returnIsOpen } from '../lib/derive.js'
+import { formatDate, formatMoney, priceDrop, productLabel, refundMissing, returnIsOpen } from '../lib/derive.js'
 import { IconSearch } from '../components/Icons.jsx'
 import Thumb from '../components/Thumb.jsx'
 
@@ -75,10 +75,7 @@ export default function Purchases() {
           <Link to={`/purchases/${p.id}`} key={p.id} className="list-row list-row--simple">
             <Thumb purchase={p} />
             <div className="list-row__main">
-              <div className="list-row__title">
-                {p.brand} {p.product}
-                {p.quantity > 1 ? ` ×${p.quantity}` : ''}
-              </div>
+              <div className="list-row__title">{productLabel(p)}</div>
               <div className="list-row__line">{p.store}</div>
             </div>
             <div className="list-row__trailing">

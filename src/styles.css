@@ -887,7 +887,8 @@ a {
   flex-shrink: 0;
 }
 
-.field-row input {
+.field-row input,
+.field-row select {
   border: none;
   background: none;
   outline: none;

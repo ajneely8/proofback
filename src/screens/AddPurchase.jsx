@@ -192,6 +192,7 @@ export default function AddPurchase() {
         receiptNumber: extracted.receiptNumber,
         product: item.product,
         size: item.size || null,
+        gender: item.gender || null,
         color: item.color || null,
         sku: item.sku || null,
         barcode: item.barcode || null,
@@ -488,7 +489,7 @@ export default function AddPurchase() {
                   />
                 </div>
               )}
-              {item.size != null && (
+              {(item.size != null || item.category === 'Apparel') && (
                 <div className="field-row">
                   <label>Size</label>
                   <input
@@ -496,6 +497,19 @@ export default function AddPurchase() {
                     value={item.size || ''}
                     onChange={(e) => updateItem(i, 'size', e.target.value)}
                   />
+                </div>
+              )}
+              {(item.gender != null || item.category === 'Apparel') && (
+                <div className="field-row">
+                  <label>Gender</label>
+                  <select value={item.gender || ''} onChange={(e) => updateItem(i, 'gender', e.target.value)}>
+                    <option value="">—</option>
+                    <option value="Men's">Men's</option>
+                    <option value="Women's">Women's</option>
+                    <option value="Boys'">Boys'</option>
+                    <option value="Girls'">Girls'</option>
+                    <option value="Unisex">Unisex</option>
+                  </select>
                 </div>
               )}
               {item.sku != null && (
