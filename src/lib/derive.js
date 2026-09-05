@@ -112,6 +112,16 @@ export function getTotalSaved(purchases) {
   return Math.round(total * 100) / 100
 }
 
+// Discounts already applied at checkout — a different kind of savings than
+// getSavingsEvents (which is a return/refund/price-adjustment the user
+// confirmed after the fact): this already happened, right there on the
+// receipt, so it's counted the moment a purchase is saved rather than
+// waiting on any action.
+export function getTotalDiscountSaved(purchases) {
+  const total = purchases.reduce((sum, p) => sum + (Number(p.itemDiscount) || 0), 0)
+  return Math.round(total * 100) / 100
+}
+
 // Opportunities: return deadlines closing soon, price drops worth acting on, missing refunds.
 // `notifications` gates each category off when the user has turned that alert type off in Profile.
 export function getOpportunities(purchases, notifications = DEFAULT_SETTINGS.notifications) {
