@@ -1,14 +1,43 @@
 import { createContext, useContext, useEffect, useState } from 'react'
-import { loadSettings, saveSettings } from './storage.js'
+import { supabase } from './supabaseClient.js'
+import { useAuth } from './AuthContext.jsx'
+import { DEFAULT_SETTINGS } from '../data/mockData.js'
 
 const SettingsContext = createContext(null)
 
 export function SettingsProvider({ children }) {
-  const [settings, setSettings] = useState(loadSettings)
+  const { user } = useAuth()
+  const [settings, setSettings] = useState(DEFAULT_SETTINGS)
+  const [loaded, setLoaded] = useState(false)
 
   useEffect(() => {
-    saveSettings(settings)
-  }, [settings])
+    if (!user) {
+      setSettings(DEFAULT_SETTINGS)
+      setLoaded(false)
+      return
+    }
+    let cancelled = false
+    supabase
+      .from('user_settings')
+      .select('data')
+      .eq('user_id', user.id)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (cancelled) return
+        setSettings(data?.data ? { ...DEFAULT_SETTINGS, ...data.data } : DEFAULT_SETTINGS)
+        setLoaded(true)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [user])
+
+  // Persists after the initial load only — otherwise this would immediately
+  // overwrite a just-fetched row with DEFAULT_SETTINGS on every login.
+  useEffect(() => {
+    if (!user || !loaded) return
+    supabase.from('user_settings').upsert({ user_id: user.id, data: settings, updated_at: new Date().toISOString() })
+  }, [settings, user, loaded])
 
   function updateSettings(patch) {
     setSettings((prev) => ({ ...prev, ...patch }))

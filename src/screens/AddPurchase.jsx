@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { usePurchases } from '../lib/PurchasesContext.jsx'
+import { useAuth } from '../lib/AuthContext.jsx'
 import { IconCamera, IconUpload, IconChevronLeft, IconCheck, IconBarcode } from '../components/Icons.jsx'
 import ProductImage from '../components/ProductImage.jsx'
 import BarcodeScanner, { isBarcodeScanSupported } from '../components/BarcodeScanner.jsx'
@@ -128,6 +129,7 @@ export default function AddPurchase() {
   const [viewerIndex, setViewerIndex] = useState(null) // receipt page index currently being viewed closely
   const [duplicateDismissed, setDuplicateDismissed] = useState(false)
   const { addPurchase, purchases } = usePurchases()
+  const { session } = useAuth()
   const navigate = useNavigate()
   const cameraInputRef = useRef(null)
   const uploadInputRef = useRef(null)
@@ -179,7 +181,10 @@ export default function AddPurchase() {
       )
       const res = await fetch('/api/scan-receipt', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+        },
         body: JSON.stringify({ images: prepared.map(({ data, mediaType }) => ({ data, mediaType })) }),
       })
       const data = await res.json()

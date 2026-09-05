@@ -2,10 +2,12 @@ import { useState } from 'react'
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { PurchasesProvider } from './lib/PurchasesContext.jsx'
 import { SettingsProvider } from './lib/SettingsContext.jsx'
+import { useAuth } from './lib/AuthContext.jsx'
 import { hasOnboarded } from './lib/storage.js'
 import BottomNav from './components/BottomNav.jsx'
 import NotificationWatcher from './components/NotificationWatcher.jsx'
 import Onboarding from './screens/Onboarding.jsx'
+import Auth from './screens/Auth.jsx'
 import Home from './screens/Home.jsx'
 import Purchases from './screens/Purchases.jsx'
 import Insights from './screens/Insights.jsx'
@@ -34,11 +36,24 @@ function Shell({ children, showNav = true }) {
 export default function App() {
   const [onboarded, setOnboardedState] = useState(hasOnboarded())
   const location = useLocation()
+  const { user, loading } = useAuth()
 
   if (!onboarded) {
     return (
       <Shell showNav={false}>
         <Onboarding onDone={() => setOnboardedState(true)} />
+      </Shell>
+    )
+  }
+
+  if (loading) {
+    return <Shell showNav={false}>{null}</Shell>
+  }
+
+  if (!user) {
+    return (
+      <Shell showNav={false}>
+        <Auth />
       </Shell>
     )
   }

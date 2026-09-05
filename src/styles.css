@@ -2145,3 +2145,51 @@ a {
 .status-chip--neutral {
   color: var(--text-tertiary);
 }
+
+/* ---------- Auth ---------- */
+
+.auth-screen {
+  display: flex;
+  flex-direction: column;
+  padding-top: 48px;
+}
+
+.auth-screen__mark {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  margin-bottom: 32px;
+}
+
+.auth-screen h1 {
+  font-size: 24px;
+  font-weight: 700;
+  margin: 0 0 6px;
+  letter-spacing: -0.01em;
+}
+
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+.auth-form input {
+  padding: 14px 16px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  font-size: 15px;
+  font-family: inherit;
+  color: var(--text-primary);
+  background: var(--bg-app);
+  outline: none;
+}
+
+.auth-form input:focus {
+  border-color: var(--accent-navy);
+}
+
+.auth-form .btn {
+  margin-top: 4px;
+}
