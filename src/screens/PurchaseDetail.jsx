@@ -5,7 +5,6 @@ import { daysUntil, formatDate, formatDateTime, formatMoney, priceDrop, productL
 import { IconChevronLeft } from '../components/Icons.jsx'
 import ProductImage from '../components/ProductImage.jsx'
 import ReceiptViewer from '../components/ReceiptViewer.jsx'
-import { downloadReminderICS } from '../lib/calendar.js'
 import { sharePurchase } from '../lib/share.js'
 
 export default function PurchaseDetail() {
@@ -358,17 +357,8 @@ export default function PurchaseDetail() {
                 <button className="btn btn--primary btn--block" onClick={startReturn}>
                   Start Return
                 </button>
-                <button
-                  className="btn btn--secondary btn--block"
-                  onClick={() =>
-                    downloadReminderICS({
-                      title: `Return by: ${productLabel(purchase)}`,
-                      dateStr: purchase.returnDeadline,
-                      description: `Return window closes at ${purchase.store}.`,
-                    })
-                  }
-                >
-                  Add to Calendar
+                <button className="btn btn--secondary btn--block" onClick={completeReturn}>
+                  Returned
                 </button>
               </>
             )
@@ -404,18 +394,6 @@ export default function PurchaseDetail() {
             <span>Warranty expires</span>
             <strong>{formatDate(purchase.warrantyExpires)}</strong>
           </div>
-          <button
-            className="btn btn--secondary btn--block"
-            onClick={() =>
-              downloadReminderICS({
-                title: `Warranty expires: ${productLabel(purchase)}`,
-                dateStr: purchase.warrantyExpires,
-                description: `Warranty from ${purchase.store} expires today.`,
-              })
-            }
-          >
-            Add to Calendar
-          </button>
         </section>
       )}
 

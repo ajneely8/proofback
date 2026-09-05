@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom'
 import { usePurchases } from '../lib/PurchasesContext.jsx'
 import { useSettings } from '../lib/SettingsContext.jsx'
-import { getOpportunities, formatMoney, categoryColor } from '../lib/derive.js'
+import { getOpportunities, formatMoney } from '../lib/derive.js'
 import { IconTarget } from '../components/Icons.jsx'
 import Thumb from '../components/Thumb.jsx'
 import EmptyState from '../components/EmptyState.jsx'
@@ -27,7 +27,7 @@ export default function Opportunities() {
       ) : (
         <div className="opp-list">
           {opportunities.map((o) => (
-            <div className="opp-row" key={o.id} style={{ '--row-accent': categoryColor(o.purchase.category) }}>
+            <div className="opp-row" key={o.id}>
               <Thumb purchase={o.purchase} />
               <div className="opp-row__body">
                 <div className="opp-row__amount">{formatMoney(o.amount)}</div>

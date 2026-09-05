@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom'
 import { usePurchases } from '../../lib/PurchasesContext.jsx'
-import { getSavingsEvents, getTotalSaved, getTotalDiscountSaved, formatDate, formatMoney, productLabel, categoryColor } from '../../lib/derive.js'
+import { getSavingsEvents, getTotalSaved, getTotalDiscountSaved, formatDate, formatMoney, productLabel } from '../../lib/derive.js'
 import { IconChevronLeft, IconChevronRight, IconClock, IconDoc } from '../../components/Icons.jsx'
 import Thumb from '../../components/Thumb.jsx'
 import Sparkline from '../../components/Sparkline.jsx'
@@ -57,12 +57,7 @@ export default function History() {
         ) : (
           <div className="list">
             {events.map((e) => (
-              <button
-                key={e.id}
-                className="list-row"
-                onClick={() => navigate(`/purchases/${e.purchase.id}`)}
-                style={{ '--row-accent': categoryColor(e.purchase.category) }}
-              >
+              <button key={e.id} className="list-row" onClick={() => navigate(`/purchases/${e.purchase.id}`)}>
                 <Thumb purchase={e.purchase} />
                 <div className="list-row__main">
                   <div className="list-row__title">{e.label}</div>
@@ -93,7 +88,6 @@ export default function History() {
                   key={p.id}
                   className="list-row list-row--simple"
                   onClick={() => navigate(`/purchases/${p.id}`)}
-                  style={{ '--row-accent': categoryColor(p.category) }}
                 >
                   {receiptPhoto ? (
                     <div className="thumb thumb--md">

@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom'
 import { usePurchases } from '../lib/PurchasesContext.jsx'
 import { useSettings } from '../lib/SettingsContext.jsx'
-import { getNeedsAttention, totalRecoverable, getTotalDiscountSaved, formatMoney, categoryColor } from '../lib/derive.js'
+import { getNeedsAttention, totalRecoverable, getTotalDiscountSaved, formatMoney } from '../lib/derive.js'
 import { IconPlus, IconCamera, IconChevronRight, IconCheck } from '../components/Icons.jsx'
 import Thumb from '../components/Thumb.jsx'
 import RadialProgress from '../components/RadialProgress.jsx'
@@ -61,12 +61,7 @@ export default function Home() {
         ) : (
           <div className="list">
             {needsAttention.map((item) => (
-              <Link
-                to={`/purchases/${item.purchase.id}`}
-                key={item.id}
-                className="list-row"
-                style={{ '--row-accent': categoryColor(item.purchase.category) }}
-              >
+              <Link to={`/purchases/${item.purchase.id}`} key={item.id} className="list-row">
                 <Thumb purchase={item.purchase} />
                 <div className="list-row__main">
                   <div className="list-row__title">{item.label}</div>

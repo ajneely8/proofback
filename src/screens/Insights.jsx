@@ -87,12 +87,7 @@ export default function Insights() {
         <div className="section__title">Biggest purchases</div>
         <div className="list">
           {topPurchases.map((p) => (
-            <button
-              key={p.id}
-              className="list-row list-row--simple"
-              onClick={() => navigate(`/purchases/${p.id}`)}
-              style={{ '--row-accent': categoryColor(p.category) }}
-            >
+            <button key={p.id} className="list-row list-row--simple" onClick={() => navigate(`/purchases/${p.id}`)}>
               <Thumb purchase={p} />
               <div className="list-row__main">
                 <div className="list-row__title">{productLabel(p)}</div>
