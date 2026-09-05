@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom'
 import { usePurchases } from '../lib/PurchasesContext.jsx'
 import { useSettings } from '../lib/SettingsContext.jsx'
 import { getNeedsAttention, totalRecoverable, getTotalDiscountSaved, formatMoney, categoryColor } from '../lib/derive.js'
-import { IconPlus, IconCamera, IconChevronRight, IconCheck, IconTarget } from '../components/Icons.jsx'
+import { IconPlus, IconCamera, IconChevronRight, IconCheck } from '../components/Icons.jsx'
 import Thumb from '../components/Thumb.jsx'
 import RadialProgress from '../components/RadialProgress.jsx'
 import EmptyState from '../components/EmptyState.jsx'
@@ -31,9 +31,6 @@ export default function Home() {
 
       {discountSaved > 0 && (
         <div className="stat-pill">
-          <div className="stat-pill__icon">
-            <IconTarget width={16} height={16} />
-          </div>
           <div className="stat-pill__body">
             <div className="stat-pill__label">Saved from discounts</div>
             <div className="stat-pill__amount">{formatMoney(discountSaved)}</div>

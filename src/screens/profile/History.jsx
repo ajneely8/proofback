@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom'
 import { usePurchases } from '../../lib/PurchasesContext.jsx'
 import { getSavingsEvents, getTotalSaved, getTotalDiscountSaved, formatDate, formatMoney, productLabel, categoryColor } from '../../lib/derive.js'
-import { IconChevronLeft, IconChevronRight, IconClock, IconDoc, IconTarget } from '../../components/Icons.jsx'
+import { IconChevronLeft, IconChevronRight, IconClock, IconDoc } from '../../components/Icons.jsx'
 import Thumb from '../../components/Thumb.jsx'
 import Sparkline from '../../components/Sparkline.jsx'
 import EmptyState from '../../components/EmptyState.jsx'
@@ -39,9 +39,6 @@ export default function History() {
 
       {discountSaved > 0 && (
         <div className="stat-pill">
-          <div className="stat-pill__icon">
-            <IconTarget width={16} height={16} />
-          </div>
           <div className="stat-pill__body">
             <div className="stat-pill__label">Saved from discounts at checkout</div>
             <div className="stat-pill__amount">{formatMoney(discountSaved)}</div>
