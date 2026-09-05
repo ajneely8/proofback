@@ -89,8 +89,9 @@ const ERROR_MESSAGES = {
   extraction_failed: "We couldn't read that receipt. Try again.",
   scan_failed: 'Something went wrong scanning that receipt. Try again.',
   network: "Couldn't reach the scan service. Check your connection and try again.",
-  rate_limited: "You've used up today's free scans. Try again later, or add billing to your Gemini API key for a higher limit.",
-  model_overloaded: "Gemini is overloaded right now. Wait a moment and try again — this isn't something on our end.",
+  rate_limited: "You've hit the API rate limit. Wait a moment and try again.",
+  model_overloaded: "Claude is overloaded right now. Wait a moment and try again — this isn't something on our end.",
+  connection_error: "Couldn't connect to the scanning service right now. Wait a moment and try again.",
 }
 
 export default function AddPurchase() {

@@ -21,8 +21,26 @@ let anthropic = null
 function getClient() {
   const key = process.env.ANTHROPIC_API_KEY || ''
   if (!key) return null
-  if (!anthropic) anthropic = new Anthropic({ apiKey: key })
+  if (!anthropic) anthropic = new Anthropic({ apiKey: key, maxRetries: 2 })
   return anthropic
+}
+
+// A serverless function occasionally can't establish a connection to
+// Anthropic's API on the first try (a cold-start network blip, not an auth
+// or request problem — the SDK's own maxRetries doesn't always cover this
+// case cleanly), so retry a couple more times specifically for that class of
+// error before giving up. Auth/rate-limit/bad-request errors are real
+// answers, not transient — those still fail immediately.
+async function createMessageWithRetry(client, params, attempts = 3) {
+  for (let attempt = 1; attempt <= attempts; attempt++) {
+    try {
+      return await client.messages.create(params)
+    } catch (err) {
+      const isConnectionError = err instanceof Anthropic.APIConnectionError
+      if (!isConnectionError || attempt === attempts) throw err
+      await new Promise((resolve) => setTimeout(resolve, 400 * attempt))
+    }
+  }
 }
 
 // Known store name -> domain, for a same-pattern logo/domain guess.
@@ -270,7 +288,7 @@ export async function scanReceipt(reqBody) {
   }
 
   try {
-    const message = await anthropicClient.messages.create({
+    const message = await createMessageWithRetry(anthropicClient, {
       model: 'claude-sonnet-5',
       max_tokens: 8192,
       tools: [EXTRACT_TOOL],
@@ -385,6 +403,9 @@ export async function scanReceipt(reqBody) {
     }
     if (err.status === 529 || err.status === 503) {
       return { status: 503, body: { error: 'model_overloaded' } }
+    }
+    if (err instanceof Anthropic.APIConnectionError) {
+      return { status: 503, body: { error: 'connection_error' } }
     }
     return { status: 500, body: { error: 'scan_failed' } }
   }
