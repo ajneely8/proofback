@@ -42,18 +42,12 @@ export default function App() {
   const location = useLocation()
   const { user, loading } = useAuth()
 
-  if (!onboarded) {
-    return (
-      <Shell showNav={false}>
-        <Onboarding onDone={() => setOnboardedState(true)} />
-      </Shell>
-    )
-  }
-
   // Accounts are opt-in until VITE_SUPABASE_URL/VITE_SUPABASE_ANON_KEY are
-  // set — until then, skip straight to the app exactly as it worked before
+  // set — until then, skip straight to onboarding exactly as it worked before
   // accounts existed, using local storage. Once those env vars are added,
-  // this switches over on its own with no code change.
+  // this switches over on its own with no code change. Signing up/in comes
+  // before the onboarding carousel so a new visitor lands on an account
+  // screen first, not several slides of marketing.
   if (isSupabaseConfigured) {
     if (loading) {
       return <Shell showNav={false}>{null}</Shell>
@@ -66,6 +60,14 @@ export default function App() {
         </Shell>
       )
     }
+  }
+
+  if (!onboarded) {
+    return (
+      <Shell showNav={false}>
+        <Onboarding onDone={() => setOnboardedState(true)} />
+      </Shell>
+    )
   }
 
   const noNavRoutes = ['/add']
