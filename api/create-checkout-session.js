@@ -35,7 +35,12 @@ export default async function handler(req, res) {
     const url = await createCheckoutSession({ userId: user.id, email: user.email, origin })
     res.status(200).json({ url })
   } catch (err) {
-    console.error('create-checkout-session failed:', err.message)
+    console.error('create-checkout-session failed:', err.message, {
+      type: err.type,
+      code: err.code,
+      cause: err.cause?.message || err.cause,
+      raw: err.raw?.message,
+    })
     res.status(500).json({ error: 'checkout_failed' })
   }
 }
