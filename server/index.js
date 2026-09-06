@@ -1,18 +1,30 @@
 /**
- * Local dev server for receipt scanning — runs alongside Vite (`npm run
- * dev`) so `/api/scan-receipt` has something to proxy to. The actual scan
- * logic lives in scanReceipt.js, shared with api/scan-receipt.js (the
- * Vercel serverless function that serves this route in production, since a
- * Vercel deployment never runs this file at all).
+ * Local dev server — runs alongside Vite (`npm run dev`) so /api/* has
+ * something to proxy to. The actual logic for each route lives in its own
+ * module, shared with the matching function under /api/*.js (what Vercel
+ * actually runs in production, since a Vercel deployment never runs this
+ * file at all).
  */
 import express from 'express'
 import { scanReceipt, scanReceiptWarnings } from './scanReceipt.js'
 import { getAuthedUser, isAuthConfigured } from './auth.js'
 import { checkScanAllowed, recordScanUsed, FREE_SCAN_LIMIT } from './scanLimit.js'
+import { isStripeConfigured } from './stripeClient.js'
+import { handleStripeWebhook } from './stripeWebhook.js'
+import { createCheckoutSession } from './checkoutSession.js'
 
 const PORT = Number(process.env.SCAN_PORT || 8789)
 
 const app = express()
+
+// Registered before express.json() below: Stripe signature verification
+// needs the exact raw request bytes, and once the JSON parser has consumed
+// the body stream for a request, nothing downstream can read it raw again.
+app.post('/api/stripe-webhook', express.raw({ type: '*/*' }), async (req, res) => {
+  const { status, body } = await handleStripeWebhook(req.body, req.headers['stripe-signature'])
+  res.status(status).json(body)
+})
+
 app.use(express.json({ limit: '15mb' }))
 
 app.post('/api/scan-receipt', async (req, res) => {
@@ -34,6 +46,31 @@ app.post('/api/scan-receipt', async (req, res) => {
   const { status, body } = await scanReceipt(req.body)
   if (userId && status === 200) await recordScanUsed(userId)
   res.status(status).json(body)
+})
+
+app.post('/api/create-checkout-session', async (req, res) => {
+  if (!isAuthConfigured()) {
+    res.status(400).json({ error: 'accounts_not_configured' })
+    return
+  }
+  const user = await getAuthedUser(req.headers.authorization)
+  if (!user) {
+    res.status(401).json({ error: 'unauthorized' })
+    return
+  }
+  if (!isStripeConfigured()) {
+    res.status(400).json({ error: 'stripe_not_configured' })
+    return
+  }
+
+  const origin = req.headers.origin || `http://localhost:5220`
+  try {
+    const url = await createCheckoutSession({ userId: user.id, email: user.email, origin })
+    res.status(200).json({ url })
+  } catch (err) {
+    console.error('create-checkout-session failed:', err.message)
+    res.status(500).json({ error: 'checkout_failed' })
+  }
 })
 
 app.listen(PORT, () => {

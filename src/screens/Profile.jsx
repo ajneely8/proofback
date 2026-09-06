@@ -1,8 +1,14 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../lib/AuthContext.jsx'
 import { useSettings } from '../lib/SettingsContext.jsx'
 import { supabase, isSupabaseConfigured } from '../lib/supabaseClient.js'
+
+const UPGRADE_ERROR_MESSAGES = {
+  accounts_not_configured: 'Accounts need to be set up before Premium can work.',
+  stripe_not_configured: "Payment isn't set up on the server yet.",
+  checkout_failed: "Couldn't start checkout. Try again in a moment.",
+}
 import {
   IconUser,
   IconBell,
@@ -29,9 +35,13 @@ const ROWS = [
 ]
 
 export default function Profile() {
-  const { user, signOut } = useAuth()
+  const { user, session, signOut } = useAuth()
   const { settings, updateSettings } = useSettings()
   const [scansUsed, setScansUsed] = useState(null)
+  const [upgrading, setUpgrading] = useState(false)
+  const [upgradeError, setUpgradeError] = useState(null)
+  const [searchParams, setSearchParams] = useSearchParams()
+  const checkoutResult = searchParams.get('checkout')
 
   useEffect(() => {
     if (!isSupabaseConfigured || !user || settings.plan === 'premium') {
@@ -51,6 +61,27 @@ export default function Profile() {
   function handleSignOut() {
     if (!window.confirm('Sign out of ProofBack?')) return
     signOut()
+  }
+
+  async function handleUpgrade() {
+    setUpgrading(true)
+    setUpgradeError(null)
+    try {
+      const res = await fetch('/api/create-checkout-session', {
+        method: 'POST',
+        headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {},
+      })
+      const data = await res.json()
+      if (!res.ok || !data.url) {
+        setUpgradeError(UPGRADE_ERROR_MESSAGES[data.error] || 'Something went wrong. Try again.')
+        setUpgrading(false)
+        return
+      }
+      window.location.href = data.url
+    } catch {
+      setUpgradeError('Something went wrong. Try again.')
+      setUpgrading(false)
+    }
   }
 
   return (
@@ -83,15 +114,30 @@ export default function Profile() {
             ? 'Unlimited scans and email reminders are on.'
             : 'Free plan: 5 scans/month. Premium unlocks unlimited scans and email reminders.'}
         </p>
+
+        {checkoutResult === 'success' && (
+          <p className="field-hint field-hint--good">
+            Payment received — Premium activates as soon as it's confirmed (usually a few seconds).
+          </p>
+        )}
+        {checkoutResult === 'cancelled' && <p className="field-hint">Checkout cancelled — no charge was made.</p>}
+
+        {settings.plan !== 'premium' && (
+          <button className="btn btn--primary btn--block" onClick={handleUpgrade} disabled={upgrading}>
+            {upgrading ? 'Redirecting…' : 'Upgrade to Premium'}
+          </button>
+        )}
+        {upgradeError && <p className="field-hint">{upgradeError}</p>}
+
         <button
-          className="btn btn--secondary btn--block"
-          onClick={() => updateSettings({ plan: settings.plan === 'premium' ? 'free' : 'premium' })}
+          className="link-action"
+          onClick={() => {
+            updateSettings({ plan: settings.plan === 'premium' ? 'free' : 'premium' })
+            setSearchParams({})
+          }}
         >
-          {settings.plan === 'premium' ? 'Switch to Free (test)' : 'Switch to Premium (test)'}
+          {settings.plan === 'premium' ? 'Switch to Free (dev test)' : 'Switch to Premium (dev test)'}
         </button>
-        <p className="field-hint" style={{ textAlign: 'left', margin: '6px 0 0' }}>
-          No real billing yet — this is a manual flag for testing until payment is wired up.
-        </p>
       </section>
 
       <section className="detail-card">
