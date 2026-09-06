@@ -21,8 +21,8 @@ export default function Auth() {
     return (
       <div className="screen auth-screen">
         <div className="auth-screen__mark">
-          <span className="brand-word">Proof</span>
-          <span className="brand-word brand-word--accent">Back</span>
+          <span className="brand-icon" />
+          <span><span className="brand-word">Proof</span><span className="brand-word brand-word--accent">Back</span></span>
         </div>
         <div className="missing-fields-note">
           Accounts aren't set up yet — the server is missing its Supabase configuration
@@ -59,8 +59,8 @@ export default function Auth() {
     return (
       <div className="screen auth-screen">
         <div className="auth-screen__mark">
-          <span className="brand-word">Proof</span>
-          <span className="brand-word brand-word--accent">Back</span>
+          <span className="brand-icon" />
+          <span><span className="brand-word">Proof</span><span className="brand-word brand-word--accent">Back</span></span>
         </div>
         <h1>Check your email</h1>
         <p className="page-header__sub">
@@ -80,8 +80,8 @@ export default function Auth() {
   return (
     <div className="screen auth-screen">
       <div className="auth-screen__mark">
-        <span className="brand-word">Proof</span>
-        <span className="brand-word brand-word--accent">Back</span>
+        <span className="brand-icon" />
+        <span><span className="brand-word">Proof</span><span className="brand-word brand-word--accent">Back</span></span>
       </div>
 
       <h1>{mode === 'login' ? 'Log in' : 'Create an account'}</h1>

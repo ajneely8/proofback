@@ -249,9 +249,9 @@ a {
   width: 20px;
   height: 20px;
   flex-shrink: 0;
-  background-image: url('/logo.png');
-  background-size: 210% auto;
-  background-position: 50% 32%;
+  background-image: url('/logo.svg');
+  background-size: contain;
+  background-position: center;
   background-repeat: no-repeat;
 }
 
@@ -2220,10 +2220,18 @@ a {
 }
 
 .auth-screen__mark {
+  display: flex;
+  align-items: center;
+  gap: 10px;
   font-size: 20px;
   font-weight: 700;
   letter-spacing: -0.01em;
   margin-bottom: 32px;
+}
+
+.auth-screen__mark .brand-icon {
+  width: 32px;
+  height: 32px;
 }
 
 .auth-screen h1 {
