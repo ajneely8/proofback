@@ -35,11 +35,14 @@ export default async function handler(req, res) {
     const url = await createCheckoutSession({ userId: user.id, email: user.email, origin })
     res.status(200).json({ url })
   } catch (err) {
+    // For a StripeConnectionError, the actual underlying network error (the
+    // one that says ECONNRESET/ETIMEDOUT/ENOTFOUND/etc) is Stripe's own
+    // wrapper message's `detail`, not `cause` or `raw` — those are empty for
+    // this error type.
     console.error('create-checkout-session failed:', err.message, {
       type: err.type,
       code: err.code,
-      cause: err.cause?.message || err.cause,
-      raw: err.raw?.message,
+      detail: err.detail?.message || err.detail?.code || err.detail,
     })
     res.status(500).json({ error: 'checkout_failed' })
   }
