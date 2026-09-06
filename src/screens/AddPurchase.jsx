@@ -122,6 +122,7 @@ const ERROR_MESSAGES = {
   rate_limited: "You've hit the API rate limit. Wait a moment and try again.",
   model_overloaded: "Claude is overloaded right now. Wait a moment and try again — this isn't something on our end.",
   connection_error: "Couldn't connect to the scanning service right now. Wait a moment and try again.",
+  scan_limit_reached: "You've used all your free scans this month. Upgrade to Premium in Profile for unlimited scans, or use Enter Manually instead.",
 }
 
 export default function AddPurchase() {

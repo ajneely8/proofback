@@ -51,3 +51,21 @@ create policy "Users can insert their own settings"
 create policy "Users can update their own settings"
   on public.user_settings for update
   using (auth.uid() = user_id);
+
+-- Tracks scans per user per calendar month, to enforce the free-tier limit.
+-- Deliberately has a SELECT policy (so Profile can show "3 of 5 used") but
+-- no INSERT/UPDATE policy for regular users — only the server, using the
+-- service role key (which bypasses RLS entirely), is allowed to increment
+-- it. Otherwise a user could just reset their own usage from the browser.
+create table if not exists public.scan_usage (
+  user_id uuid not null references auth.users(id) on delete cascade,
+  month text not null, -- 'YYYY-MM'
+  count int not null default 0,
+  primary key (user_id, month)
+);
+
+alter table public.scan_usage enable row level security;
+
+create policy "Users can view their own scan usage"
+  on public.scan_usage for select
+  using (auth.uid() = user_id);

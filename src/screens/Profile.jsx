@@ -1,8 +1,9 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../lib/AuthContext.jsx'
 import { usePurchases } from '../lib/PurchasesContext.jsx'
 import { useSettings } from '../lib/SettingsContext.jsx'
+import { supabase, isSupabaseConfigured } from '../lib/supabaseClient.js'
 import { loadPurchases as loadLocalPurchases } from '../lib/storage.js'
 import {
   IconUser,
@@ -35,6 +36,22 @@ export default function Profile() {
   const { addPurchase, purchases } = usePurchases()
   const { settings, updateSettings } = useSettings()
   const [importStatus, setImportStatus] = useState(null)
+  const [scansUsed, setScansUsed] = useState(null)
+
+  useEffect(() => {
+    if (!isSupabaseConfigured || !user || settings.plan === 'premium') {
+      setScansUsed(null)
+      return
+    }
+    const month = new Date().toISOString().slice(0, 7)
+    supabase
+      .from('scan_usage')
+      .select('count')
+      .eq('user_id', user.id)
+      .eq('month', month)
+      .maybeSingle()
+      .then(({ data }) => setScansUsed(data?.count || 0))
+  }, [user, settings.plan])
 
   function handleSignOut() {
     if (!window.confirm('Sign out of ProofBack?')) return
@@ -64,6 +81,36 @@ export default function Profile() {
         <IconShield />
         <span>{user?.email ? `Signed in as ${user.email}` : 'Your purchases are stored locally on this device'}</span>
       </div>
+
+      <section className="detail-card">
+        <div className="detail-card__label">Plan</div>
+        <div className="detail-card__row">
+          <span>Current plan</span>
+          <strong className={settings.plan === 'premium' ? 'text-accent' : ''}>
+            {settings.plan === 'premium' ? 'Premium' : 'Free'}
+          </strong>
+        </div>
+        {settings.plan !== 'premium' && scansUsed != null && (
+          <div className="detail-card__row">
+            <span>Scans this month</span>
+            <strong>{scansUsed} of 5</strong>
+          </div>
+        )}
+        <p className="field-hint" style={{ textAlign: 'left', margin: '6px 0 12px' }}>
+          {settings.plan === 'premium'
+            ? 'Unlimited scans and email reminders are on.'
+            : 'Free plan: 5 scans/month. Premium unlocks unlimited scans and email reminders.'}
+        </p>
+        <button
+          className="btn btn--secondary btn--block"
+          onClick={() => updateSettings({ plan: settings.plan === 'premium' ? 'free' : 'premium' })}
+        >
+          {settings.plan === 'premium' ? 'Switch to Free (test)' : 'Switch to Premium (test)'}
+        </button>
+        <p className="field-hint" style={{ textAlign: 'left', margin: '6px 0 0' }}>
+          No real billing yet — this is a manual flag for testing until payment is wired up.
+        </p>
+      </section>
 
       <section className="detail-card">
         <div className="detail-card__label">Appearance</div>

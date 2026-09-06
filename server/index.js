@@ -8,6 +8,7 @@
 import express from 'express'
 import { scanReceipt, scanReceiptWarnings } from './scanReceipt.js'
 import { getAuthedUser, isAuthConfigured } from './auth.js'
+import { checkScanAllowed, recordScanUsed, FREE_SCAN_LIMIT } from './scanLimit.js'
 
 const PORT = Number(process.env.SCAN_PORT || 8789)
 
@@ -15,14 +16,23 @@ const app = express()
 app.use(express.json({ limit: '15mb' }))
 
 app.post('/api/scan-receipt', async (req, res) => {
+  let userId = null
   if (isAuthConfigured()) {
     const user = await getAuthedUser(req.headers.authorization)
     if (!user) {
       res.status(401).json({ error: 'unauthorized' })
       return
     }
+    userId = user.id
+
+    const { allowed } = await checkScanAllowed(userId)
+    if (!allowed) {
+      res.status(403).json({ error: 'scan_limit_reached', limit: FREE_SCAN_LIMIT })
+      return
+    }
   }
   const { status, body } = await scanReceipt(req.body)
+  if (userId && status === 200) await recordScanUsed(userId)
   res.status(status).json(body)
 })
 
