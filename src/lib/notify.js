@@ -38,13 +38,13 @@ async function showNotification(title, body) {
   if ('serviceWorker' in navigator) {
     try {
       const reg = await navigator.serviceWorker.ready
-      await reg.showNotification(title, { body, icon: '/logo.png', badge: '/logo.png' })
+      await reg.showNotification(title, { body, icon: '/logo-icon.png', badge: '/logo-icon.png' })
       return
     } catch {
       // fall through to a plain Notification below
     }
   }
-  new Notification(title, { body, icon: '/logo.png' })
+  new Notification(title, { body, icon: '/logo-icon.png' })
 }
 
 // Checks for anything urgent that wasn't already notified about, and fires

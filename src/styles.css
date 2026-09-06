@@ -249,7 +249,7 @@ a {
   width: 20px;
   height: 20px;
   flex-shrink: 0;
-  background-image: url('/logo.svg');
+  background-image: url('/logo-icon.png');
   background-size: contain;
   background-position: center;
   background-repeat: no-repeat;
