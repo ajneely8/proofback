@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { usePurchases } from '../lib/PurchasesContext.jsx'
-import { formatDate, formatMoney, priceDrop, productLabel, refundMissing, returnIsOpen } from '../lib/derive.js'
+import { useSettings } from '../lib/SettingsContext.jsx'
+import { formatDate, formatMoney, priceDrop, productLabel, refundMissing, returnIsOpen, getPurchaseStatuses } from '../lib/derive.js'
 import { IconSearch, IconList, IconCheck } from '../components/Icons.jsx'
 import Thumb from '../components/Thumb.jsx'
 import EmptyState from '../components/EmptyState.jsx'
@@ -10,6 +11,7 @@ const FILTERS = ['All', 'Returns', 'Warranties', 'Refunds', 'Price Drops']
 
 export default function Purchases() {
   const { purchases, deletePurchases } = usePurchases()
+  const { settings } = useSettings()
   const [filter, setFilter] = useState('All')
   const [query, setQuery] = useState('')
   const [selectMode, setSelectMode] = useState(false)
@@ -24,15 +26,27 @@ export default function Purchases() {
 
     if (query.trim()) {
       const q = query.trim().toLowerCase()
-      list = list.filter(
-        (p) =>
-          p.product.toLowerCase().includes(q) ||
-          p.brand.toLowerCase().includes(q) ||
-          p.store.toLowerCase().includes(q)
-      )
+      list = list.filter((p) => {
+        const statusText = getPurchaseStatuses(p, settings).map((s) => s.label.toLowerCase()).join(' ')
+        const fields = [
+          p.product,
+          p.brand,
+          p.store,
+          p.category,
+          p.receiptNumber,
+          p.orderNumber,
+          p.serialNumber,
+          p.purchaseDate,
+          p.returnDeadline,
+          p.warrantyExpires,
+          p.price != null ? String(p.price) : null,
+          statusText,
+        ]
+        return fields.some((f) => f && String(f).toLowerCase().includes(q))
+      })
     }
     return list
-  }, [purchases, filter, query])
+  }, [purchases, filter, query, settings])
 
   const totalSpent = purchases.reduce((sum, p) => sum + p.price, 0)
 
@@ -90,7 +104,7 @@ export default function Purchases() {
         <IconSearch />
         <input
           type="text"
-          placeholder="Search purchases"
+          placeholder="Search product, store, receipt, order #, serial #…"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
         />

@@ -1,19 +1,14 @@
 import { getSupabaseAdmin } from './supabaseAdmin.js'
 
-// There's no real billing wired up yet — "premium" is a manually-set flag
-// (Profile -> Appearance area) standing in for a subscription until Stripe
-// (or similar) is actually connected. This is the number that flag exists
-// to lift.
-export const FREE_SCAN_LIMIT = 5
-
-function currentMonth() {
-  const d = new Date()
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
-}
+// Free plan cap: total purchases on the account (not scans-per-month — one
+// scan can create several purchase records, one per line item, so what
+// actually matters to the user is how many purchases they're tracking).
+// 'pro'/'family' plans lift this cap entirely.
+export const FREE_PURCHASE_LIMIT = 10
 
 /**
- * Returns { allowed, remaining } without incrementing anything — used to
- * reject a scan before spending any Anthropic API usage on it. Fails open
+ * Returns { allowed, remaining } without changing anything — used to reject
+ * a scan before spending any Anthropic API usage on it. Fails open
  * (allowed: true) if the service role key isn't configured, or if the
  * user's plan can't be read, rather than blocking scanning over an
  * unrelated setup gap.
@@ -27,29 +22,19 @@ export async function checkScanAllowed(userId) {
     .select('data')
     .eq('user_id', userId)
     .maybeSingle()
-  if (settingsRow?.data?.plan === 'premium') return { allowed: true, remaining: null }
+  if (settingsRow?.data?.plan && settingsRow.data.plan !== 'free') return { allowed: true, remaining: null }
 
-  const month = currentMonth()
-  const { data: usageRow } = await admin
-    .from('scan_usage')
-    .select('count')
+  const { count } = await admin
+    .from('purchases')
+    .select('id', { count: 'exact', head: true })
     .eq('user_id', userId)
-    .eq('month', month)
-    .maybeSingle()
-  const used = usageRow?.count || 0
-  return { allowed: used < FREE_SCAN_LIMIT, remaining: Math.max(0, FREE_SCAN_LIMIT - used) }
+  const used = count || 0
+  return { allowed: used < FREE_PURCHASE_LIMIT, remaining: Math.max(0, FREE_PURCHASE_LIMIT - used) }
 }
 
-/** Called only after a scan actually succeeds — a failed scan shouldn't count against the limit. */
-export async function recordScanUsed(userId) {
-  const admin = getSupabaseAdmin()
-  if (!admin) return
-  const month = currentMonth()
-  const { data: usageRow } = await admin
-    .from('scan_usage')
-    .select('count')
-    .eq('user_id', userId)
-    .eq('month', month)
-    .maybeSingle()
-  await admin.from('scan_usage').upsert({ user_id: userId, month, count: (usageRow?.count || 0) + 1 })
-}
+/**
+ * No-op now that the cap is based on the purchases table itself rather than
+ * a separate monthly counter — kept so existing call sites (after a
+ * successful scan) don't need to change.
+ */
+export async function recordScanUsed() {}

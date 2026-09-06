@@ -296,6 +296,16 @@ const EXTRACT_SCHEMA = {
             enum: ['Electronics', 'Apparel', 'Home', 'Grocery', 'Other'],
             description: 'Best-guess category of this item.',
           },
+          serialNumber: {
+            type: 'string',
+            description:
+              'Serial number for this specific item, ONLY if actually printed on the receipt (common for electronics/appliances, e.g. "S/N 4829102"). Omit entirely if not printed — never guess or invent one.',
+          },
+          orderNumber: {
+            type: 'string',
+            description:
+              "This item's order number, if printed and different from the receipt-level order/transaction number above (e.g. a multi-item online order where each line shows its own order/item number). Omit if not printed, or if it's the same as the receipt-level number already captured.",
+          },
         },
         required: ['product', 'price'],
       },
@@ -434,6 +444,8 @@ export async function scanReceipt(reqBody) {
         returnDeadline,
         returnDeadlineSource,
         warrantyExpires,
+        serialNumber: raw.serialNumber || null,
+        orderNumber: raw.orderNumber || data.receiptNumber || null,
         missingFields: itemMissing,
         logoUrl: logoUrlFor(raw.brand || data.store),
       }

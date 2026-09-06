@@ -5,7 +5,7 @@
  * its server, which is the point: it keeps this codebase out of PCI scope
  * entirely rather than us handling card numbers ourselves.
  */
-import { isStripeConfigured } from '../server/stripeClient.js'
+import { isTierConfigured } from '../server/stripeClient.js'
 import { getAuthedUser, isAuthConfigured } from '../server/auth.js'
 import { createCheckoutSession } from '../server/checkoutSession.js'
 
@@ -25,14 +25,15 @@ export default async function handler(req, res) {
     return
   }
 
-  if (!isStripeConfigured()) {
+  const tier = req.body?.tier === 'family' ? 'family' : 'pro'
+  if (!isTierConfigured(tier)) {
     res.status(400).json({ error: 'stripe_not_configured' })
     return
   }
 
   const origin = req.headers.origin || `https://${req.headers.host}`
   try {
-    const url = await createCheckoutSession({ userId: user.id, email: user.email, origin })
+    const url = await createCheckoutSession({ userId: user.id, email: user.email, origin, tier })
     res.status(200).json({ url })
   } catch (err) {
     // For a StripeConnectionError, the actual underlying network error (the

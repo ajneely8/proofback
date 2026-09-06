@@ -34,7 +34,7 @@ export async function handleStripeWebhook(rawBody, signature) {
   switch (event.type) {
     case 'checkout.session.completed': {
       const session = event.data.object
-      await setPlan(session.client_reference_id, 'premium')
+      await setPlan(session.client_reference_id, session.metadata?.plan || 'pro')
       break
     }
     case 'customer.subscription.deleted': {

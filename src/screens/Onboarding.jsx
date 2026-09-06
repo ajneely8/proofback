@@ -15,8 +15,8 @@ import {
 
 const SLIDES = [
   {
-    title: 'Stop leaving money behind.',
-    body: "ProofBack watches every purchase you add and automatically works out what it's still worth acting on — no manual checking, no spreadsheets.",
+    title: 'Protect everything you buy.',
+    body: "ProofBack keeps a digital record of every purchase — receipts, return deadlines, and warranties — and automatically works out what's still worth acting on.",
     Visual: MoneyCounter,
     extras: [FeatureRow, CapabilityList],
   },

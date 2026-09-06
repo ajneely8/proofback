@@ -315,6 +315,8 @@ export default function AddPurchase() {
         returnDeadline: item.returnDeadline,
         returnDeadlineSource: item.returnDeadlineSource,
         warrantyExpires: item.warrantyExpires,
+        serialNumber: item.serialNumber || null,
+        orderNumber: item.orderNumber || null,
         refund: extracted.refund,
         receiptImageUrls: extracted.receiptImageUrls,
         logoUrl: item.logoUrl,

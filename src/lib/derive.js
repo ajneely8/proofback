@@ -1,4 +1,4 @@
-import { TODAY, DEFAULT_SETTINGS } from '../data/mockData.js'
+import { TODAY, DEFAULT_SETTINGS, RETURN_ALERT_THRESHOLDS, WARRANTY_ALERT_THRESHOLDS } from '../data/mockData.js'
 
 // Parse a "YYYY-MM-DD" string as a local-midnight Date, avoiding the UTC
 // interpretation `new Date(str)` uses (which shifts the displayed day in
@@ -77,20 +77,23 @@ export function getPurchaseStatuses(purchase, settings = DEFAULT_SETTINGS) {
 
   if (!returnDone && purchase.returnDeadline) {
     if (isOpen && daysLeft > urgentWindowDays) {
-      statuses.push({ key: 'returnable', label: 'Still returnable', tone: 'good' })
+      statuses.push({ key: 'returnable', label: 'Return available', tone: 'good' })
     } else if (isOpen) {
       statuses.push({
         key: 'closing_soon',
-        label: `Return closes in ${daysLeft} day${daysLeft === 1 ? '' : 's'}`,
+        label: `Return deadline approaching — ${daysLeft} day${daysLeft === 1 ? '' : 's'}`,
         tone: 'warn',
       })
     } else {
-      statuses.push({ key: 'closed', label: 'Return window closed', tone: 'neutral' })
+      statuses.push({ key: 'closed', label: 'Return expired', tone: 'neutral' })
     }
 
     if (isOpen && ['Apparel', 'Electronics', 'Home'].includes(purchase.category)) {
       statuses.push({ key: 'exchange', label: 'Eligible for exchange', tone: 'good' })
     }
+  } else if (!returnDone) {
+    // No return deadline at all — never claim one we don't actually have.
+    statuses.push({ key: 'return_unconfirmed', label: 'Return policy needs confirmation', tone: 'neutral' })
   }
 
   if (drop > 0 && !purchase.priceAdjustment) {
@@ -105,7 +108,165 @@ export function getPurchaseStatuses(purchase, settings = DEFAULT_SETTINGS) {
     statuses.push({ key: 'refund_missing', label: 'Refund may be missing', tone: 'warn' })
   }
 
+  if (purchase.warrantyExpires) {
+    const warrantyDaysLeft = daysUntil(purchase.warrantyExpires)
+    if (warrantyDaysLeft >= 0 && warrantyDaysLeft > urgentWindowDays) {
+      statuses.push({ key: 'warranty_active', label: 'Warranty active', tone: 'good' })
+    } else if (warrantyDaysLeft >= 0) {
+      statuses.push({ key: 'warranty_expiring', label: 'Warranty expiring soon', tone: 'warn' })
+    } else {
+      statuses.push({ key: 'warranty_expired', label: 'Warranty expired', tone: 'neutral' })
+    }
+  }
+
   return statuses
+}
+
+// A purchase's Protection Score: how much of the record ProofBack (or the
+// user) has actually filled in, not a judgment of the item itself. Each
+// check is something that materially helps a future return/warranty claim
+// go through — missing ones are exactly what the "how to improve" hint on
+// the detail page lists back to the user.
+const PROTECTION_CHECKS = [
+  { key: 'receipt', label: 'Receipt', met: (p) => (p.receiptImageUrls?.length || 0) > 0 || !!p.receiptImageUrl },
+  { key: 'product', label: 'Product identified', met: (p) => !!(p.product && p.brand) },
+  { key: 'return_deadline', label: 'Return deadline', met: (p) => !!p.returnDeadline },
+  { key: 'warranty', label: 'Warranty', met: (p) => !!p.warrantyExpires },
+  { key: 'serial_number', label: 'Serial number', met: (p) => !!p.serialNumber },
+]
+
+export function getProtectionScore(purchase) {
+  const checks = PROTECTION_CHECKS.map((c) => ({ key: c.key, label: c.label, met: c.met(purchase) }))
+  const metCount = checks.filter((c) => c.met).length
+  const percent = Math.round((metCount / checks.length) * 100)
+  return { percent, checks }
+}
+
+// Money the user has actually gotten back through a completed return or
+// refund — distinct from getTotalSaved (which also counts price
+// adjustments) and from totalRecoverable (which is still-potential money).
+export function getMoneyRecovered(purchases) {
+  const total = purchases.reduce((sum, p) => {
+    if (p.returnStatus === 'completed') return sum + (Number(p.returnRecord?.refundAmount ?? p.price) || 0)
+    if (p.refund?.status === 'received') return sum + (Number(p.price) || 0)
+    return sum
+  }, 0)
+  return Math.round(total * 100) / 100
+}
+
+// A persistent, dismissible alert feed (unlike notify.js's ephemeral OS
+// notification) — a return/warranty crosses in the moment it's within any
+// threshold in RETURN_ALERT_THRESHOLDS/WARRANTY_ALERT_THRESHOLDS, gated by
+// the same per-category notification toggles as getNeedsAttention.
+export function getAlerts(purchases, settings = DEFAULT_SETTINGS) {
+  const notifications = settings.notifications ?? DEFAULT_SETTINGS.notifications
+  const alerts = []
+
+  purchases.forEach((p) => {
+    const daysLeft = daysUntil(p.returnDeadline)
+    if (daysLeft !== null && daysLeft >= 0 && notifications.returnDeadlines) {
+      const threshold = RETURN_ALERT_THRESHOLDS.find((t) => daysLeft <= t)
+      if (threshold != null) {
+        alerts.push({
+          id: `${p.id}-alert-return`,
+          purchase: p,
+          type: 'return_deadline',
+          urgent: daysLeft <= 3,
+          daysLeft,
+          message:
+            daysLeft === 0
+              ? `Your ${p.brand} return deadline is today.`
+              : `Your ${p.brand} return deadline is in ${daysLeft} day${daysLeft === 1 ? '' : 's'}.`,
+        })
+      }
+    }
+
+    const warrantyDaysLeft = daysUntil(p.warrantyExpires)
+    if (warrantyDaysLeft !== null && warrantyDaysLeft >= 0 && notifications.warrantyAlerts) {
+      const threshold = WARRANTY_ALERT_THRESHOLDS.find((t) => warrantyDaysLeft <= t)
+      if (threshold != null) {
+        alerts.push({
+          id: `${p.id}-alert-warranty`,
+          purchase: p,
+          type: 'warranty_expiring',
+          urgent: warrantyDaysLeft <= 7,
+          daysLeft: warrantyDaysLeft,
+          message: `Your ${p.brand} warranty expires in ${warrantyDaysLeft} day${warrantyDaysLeft === 1 ? '' : 's'}.`,
+        })
+      }
+    }
+
+    if (priceDrop(p) > 0 && !p.priceAdjustment && notifications.priceDrops) {
+      alerts.push({
+        id: `${p.id}-alert-price`,
+        purchase: p,
+        type: 'price_drop',
+        urgent: false,
+        daysLeft: null,
+        message: `You may still be eligible to return or price-adjust this ${formatMoney(p.price)} purchase.`,
+      })
+    }
+
+    if (refundMissing(p) && notifications.refundAlerts) {
+      alerts.push({
+        id: `${p.id}-alert-refund`,
+        purchase: p,
+        type: 'refund_missing',
+        urgent: true,
+        daysLeft: null,
+        message: `Your expected refund from ${p.brand} hasn't shown up yet.`,
+      })
+    }
+
+    const protection = getProtectionScore(p)
+    if (protection.percent < 60) {
+      alerts.push({
+        id: `${p.id}-alert-incomplete`,
+        purchase: p,
+        type: 'incomplete',
+        urgent: false,
+        daysLeft: null,
+        message: `Your protection information for ${productLabel(p)} is incomplete.`,
+      })
+    }
+  })
+
+  return alerts.sort((a, b) => (a.daysLeft ?? 999) - (b.daysLeft ?? 999))
+}
+
+// Everything the Purchase Dashboard's stat tiles need, computed once over
+// the full purchases array so the Home screen stays a thin rendering layer.
+export function getDashboardStats(purchases, settings = DEFAULT_SETTINGS) {
+  const totalPurchases = purchases.length
+  const totalSpent = Math.round(purchases.reduce((sum, p) => sum + (Number(p.price) || 0), 0) * 100) / 100
+  const eligibleForReturn = purchases.filter((p) => returnIsOpen(p) && p.returnStatus !== 'completed').length
+  const upcomingReturnDeadlines = purchases.filter((p) => {
+    const d = daysUntil(p.returnDeadline)
+    return d !== null && d >= 0 && d <= 30 && p.returnStatus !== 'completed'
+  }).length
+  const activeWarranties = purchases.filter((p) => {
+    const d = daysUntil(p.warrantyExpires)
+    return d !== null && d >= 0
+  }).length
+  const warrantiesExpiringSoon = purchases.filter((p) => {
+    const d = daysUntil(p.warrantyExpires)
+    return d !== null && d >= 0 && d <= 30
+  }).length
+  const recentlyAdded = [...purchases]
+    .sort((a, b) => (a.purchaseDate < b.purchaseDate ? 1 : -1))
+    .slice(0, 5)
+
+  return {
+    totalPurchases,
+    totalSpent,
+    eligibleForReturn,
+    upcomingReturnDeadlines,
+    activeWarranties,
+    warrantiesExpiringSoon,
+    recoverable: totalRecoverable(purchases, settings),
+    recovered: getMoneyRecovered(purchases),
+    recentlyAdded,
+  }
 }
 
 export function todayISO() {

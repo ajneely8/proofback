@@ -8,6 +8,17 @@ export const STORAGE_KEY = 'proofback.purchases.v1'
 export const ONBOARDING_KEY = 'proofback.onboarded.v1'
 export const SETTINGS_KEY = 'proofback.settings.v1'
 
+// Alert cadence, furthest-out first — a return/warranty crosses into "needs
+// attention" the moment it's within any of these thresholds, so it doesn't
+// wait for a single fixed window the way the older reminderWindowDays did.
+export const RETURN_ALERT_THRESHOLDS = [30, 14, 7, 3, 1]
+export const WARRANTY_ALERT_THRESHOLDS = [90, 30, 7]
+
+// Free plan cap: total purchases on the account, not scans-per-month — a
+// single scan can create several purchase records (one per line item), so
+// this is checked against the purchases table directly, not a scan counter.
+export const FREE_PURCHASE_LIMIT = 10
+
 export const DEFAULT_SETTINGS = {
   name: '',
   email: '',
@@ -23,6 +34,7 @@ export const DEFAULT_SETTINGS = {
   // "urgent" (closing soon) rather than just "still returnable".
   reminderWindowDays: 30,
   urgentWindowDays: 7,
+
   // 'system' follows the device's OS-level light/dark setting; 'light' and
   // 'dark' force it regardless of that setting.
   theme: 'system',

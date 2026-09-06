@@ -8,8 +8,8 @@
 import express from 'express'
 import { scanReceipt, scanReceiptWarnings } from './scanReceipt.js'
 import { getAuthedUser, isAuthConfigured } from './auth.js'
-import { checkScanAllowed, recordScanUsed, FREE_SCAN_LIMIT } from './scanLimit.js'
-import { isStripeConfigured } from './stripeClient.js'
+import { checkScanAllowed, recordScanUsed, FREE_PURCHASE_LIMIT } from './scanLimit.js'
+import { isTierConfigured } from './stripeClient.js'
 import { handleStripeWebhook } from './stripeWebhook.js'
 import { createCheckoutSession } from './checkoutSession.js'
 
@@ -39,7 +39,7 @@ app.post('/api/scan-receipt', async (req, res) => {
 
     const { allowed } = await checkScanAllowed(userId)
     if (!allowed) {
-      res.status(403).json({ error: 'scan_limit_reached', limit: FREE_SCAN_LIMIT })
+      res.status(403).json({ error: 'scan_limit_reached', limit: FREE_PURCHASE_LIMIT })
       return
     }
   }
@@ -58,14 +58,15 @@ app.post('/api/create-checkout-session', async (req, res) => {
     res.status(401).json({ error: 'unauthorized' })
     return
   }
-  if (!isStripeConfigured()) {
+  const tier = req.body?.tier === 'family' ? 'family' : 'pro'
+  if (!isTierConfigured(tier)) {
     res.status(400).json({ error: 'stripe_not_configured' })
     return
   }
 
   const origin = req.headers.origin || `http://localhost:5220`
   try {
-    const url = await createCheckoutSession({ userId: user.id, email: user.email, origin })
+    const url = await createCheckoutSession({ userId: user.id, email: user.email, origin, tier })
     res.status(200).json({ url })
   } catch (err) {
     console.error('create-checkout-session failed:', err.message)

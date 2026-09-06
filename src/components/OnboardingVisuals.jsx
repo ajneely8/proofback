@@ -218,9 +218,9 @@ const DESTINATIONS = [
     detail: '"Needs attention" surfaces whatever is most time-sensitive right now.',
   },
   {
-    Icon: IconTarget,
-    title: 'Opportunities',
-    detail: 'Every open alert in one list, sorted by how much money is involved.',
+    Icon: IconBell,
+    title: 'Alerts',
+    detail: 'Every open alert in one list, sorted by how urgent it is.',
   },
 ]
 

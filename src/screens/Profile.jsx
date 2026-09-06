@@ -1,14 +1,7 @@
-import { useEffect, useState } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { useAuth } from '../lib/AuthContext.jsx'
 import { useSettings } from '../lib/SettingsContext.jsx'
-import { supabase, isSupabaseConfigured } from '../lib/supabaseClient.js'
-
-const UPGRADE_ERROR_MESSAGES = {
-  accounts_not_configured: 'Accounts need to be set up before Premium can work.',
-  stripe_not_configured: "Payment isn't set up on the server yet.",
-  checkout_failed: "Couldn't start checkout. Try again in a moment.",
-}
+import { usePurchases } from '../lib/PurchasesContext.jsx'
 import {
   IconUser,
   IconBell,
@@ -34,54 +27,17 @@ const ROWS = [
   { Icon: IconDoc, label: 'Terms', to: '/profile/terms' },
 ]
 
-export default function Profile() {
-  const { user, session, signOut } = useAuth()
-  const { settings, updateSettings } = useSettings()
-  const [scansUsed, setScansUsed] = useState(null)
-  const [upgrading, setUpgrading] = useState(false)
-  const [upgradeError, setUpgradeError] = useState(null)
-  const [searchParams, setSearchParams] = useSearchParams()
-  const checkoutResult = searchParams.get('checkout')
+const PLAN_NAMES = { free: 'Free', pro: 'Pro', family: 'Family' }
 
-  useEffect(() => {
-    if (!isSupabaseConfigured || !user || settings.plan === 'premium') {
-      setScansUsed(null)
-      return
-    }
-    const month = new Date().toISOString().slice(0, 7)
-    supabase
-      .from('scan_usage')
-      .select('count')
-      .eq('user_id', user.id)
-      .eq('month', month)
-      .maybeSingle()
-      .then(({ data }) => setScansUsed(data?.count || 0))
-  }, [user, settings.plan])
+export default function Profile() {
+  const { user, signOut } = useAuth()
+  const { settings } = useSettings()
+  const { purchases } = usePurchases()
+  const plan = settings.plan || 'free'
 
   function handleSignOut() {
     if (!window.confirm('Sign out of ProofBack?')) return
     signOut()
-  }
-
-  async function handleUpgrade() {
-    setUpgrading(true)
-    setUpgradeError(null)
-    try {
-      const res = await fetch('/api/create-checkout-session', {
-        method: 'POST',
-        headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {},
-      })
-      const data = await res.json()
-      if (!res.ok || !data.url) {
-        setUpgradeError(UPGRADE_ERROR_MESSAGES[data.error] || 'Something went wrong. Try again.')
-        setUpgrading(false)
-        return
-      }
-      window.location.href = data.url
-    } catch {
-      setUpgradeError('Something went wrong. Try again.')
-      setUpgrading(false)
-    }
   }
 
   return (
@@ -99,45 +55,22 @@ export default function Profile() {
         <div className="detail-card__label">Plan</div>
         <div className="detail-card__row">
           <span>Current plan</span>
-          <strong className={settings.plan === 'premium' ? 'text-accent' : ''}>
-            {settings.plan === 'premium' ? 'Premium' : 'Free'}
-          </strong>
+          <strong className={plan !== 'free' ? 'text-accent' : ''}>{PLAN_NAMES[plan] || 'Free'}</strong>
         </div>
-        {settings.plan !== 'premium' && scansUsed != null && (
+        {plan === 'free' && (
           <div className="detail-card__row">
-            <span>Scans this month</span>
-            <strong>{scansUsed} of 5</strong>
+            <span>Purchases used</span>
+            <strong>{purchases.length} of 10</strong>
           </div>
         )}
         <p className="field-hint" style={{ textAlign: 'left', margin: '6px 0 12px' }}>
-          {settings.plan === 'premium'
-            ? 'Unlimited scans and email reminders are on.'
-            : 'Free plan: 5 scans/month. Premium unlocks unlimited scans and email reminders.'}
+          {plan === 'free'
+            ? 'Free plan: up to 10 purchases. Pro and Family unlock unlimited purchases, automatic return tracking, and more.'
+            : 'Unlimited purchases and automatic tracking are on.'}
         </p>
-
-        {checkoutResult === 'success' && (
-          <p className="field-hint field-hint--good">
-            Payment received — Premium activates as soon as it's confirmed (usually a few seconds).
-          </p>
-        )}
-        {checkoutResult === 'cancelled' && <p className="field-hint">Checkout cancelled — no charge was made.</p>}
-
-        {settings.plan !== 'premium' && (
-          <button className="btn btn--primary btn--block" onClick={handleUpgrade} disabled={upgrading}>
-            {upgrading ? 'Redirecting…' : 'Upgrade to Premium'}
-          </button>
-        )}
-        {upgradeError && <p className="field-hint">{upgradeError}</p>}
-
-        <button
-          className="link-action"
-          onClick={() => {
-            updateSettings({ plan: settings.plan === 'premium' ? 'free' : 'premium' })
-            setSearchParams({})
-          }}
-        >
-          {settings.plan === 'premium' ? 'Switch to Free (dev test)' : 'Switch to Premium (dev test)'}
-        </button>
+        <Link to="/profile/subscription" className="btn btn--primary btn--block">
+          {plan === 'free' ? 'View Plans' : 'Manage Plan'}
+        </Link>
       </section>
 
       <div className="list">

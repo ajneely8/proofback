@@ -17,3 +17,16 @@ export function getStripe() {
 export function isStripeConfigured() {
   return Boolean(process.env.STRIPE_SECRET_KEY && process.env.STRIPE_PRICE_ID)
 }
+
+// STRIPE_PRICE_ID is the original single "Premium" price, kept as the Pro
+// tier's price so nothing already configured in Vercel breaks. Family has
+// its own separate price once/if it's created (STRIPE_PRICE_ID_FAMILY) —
+// isTierConfigured(...) tells the UI whether to offer it yet.
+export function priceIdForTier(tier) {
+  if (tier === 'family') return process.env.STRIPE_PRICE_ID_FAMILY || null
+  return process.env.STRIPE_PRICE_ID || null
+}
+
+export function isTierConfigured(tier) {
+  return Boolean(process.env.STRIPE_SECRET_KEY && priceIdForTier(tier))
+}

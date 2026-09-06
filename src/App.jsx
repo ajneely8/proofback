@@ -17,7 +17,7 @@ import Insights from './screens/Insights.jsx'
 import Watchlist from './screens/Watchlist.jsx'
 import PurchaseDetail from './screens/PurchaseDetail.jsx'
 import AddPurchase from './screens/AddPurchase.jsx'
-import Opportunities from './screens/Opportunities.jsx'
+import Alerts from './screens/Alerts.jsx'
 import Profile from './screens/Profile.jsx'
 import Account from './screens/profile/Account.jsx'
 import Notifications from './screens/profile/Notifications.jsx'
@@ -70,16 +70,13 @@ export default function App() {
     )
   }
 
-  const noNavRoutes = ['/add']
-  const showNav = !noNavRoutes.includes(location.pathname)
-
   return (
     <SettingsProvider>
       <PurchasesProvider>
         <WatchlistProvider>
           <ThemeEffect />
           <NotificationWatcher />
-          <Shell showNav={showNav}>
+          <Shell>
             <Routes>
               <Route path="/" element={<Home />} />
               <Route path="/purchases" element={<Purchases />} />
@@ -87,7 +84,7 @@ export default function App() {
               <Route path="/watchlist" element={<Watchlist />} />
               <Route path="/purchases/:id" element={<PurchaseDetail />} />
               <Route path="/add" element={<AddPurchase />} />
-              <Route path="/opportunities" element={<Opportunities />} />
+              <Route path="/alerts" element={<Alerts />} />
               <Route path="/profile" element={<Profile />} />
               <Route path="/profile/account" element={<Account />} />
               <Route path="/profile/notifications" element={<Notifications />} />

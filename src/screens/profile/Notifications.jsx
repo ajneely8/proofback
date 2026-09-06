@@ -61,7 +61,7 @@ export default function Notifications() {
 
       <div className="page-header">
         <h1>Notification settings</h1>
-        <p className="page-header__sub">Choose what ProofBack should surface on Home and Opportunities.</p>
+        <p className="page-header__sub">Choose what ProofBack should surface on Home and Alerts.</p>
       </div>
 
       <section className="detail-card">

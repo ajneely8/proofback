@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { usePurchases } from '../lib/PurchasesContext.jsx'
 import { useSettings } from '../lib/SettingsContext.jsx'
-import { daysUntil, formatDate, formatDateTime, formatMoney, priceDrop, productLabel, getPurchaseStatuses, todayISO } from '../lib/derive.js'
+import { daysUntil, formatDate, formatDateTime, formatMoney, priceDrop, productLabel, getPurchaseStatuses, getProtectionScore, todayISO } from '../lib/derive.js'
 import { IconChevronLeft } from '../components/Icons.jsx'
 import ProductImage from '../components/ProductImage.jsx'
 import ReceiptViewer from '../components/ReceiptViewer.jsx'
@@ -19,6 +19,12 @@ export default function PurchaseDetail() {
   const [shareStatus, setShareStatus] = useState(null) // brief confirmation after a share/copy action
   const [priceCheckInput, setPriceCheckInput] = useState('')
   const [priceCheckOpen, setPriceCheckOpen] = useState(false)
+  const [returnFormOpen, setReturnFormOpen] = useState(false)
+  const [returnForm, setReturnForm] = useState({ refundAmount: '', returnMethod: '', notes: '' })
+  const [claimOpen, setClaimOpen] = useState(false)
+  const [claimProblem, setClaimProblem] = useState('')
+  const [claimSummary, setClaimSummary] = useState(null)
+  const [claimCopyStatus, setClaimCopyStatus] = useState(null)
 
   const purchase = purchases.find((p) => p.id === id)
 
@@ -34,6 +40,7 @@ export default function PurchaseDetail() {
   const daysLeft = daysUntil(purchase.returnDeadline)
   const drop = priceDrop(purchase)
   const statuses = getPurchaseStatuses(purchase, settings)
+  const protection = getProtectionScore(purchase)
   const refund = purchase.refund
   const receiptPhotos = purchase.receiptImageUrls?.length
     ? purchase.receiptImageUrls
@@ -45,8 +52,53 @@ export default function PurchaseDetail() {
     updatePurchase(purchase.id, { returnStatus: 'started' })
   }
 
+  function openReturnForm() {
+    setReturnForm({ refundAmount: String(purchase.price), returnMethod: '', notes: '' })
+    setReturnFormOpen(true)
+  }
+
   function completeReturn() {
-    updatePurchase(purchase.id, { returnStatus: 'completed', returnCompletedDate: todayISO() })
+    updatePurchase(purchase.id, {
+      returnStatus: 'completed',
+      returnCompletedDate: todayISO(),
+      returnRecord: {
+        returnDate: todayISO(),
+        refundAmount: returnForm.refundAmount === '' ? purchase.price : Number(returnForm.refundAmount),
+        returnMethod: returnForm.returnMethod || null,
+        notes: returnForm.notes || null,
+      },
+    })
+    setReturnFormOpen(false)
+  }
+
+  function generateClaimSummary() {
+    const lines = [
+      `Warranty claim — ${productLabel(purchase)}`,
+      '',
+      `Product: ${productLabel(purchase)}`,
+      `Purchased: ${formatDate(purchase.purchaseDate)}`,
+      `Store: ${purchase.store}`,
+      `Price: ${formatMoney(purchase.price)}`,
+      `Receipt: ${receiptPhotos.length ? 'Saved in ProofBack' : 'Not on file'}`,
+      purchase.serialNumber ? `Serial number: ${purchase.serialNumber}` : null,
+      purchase.warrantyExpires ? `Warranty expires: ${formatDate(purchase.warrantyExpires)}` : null,
+      '',
+      'Problem description:',
+      claimProblem || '(not described)',
+    ].filter((l) => l !== null)
+    const summary = lines.join('\n')
+    setClaimSummary(summary)
+    updatePurchase(purchase.id, { warrantyClaimDraft: { problemDescription: claimProblem, createdAt: todayISO() } })
+  }
+
+  async function copyClaimSummary() {
+    try {
+      await navigator.clipboard.writeText(claimSummary)
+      setClaimCopyStatus('copied')
+    } catch {
+      setClaimCopyStatus('unsupported')
+    }
+    setTimeout(() => setClaimCopyStatus(null), 2500)
   }
 
   function claimPriceAdjustment() {
@@ -90,6 +142,11 @@ export default function PurchaseDetail() {
       quantity: purchase.quantity || 1,
       price: purchase.price,
       purchaseDate: purchase.purchaseDate,
+      serialNumber: purchase.serialNumber || '',
+      orderNumber: purchase.orderNumber || '',
+      warrantyExpires: purchase.warrantyExpires || '',
+      returnDeadline: purchase.returnDeadline || '',
+      notes: purchase.notes || '',
     })
     setEditing(true)
   }
@@ -107,6 +164,11 @@ export default function PurchaseDetail() {
       price: Number(draft.price),
       currentPrice: Number(draft.price),
       purchaseDate: draft.purchaseDate,
+      serialNumber: draft.serialNumber || null,
+      orderNumber: draft.orderNumber || null,
+      warrantyExpires: draft.warrantyExpires || null,
+      returnDeadline: draft.returnDeadline || null,
+      notes: draft.notes || null,
     })
     setEditing(false)
     setDraft(null)
@@ -214,6 +276,46 @@ export default function PurchaseDetail() {
               onChange={(e) => setDraft({ ...draft, purchaseDate: e.target.value })}
             />
           </div>
+          <div className="field-row">
+            <label>Return deadline</label>
+            <input
+              type="date"
+              value={draft.returnDeadline}
+              onChange={(e) => setDraft({ ...draft, returnDeadline: e.target.value })}
+            />
+          </div>
+          <div className="field-row">
+            <label>Warranty expires</label>
+            <input
+              type="date"
+              value={draft.warrantyExpires}
+              onChange={(e) => setDraft({ ...draft, warrantyExpires: e.target.value })}
+            />
+          </div>
+          <div className="field-row">
+            <label>Serial number</label>
+            <input
+              type="text"
+              value={draft.serialNumber}
+              onChange={(e) => setDraft({ ...draft, serialNumber: e.target.value })}
+            />
+          </div>
+          <div className="field-row">
+            <label>Order number</label>
+            <input
+              type="text"
+              value={draft.orderNumber}
+              onChange={(e) => setDraft({ ...draft, orderNumber: e.target.value })}
+            />
+          </div>
+          <div className="field-row field-row--stacked">
+            <label>Notes</label>
+            <textarea
+              rows={3}
+              value={draft.notes}
+              onChange={(e) => setDraft({ ...draft, notes: e.target.value })}
+            />
+          </div>
         </section>
 
         <button
@@ -248,6 +350,12 @@ export default function PurchaseDetail() {
             ))}
           </div>
         )}
+        <div className="protection-score">
+          <div className="protection-score__track">
+            <div className="protection-score__fill" style={{ width: `${protection.percent}%` }} />
+          </div>
+          <span className="protection-score__label">{protection.percent}% protected</span>
+        </div>
         {purchase.color && <div className="detail-hero__sub">{purchase.color}</div>}
         <div className="detail-hero__sub">
           Purchased {formatDateTime(purchase.purchaseDate, purchase.purchaseTime)} at {purchase.store}
@@ -319,7 +427,26 @@ export default function PurchaseDetail() {
         </section>
       )}
 
-      {(purchase.sku || purchase.barcode) && (
+      <section className="detail-card">
+        <div className="detail-card__label">Protection Score</div>
+        <div className="detail-card__row">
+          <span>{protection.percent}% protected</span>
+        </div>
+        <ul className="protection-checklist">
+          {protection.checks.map((c) => (
+            <li key={c.key} className={c.met ? 'is-met' : 'is-missing'}>
+              {c.label} {c.met ? '✓' : '— missing'}
+            </li>
+          ))}
+        </ul>
+        {protection.percent < 100 && (
+          <p className="field-hint" style={{ margin: '8px 0 0' }}>
+            Add the missing details above (edit this purchase) to raise your score.
+          </p>
+        )}
+      </section>
+
+      {(purchase.sku || purchase.barcode || purchase.serialNumber || purchase.orderNumber) && (
         <section className="detail-card">
           <div className="detail-card__label">Item Code</div>
           {purchase.sku && (
@@ -334,6 +461,25 @@ export default function PurchaseDetail() {
               <strong>{purchase.barcode}</strong>
             </div>
           )}
+          {purchase.serialNumber && (
+            <div className="detail-card__row">
+              <span>Serial number</span>
+              <strong>{purchase.serialNumber}</strong>
+            </div>
+          )}
+          {purchase.orderNumber && (
+            <div className="detail-card__row">
+              <span>Order number</span>
+              <strong>{purchase.orderNumber}</strong>
+            </div>
+          )}
+        </section>
+      )}
+
+      {purchase.notes && (
+        <section className="detail-card">
+          <div className="detail-card__label">Notes</div>
+          <p className="field-hint" style={{ color: 'var(--text-secondary)', margin: 0 }}>{purchase.notes}</p>
         </section>
       )}
 
@@ -355,6 +501,7 @@ export default function PurchaseDetail() {
               Return deadline
               {purchase.returnDeadlineSource === 'receipt' && ' (from receipt)'}
               {purchase.returnDeadlineSource === 'store_policy' && ` (${purchase.store}'s typical policy)`}
+              {purchase.returnDeadlineSource === 'estimated' && ' (estimated — confirm with store)'}
             </span>
             <strong>{formatDate(purchase.returnDeadline)}</strong>
           </div>
@@ -366,10 +513,53 @@ export default function PurchaseDetail() {
           </div>
           {purchase.returnStatus === 'completed' ? (
             <p className="confirm-prompt confirm-prompt--top">
-              Return completed {formatDate(purchase.returnCompletedDate)} · {formatMoney(purchase.price)} recovered
+              Returned {formatDate(purchase.returnRecord?.returnDate || purchase.returnCompletedDate)} ·{' '}
+              {formatMoney(purchase.returnRecord?.refundAmount ?? purchase.price)} recovered
+              {purchase.returnRecord?.returnMethod ? ` via ${purchase.returnRecord.returnMethod}` : ''}
             </p>
+          ) : returnFormOpen ? (
+            <>
+              <div className="field-row">
+                <label>Refund amount</label>
+                <div className="field-row__money">
+                  <span>$</span>
+                  <input
+                    type="number"
+                    step="0.01"
+                    autoFocus
+                    value={returnForm.refundAmount}
+                    onChange={(e) => setReturnForm({ ...returnForm, refundAmount: e.target.value })}
+                  />
+                </div>
+              </div>
+              <div className="field-row">
+                <label>Return method</label>
+                <input
+                  type="text"
+                  placeholder="e.g. In-store, mail"
+                  value={returnForm.returnMethod}
+                  onChange={(e) => setReturnForm({ ...returnForm, returnMethod: e.target.value })}
+                />
+              </div>
+              <div className="field-row field-row--stacked">
+                <label>Notes</label>
+                <textarea
+                  rows={2}
+                  value={returnForm.notes}
+                  onChange={(e) => setReturnForm({ ...returnForm, notes: e.target.value })}
+                />
+              </div>
+              <div className="action-row">
+                <button className="btn btn--secondary" onClick={() => setReturnFormOpen(false)}>
+                  Cancel
+                </button>
+                <button className="btn btn--primary" onClick={completeReturn}>
+                  Confirm Returned
+                </button>
+              </div>
+            </>
           ) : purchase.returnStatus === 'started' ? (
-            <button className="btn btn--primary btn--block" onClick={completeReturn}>
+            <button className="btn btn--primary btn--block" onClick={openReturnForm}>
               Mark Return Complete
             </button>
           ) : (
@@ -378,7 +568,7 @@ export default function PurchaseDetail() {
                 <button className="btn btn--primary btn--block" onClick={startReturn}>
                   Start Return
                 </button>
-                <button className="btn btn--secondary btn--block" onClick={completeReturn}>
+                <button className="btn btn--secondary btn--block" onClick={openReturnForm}>
                   Returned
                 </button>
               </>
@@ -457,6 +647,63 @@ export default function PurchaseDetail() {
             <span>Warranty expires</span>
             <strong>{formatDate(purchase.warrantyExpires)}</strong>
           </div>
+
+          {claimOpen ? (
+            <>
+              <div className="field-row field-row--stacked">
+                <label>Describe the problem</label>
+                <textarea
+                  rows={3}
+                  autoFocus
+                  value={claimProblem}
+                  onChange={(e) => setClaimProblem(e.target.value)}
+                  placeholder="What's wrong with the product?"
+                />
+              </div>
+              {!claimSummary ? (
+                <div className="action-row">
+                  <button className="btn btn--secondary" onClick={() => setClaimOpen(false)}>
+                    Cancel
+                  </button>
+                  <button className="btn btn--primary" onClick={generateClaimSummary} disabled={!claimProblem.trim()}>
+                    Generate Claim Summary
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <p className="field-hint" style={{ color: 'var(--text-secondary)' }}>
+                    ProofBack doesn't submit claims on your behalf — copy this summary and send it to the
+                    manufacturer or retailer yourself.
+                  </p>
+                  <pre className="claim-summary">{claimSummary}</pre>
+                  <div className="action-row">
+                    <button
+                      className="btn btn--secondary"
+                      onClick={() => {
+                        setClaimOpen(false)
+                        setClaimSummary(null)
+                      }}
+                    >
+                      Close
+                    </button>
+                    <button className="btn btn--primary" onClick={copyClaimSummary}>
+                      Copy Summary
+                    </button>
+                  </div>
+                  {claimCopyStatus === 'copied' && (
+                    <p className="field-hint field-hint--good">Copied to clipboard</p>
+                  )}
+                  {claimCopyStatus === 'unsupported' && (
+                    <p className="field-hint">Copying isn't supported on this device/browser</p>
+                  )}
+                </>
+              )}
+            </>
+          ) : (
+            <button className="btn btn--secondary btn--block" onClick={() => setClaimOpen(true)}>
+              Start Warranty Claim
+            </button>
+          )}
         </section>
       )}
 

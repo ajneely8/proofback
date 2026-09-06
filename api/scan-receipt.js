@@ -13,7 +13,7 @@
  */
 import { scanReceipt } from '../server/scanReceipt.js'
 import { getAuthedUser, isAuthConfigured } from '../server/auth.js'
-import { checkScanAllowed, recordScanUsed, FREE_SCAN_LIMIT } from '../server/scanLimit.js'
+import { checkScanAllowed, recordScanUsed, FREE_PURCHASE_LIMIT } from '../server/scanLimit.js'
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -32,7 +32,7 @@ export default async function handler(req, res) {
 
     const { allowed } = await checkScanAllowed(userId)
     if (!allowed) {
-      res.status(403).json({ error: 'scan_limit_reached', limit: FREE_SCAN_LIMIT })
+      res.status(403).json({ error: 'scan_limit_reached', limit: FREE_PURCHASE_LIMIT })
       return
     }
   }

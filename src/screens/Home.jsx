@@ -2,8 +2,15 @@ import { Link } from 'react-router-dom'
 import { usePurchases } from '../lib/PurchasesContext.jsx'
 import { useSettings } from '../lib/SettingsContext.jsx'
 import { useWatchlist } from '../lib/WatchlistContext.jsx'
-import { getNeedsAttention, totalRecoverable, getTotalDiscountSaved, formatMoney } from '../lib/derive.js'
-import { IconPlus, IconCamera, IconChevronRight, IconCheck } from '../components/Icons.jsx'
+import {
+  getNeedsAttention,
+  getDashboardStats,
+  getTotalDiscountSaved,
+  formatMoney,
+  formatDate,
+  productLabel,
+} from '../lib/derive.js'
+import { IconPlus, IconChevronRight, IconCheck } from '../components/Icons.jsx'
 import Thumb from '../components/Thumb.jsx'
 import RadialProgress from '../components/RadialProgress.jsx'
 import EmptyState from '../components/EmptyState.jsx'
@@ -13,7 +20,7 @@ export default function Home() {
   const { settings } = useSettings()
   const { items: watchlistItems } = useWatchlist()
   const needsAttention = getNeedsAttention(purchases, settings)
-  const total = totalRecoverable(purchases, settings)
+  const stats = getDashboardStats(purchases, settings)
   const discountSaved = getTotalDiscountSaved(purchases)
   const watchlistHits = watchlistItems.filter((i) => i.lastSeenPrice != null && i.lastSeenPrice <= i.targetPrice)
 
@@ -27,10 +34,46 @@ export default function Home() {
       </div>
 
       <section className="summary">
-        <div className="summary__label">Money you could recover</div>
-        <div className="summary__amount">{formatMoney(total)}</div>
-        <div className="summary__hint">Based on your tracked purchases</div>
+        <div className="summary__label">Money you could still recover</div>
+        <div className="summary__amount">{formatMoney(stats.recoverable)}</div>
+        <div className="summary__hint">Across returns, price adjustments, and missing refunds</div>
       </section>
+
+      {stats.recovered > 0 && (
+        <div className="stat-pill">
+          <div className="stat-pill__body">
+            <div className="stat-pill__label">Money recovered</div>
+            <div className="stat-pill__amount">{formatMoney(stats.recovered)}</div>
+          </div>
+        </div>
+      )}
+
+      <div className="dashboard-grid">
+        <div className="dashboard-tile">
+          <div className="dashboard-tile__value">{stats.totalPurchases}</div>
+          <div className="dashboard-tile__label">Total purchases</div>
+        </div>
+        <div className="dashboard-tile">
+          <div className="dashboard-tile__value">{formatMoney(stats.totalSpent)}</div>
+          <div className="dashboard-tile__label">Total spent</div>
+        </div>
+        <div className="dashboard-tile">
+          <div className="dashboard-tile__value">{stats.eligibleForReturn}</div>
+          <div className="dashboard-tile__label">Eligible for return</div>
+        </div>
+        <div className="dashboard-tile">
+          <div className="dashboard-tile__value">{stats.upcomingReturnDeadlines}</div>
+          <div className="dashboard-tile__label">Deadlines in 30 days</div>
+        </div>
+        <div className="dashboard-tile">
+          <div className="dashboard-tile__value">{stats.activeWarranties}</div>
+          <div className="dashboard-tile__label">Active warranties</div>
+        </div>
+        <div className="dashboard-tile">
+          <div className="dashboard-tile__value">{stats.warrantiesExpiringSoon}</div>
+          <div className="dashboard-tile__label">Warranties expiring soon</div>
+        </div>
+      </div>
 
       {discountSaved > 0 && (
         <div className="stat-pill">
@@ -54,13 +97,9 @@ export default function Home() {
       )}
 
       <div className="action-row">
-        <Link to="/add" className="btn btn--primary">
+        <Link to="/add" className="btn btn--primary btn--block">
           <IconPlus />
           Add Purchase
-        </Link>
-        <Link to="/add" className="btn btn--secondary">
-          <IconCamera width={18} height={18} />
-          Scan Receipt
         </Link>
       </div>
 
@@ -102,6 +141,27 @@ export default function Home() {
           </div>
         )}
       </section>
+
+      {stats.recentlyAdded.length > 0 && (
+        <section className="section">
+          <div className="section__title">Recently added</div>
+          <div className="list">
+            {stats.recentlyAdded.map((p) => (
+              <Link to={`/purchases/${p.id}`} key={p.id} className="list-row list-row--simple">
+                <Thumb purchase={p} />
+                <div className="list-row__main">
+                  <div className="list-row__title">{productLabel(p)}</div>
+                  <div className="list-row__line">{p.store}</div>
+                </div>
+                <div className="list-row__trailing">
+                  <div className="list-row__price">{formatMoney(p.price)}</div>
+                  <div className="list-row__line">{formatDate(p.purchaseDate)}</div>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
     </div>
   )
 }
