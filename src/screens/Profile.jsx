@@ -1,10 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../lib/AuthContext.jsx'
-import { usePurchases } from '../lib/PurchasesContext.jsx'
 import { useSettings } from '../lib/SettingsContext.jsx'
 import { supabase, isSupabaseConfigured } from '../lib/supabaseClient.js'
-import { loadPurchases as loadLocalPurchases } from '../lib/storage.js'
 import {
   IconUser,
   IconBell,
@@ -17,7 +15,6 @@ import {
   IconChevronRight,
   IconShield,
   IconClock,
-  IconUpload,
 } from '../components/Icons.jsx'
 
 const ROWS = [
@@ -33,9 +30,7 @@ const ROWS = [
 
 export default function Profile() {
   const { user, signOut } = useAuth()
-  const { addPurchase, purchases } = usePurchases()
   const { settings, updateSettings } = useSettings()
-  const [importStatus, setImportStatus] = useState(null)
   const [scansUsed, setScansUsed] = useState(null)
 
   useEffect(() => {
@@ -56,19 +51,6 @@ export default function Profile() {
   function handleSignOut() {
     if (!window.confirm('Sign out of ProofBack?')) return
     signOut()
-  }
-
-  async function handleImport() {
-    const local = loadLocalPurchases()
-    if (!local.length) {
-      setImportStatus('empty')
-      return
-    }
-    setImportStatus('importing')
-    const existingIds = new Set(purchases.map((p) => p.id))
-    const toImport = local.filter((p) => !existingIds.has(p.id))
-    await Promise.all(toImport.map((p) => addPurchase(p)))
-    setImportStatus(`imported:${toImport.length}`)
   }
 
   return (
@@ -125,24 +107,6 @@ export default function Profile() {
             </button>
           ))}
         </div>
-      </section>
-
-      <section className="detail-card">
-        <div className="detail-card__label">Import from this device</div>
-        <p className="field-hint" style={{ textAlign: 'left', margin: '0 0 12px' }}>
-          Purchases saved on this device before you had an account aren't automatically part of
-          it — this brings them in without duplicating anything already here.
-        </p>
-        <button className="btn btn--secondary btn--block" onClick={handleImport} disabled={importStatus === 'importing'}>
-          <IconUpload width={16} height={16} />
-          {importStatus === 'importing' ? 'Importing…' : 'Import Purchases From This Device'}
-        </button>
-        {importStatus === 'empty' && <p className="field-hint">No local purchases found on this device.</p>}
-        {importStatus?.startsWith('imported:') && (
-          <p className="field-hint field-hint--good">
-            Imported {importStatus.split(':')[1]} purchase{importStatus.split(':')[1] === '1' ? '' : 's'}.
-          </p>
-        )}
       </section>
 
       <div className="list">
