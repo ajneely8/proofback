@@ -63,8 +63,8 @@ export default function Onboarding({ onDone }) {
   return (
     <div className="screen onboarding">
       <div className="onboarding__mark">
-        <span className="brand-word">Proof</span>
-        <span className="brand-word brand-word--accent">Back</span>
+        <span className="brand-icon" />
+        <span><span className="brand-word">Proof</span><span className="brand-word brand-word--accent">Back</span></span>
       </div>
 
       <div className="onboarding__body">

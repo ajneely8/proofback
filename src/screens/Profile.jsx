@@ -140,21 +140,6 @@ export default function Profile() {
         </button>
       </section>
 
-      <section className="detail-card">
-        <div className="detail-card__label">Appearance</div>
-        <div className="segmented">
-          {['light', 'system', 'dark'].map((option) => (
-            <button
-              key={option}
-              className={'segmented__option' + (settings.theme === option ? ' is-active' : '')}
-              onClick={() => updateSettings({ theme: option })}
-            >
-              {option === 'system' ? 'System' : option === 'light' ? 'Light' : 'Dark'}
-            </button>
-          ))}
-        </div>
-      </section>
-
       <div className="list">
         {ROWS.map(({ Icon, label, to }) => (
           <Link className="settings-row" key={label} to={to}>
