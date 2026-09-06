@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import { usePurchases } from '../lib/PurchasesContext.jsx'
 import { useSettings } from '../lib/SettingsContext.jsx'
+import { useWatchlist } from '../lib/WatchlistContext.jsx'
 import { getNeedsAttention, totalRecoverable, getTotalDiscountSaved, formatMoney } from '../lib/derive.js'
 import { IconPlus, IconCamera, IconChevronRight, IconCheck } from '../components/Icons.jsx'
 import Thumb from '../components/Thumb.jsx'
@@ -10,9 +11,11 @@ import EmptyState from '../components/EmptyState.jsx'
 export default function Home() {
   const { purchases } = usePurchases()
   const { settings } = useSettings()
+  const { items: watchlistItems } = useWatchlist()
   const needsAttention = getNeedsAttention(purchases, settings)
   const total = totalRecoverable(purchases, settings)
   const discountSaved = getTotalDiscountSaved(purchases)
+  const watchlistHits = watchlistItems.filter((i) => i.lastSeenPrice != null && i.lastSeenPrice <= i.targetPrice)
 
   return (
     <div className="screen">
@@ -36,6 +39,18 @@ export default function Home() {
             <div className="stat-pill__amount">{formatMoney(discountSaved)}</div>
           </div>
         </div>
+      )}
+
+      {watchlistHits.length > 0 && (
+        <Link to="/watchlist" className="stat-pill stat-pill--link">
+          <div className="stat-pill__body">
+            <div className="stat-pill__label">Watchlist</div>
+            <div className="stat-pill__amount">
+              {watchlistHits.length} item{watchlistHits.length === 1 ? '' : 's'} hit your target price
+            </div>
+          </div>
+          <IconChevronRight />
+        </Link>
       )}
 
       <div className="action-row">

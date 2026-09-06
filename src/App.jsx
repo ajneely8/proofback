@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { PurchasesProvider } from './lib/PurchasesContext.jsx'
 import { SettingsProvider } from './lib/SettingsContext.jsx'
+import { WatchlistProvider } from './lib/WatchlistContext.jsx'
 import { useAuth } from './lib/AuthContext.jsx'
 import { isSupabaseConfigured } from './lib/supabaseClient.js'
 import { hasOnboarded } from './lib/storage.js'
@@ -12,6 +13,7 @@ import Auth from './screens/Auth.jsx'
 import Home from './screens/Home.jsx'
 import Purchases from './screens/Purchases.jsx'
 import Insights from './screens/Insights.jsx'
+import Watchlist from './screens/Watchlist.jsx'
 import PurchaseDetail from './screens/PurchaseDetail.jsx'
 import AddPurchase from './screens/AddPurchase.jsx'
 import Opportunities from './screens/Opportunities.jsx'
@@ -71,27 +73,30 @@ export default function App() {
   return (
     <SettingsProvider>
       <PurchasesProvider>
-        <NotificationWatcher />
-        <Shell showNav={showNav}>
-          <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/purchases" element={<Purchases />} />
-            <Route path="/insights" element={<Insights />} />
-            <Route path="/purchases/:id" element={<PurchaseDetail />} />
-            <Route path="/add" element={<AddPurchase />} />
-            <Route path="/opportunities" element={<Opportunities />} />
-            <Route path="/profile" element={<Profile />} />
-            <Route path="/profile/account" element={<Account />} />
-            <Route path="/profile/notifications" element={<Notifications />} />
-            <Route path="/profile/email" element={<EmailConnections />} />
-            <Route path="/profile/privacy" element={<Privacy />} />
-            <Route path="/profile/subscription" element={<Subscription />} />
-            <Route path="/profile/help" element={<Help />} />
-            <Route path="/profile/terms" element={<Terms />} />
-            <Route path="/profile/history" element={<History />} />
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </Shell>
+        <WatchlistProvider>
+          <NotificationWatcher />
+          <Shell showNav={showNav}>
+            <Routes>
+              <Route path="/" element={<Home />} />
+              <Route path="/purchases" element={<Purchases />} />
+              <Route path="/insights" element={<Insights />} />
+              <Route path="/watchlist" element={<Watchlist />} />
+              <Route path="/purchases/:id" element={<PurchaseDetail />} />
+              <Route path="/add" element={<AddPurchase />} />
+              <Route path="/opportunities" element={<Opportunities />} />
+              <Route path="/profile" element={<Profile />} />
+              <Route path="/profile/account" element={<Account />} />
+              <Route path="/profile/notifications" element={<Notifications />} />
+              <Route path="/profile/email" element={<EmailConnections />} />
+              <Route path="/profile/privacy" element={<Privacy />} />
+              <Route path="/profile/subscription" element={<Subscription />} />
+              <Route path="/profile/help" element={<Help />} />
+              <Route path="/profile/terms" element={<Terms />} />
+              <Route path="/profile/history" element={<History />} />
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </Shell>
+        </WatchlistProvider>
       </PurchasesProvider>
     </SettingsProvider>
   )

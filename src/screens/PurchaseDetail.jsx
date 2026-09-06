@@ -17,6 +17,8 @@ export default function PurchaseDetail() {
   const [draft, setDraft] = useState(null)
   const [viewerIndex, setViewerIndex] = useState(null) // receipt page index currently being viewed closely
   const [shareStatus, setShareStatus] = useState(null) // brief confirmation after a share/copy action
+  const [priceCheckInput, setPriceCheckInput] = useState('')
+  const [priceCheckOpen, setPriceCheckOpen] = useState(false)
 
   const purchase = purchases.find((p) => p.id === id)
 
@@ -49,6 +51,14 @@ export default function PurchaseDetail() {
 
   function claimPriceAdjustment() {
     updatePurchase(purchase.id, { priceAdjustment: { amount: drop, claimedDate: todayISO() } })
+  }
+
+  function logCurrentPrice() {
+    const value = Number(priceCheckInput)
+    if (!priceCheckInput || isNaN(value) || value < 0) return
+    updatePurchase(purchase.id, { currentPrice: value, currentPriceCheckedDate: todayISO() })
+    setPriceCheckInput('')
+    setPriceCheckOpen(false)
   }
 
   function markRefundReceived() {
@@ -374,16 +384,58 @@ export default function PurchaseDetail() {
           <span>Current price</span>
           <strong className="text-accent">{formatMoney(purchase.currentPrice)}</strong>
         </div>
+        {purchase.currentPriceCheckedDate && (
+          <div className="detail-card__row">
+            <span>Last checked</span>
+            <strong>{formatDate(purchase.currentPriceCheckedDate)}</strong>
+          </div>
+        )}
         <div className="detail-card__row">
           <span>Potential savings</span>
           <strong className="text-accent">{formatMoney(drop)}</strong>
         </div>
+
+        {priceCheckOpen ? (
+          <>
+            <div className="field-row">
+              <label>Price you saw</label>
+              <div className="field-row__money">
+                <span>$</span>
+                <input
+                  type="number"
+                  step="0.01"
+                  autoFocus
+                  value={priceCheckInput}
+                  onChange={(e) => setPriceCheckInput(e.target.value)}
+                />
+              </div>
+            </div>
+            <div className="action-row">
+              <button className="btn btn--secondary" onClick={() => setPriceCheckOpen(false)}>
+                Cancel
+              </button>
+              <button className="btn btn--primary" onClick={logCurrentPrice}>
+                Save
+              </button>
+            </div>
+          </>
+        ) : (
+          <button className="btn btn--secondary btn--block" onClick={() => setPriceCheckOpen(true)}>
+            Log a Price You Saw
+          </button>
+        )}
+
         {purchase.priceAdjustment ? (
           <p className="confirm-prompt confirm-prompt--top">
             {formatMoney(purchase.priceAdjustment.amount)} applied {formatDate(purchase.priceAdjustment.claimedDate)}
           </p>
         ) : (
-          <button className="btn btn--secondary btn--block" disabled={drop <= 0} onClick={claimPriceAdjustment}>
+          <button
+            className="btn btn--secondary btn--block"
+            disabled={drop <= 0}
+            onClick={claimPriceAdjustment}
+            style={{ marginTop: 8 }}
+          >
             {drop > 0 ? 'Check Price Adjustment' : 'No Price Drop Found'}
           </button>
         )}

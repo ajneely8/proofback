@@ -38,9 +38,14 @@ export default function Purchases() {
     <div className="screen">
       <div className="page-header page-header--row">
         <h1>Purchases</h1>
-        <Link to="/insights" className="page-header__action">
-          Insights
-        </Link>
+        <div className="page-header__actions">
+          <Link to="/watchlist" className="page-header__action">
+            Watchlist
+          </Link>
+          <Link to="/insights" className="page-header__action">
+            Insights
+          </Link>
+        </div>
       </div>
 
       <section className="summary summary--compact">

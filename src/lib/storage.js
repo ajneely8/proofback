@@ -79,3 +79,23 @@ export function saveSettings(settings) {
     // ignore write failures
   }
 }
+
+const WATCHLIST_KEY = 'proofback.watchlist.v1'
+
+export function loadWatchlist() {
+  try {
+    const raw = localStorage.getItem(WATCHLIST_KEY)
+    const parsed = raw ? JSON.parse(raw) : []
+    return Array.isArray(parsed) ? parsed : []
+  } catch {
+    return []
+  }
+}
+
+export function saveWatchlist(items) {
+  try {
+    localStorage.setItem(WATCHLIST_KEY, JSON.stringify(items))
+  } catch {
+    // ignore write failures
+  }
+}

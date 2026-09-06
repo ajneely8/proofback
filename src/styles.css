@@ -166,6 +166,11 @@ a {
   justify-content: space-between;
 }
 
+.page-header__actions {
+  display: flex;
+  gap: 16px;
+}
+
 .page-header__action {
   font-size: 13px;
   font-weight: 600;
@@ -2099,6 +2104,7 @@ a {
 .stat-pill {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 12px;
   padding: 12px 14px;
   margin-bottom: 20px;
@@ -2106,6 +2112,17 @@ a {
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   animation: card-in 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.stat-pill--link {
+  background: var(--accent-navy-bg);
+  color: var(--text-primary);
+  text-decoration: none;
+}
+
+.stat-pill--link .stat-pill__amount {
+  color: var(--accent-navy);
+  font-size: 14px;
 }
 
 .stat-pill__label {
