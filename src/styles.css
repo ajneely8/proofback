@@ -42,8 +42,8 @@
     --accent-navy-bg: #16283A;
     --accent-green: #3FBE68;
     --accent-green-bg: #16301F;
-    --accent-warn: #E0885E;
-    --accent-warn-bg: #3A2318;
+    --accent-warn: #FF7A54;
+    --accent-warn-bg: #3D2015;
   }
 }
 
@@ -60,8 +60,8 @@
   --accent-navy-bg: #16283A;
   --accent-green: #3FBE68;
   --accent-green-bg: #16301F;
-  --accent-warn: #E0885E;
-  --accent-warn-bg: #3A2318;
+  --accent-warn: #FF7A54;
+  --accent-warn-bg: #3D2015;
 }
 
 * {
