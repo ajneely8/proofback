@@ -8,6 +8,7 @@ import { isSupabaseConfigured } from './lib/supabaseClient.js'
 import { hasOnboarded } from './lib/storage.js'
 import BottomNav from './components/BottomNav.jsx'
 import NotificationWatcher from './components/NotificationWatcher.jsx'
+import ThemeEffect from './components/ThemeEffect.jsx'
 import Onboarding from './screens/Onboarding.jsx'
 import Auth from './screens/Auth.jsx'
 import Home from './screens/Home.jsx'
@@ -74,6 +75,7 @@ export default function App() {
     <SettingsProvider>
       <PurchasesProvider>
         <WatchlistProvider>
+          <ThemeEffect />
           <NotificationWatcher />
           <Shell showNav={showNav}>
             <Routes>

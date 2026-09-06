@@ -23,4 +23,7 @@ export const DEFAULT_SETTINGS = {
   // "urgent" (closing soon) rather than just "still returnable".
   reminderWindowDays: 30,
   urgentWindowDays: 7,
+  // 'system' follows the device's OS-level light/dark setting; 'light' and
+  // 'dark' force it regardless of that setting.
+  theme: 'system',
 }

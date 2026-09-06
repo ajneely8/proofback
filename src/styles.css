@@ -23,9 +23,13 @@
 
 /* Follows the device's system setting automatically — every color in this
    file is one of the variables above, so redefining them here is enough to
-   re-theme the whole app with no per-component dark-mode overrides needed. */
+   re-theme the whole app with no per-component dark-mode overrides needed.
+   Only applies when the user hasn't explicitly forced light mode in
+   Settings (data-theme="light"); an explicit dark choice is handled by the
+   [data-theme="dark"] block below, which applies regardless of the OS
+   setting. */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --bg-page: #131519;
     --bg-app: #1C1F24;
     --bg-subtle: #24272D;
@@ -41,6 +45,23 @@
     --accent-warn: #E0885E;
     --accent-warn-bg: #3A2318;
   }
+}
+
+:root[data-theme="dark"] {
+  --bg-page: #131519;
+  --bg-app: #1C1F24;
+  --bg-subtle: #24272D;
+  --text-primary: #ECEDEE;
+  --text-secondary: #9AA0A8;
+  --text-tertiary: #6B7078;
+  --border: #2E323A;
+  --border-strong: #3B404A;
+  --accent-navy: #5B9BD9;
+  --accent-navy-bg: #16283A;
+  --accent-green: #3FBE68;
+  --accent-green-bg: #16301F;
+  --accent-warn: #E0885E;
+  --accent-warn-bg: #3A2318;
 }
 
 * {
@@ -655,8 +676,8 @@ a {
 }
 
 .chip.is-active {
-  background: var(--text-primary);
-  border-color: var(--text-primary);
+  background: var(--accent-navy);
+  border-color: var(--accent-navy);
   color: #FFFFFF;
 }
 
@@ -1775,7 +1796,7 @@ a {
 }
 
 .dot.is-active {
-  background: var(--text-primary);
+  background: var(--accent-navy);
 }
 
 /* ---------- Barcode scanner ---------- */
@@ -2275,4 +2296,32 @@ a {
   font-size: 14px;
   font-weight: 600;
   box-shadow: 0 -4px 16px -8px rgba(20, 20, 20, 0.2);
+}
+
+/* ---------- Segmented control (Appearance) ---------- */
+
+.segmented {
+  display: flex;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 3px;
+  gap: 3px;
+}
+
+.segmented__option {
+  flex: 1;
+  padding: 8px 0;
+  border-radius: calc(var(--radius-md) - 3px);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: none;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.segmented__option.is-active {
+  background: var(--bg-app);
+  color: var(--accent-navy);
+  box-shadow: 0 1px 2px rgba(20, 20, 20, 0.08);
 }

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../lib/AuthContext.jsx'
 import { usePurchases } from '../lib/PurchasesContext.jsx'
+import { useSettings } from '../lib/SettingsContext.jsx'
 import { loadPurchases as loadLocalPurchases } from '../lib/storage.js'
 import {
   IconUser,
@@ -32,6 +33,7 @@ const ROWS = [
 export default function Profile() {
   const { user, signOut } = useAuth()
   const { addPurchase, purchases } = usePurchases()
+  const { settings, updateSettings } = useSettings()
   const [importStatus, setImportStatus] = useState(null)
 
   function handleSignOut() {
@@ -60,8 +62,23 @@ export default function Profile() {
 
       <div className="privacy-note">
         <IconShield />
-        <span>Signed in as {user?.email}</span>
+        <span>{user?.email ? `Signed in as ${user.email}` : 'Your purchases are stored locally on this device'}</span>
       </div>
+
+      <section className="detail-card">
+        <div className="detail-card__label">Appearance</div>
+        <div className="segmented">
+          {['light', 'system', 'dark'].map((option) => (
+            <button
+              key={option}
+              className={'segmented__option' + (settings.theme === option ? ' is-active' : '')}
+              onClick={() => updateSettings({ theme: option })}
+            >
+              {option === 'system' ? 'System' : option === 'light' ? 'Light' : 'Dark'}
+            </button>
+          ))}
+        </div>
+      </section>
 
       <section className="detail-card">
         <div className="detail-card__label">Import from this device</div>
