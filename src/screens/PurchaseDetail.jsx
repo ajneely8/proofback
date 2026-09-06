@@ -10,7 +10,7 @@ import { sharePurchase } from '../lib/share.js'
 
 export default function PurchaseDetail() {
   const { id } = useParams()
-  const { purchases, updatePurchase } = usePurchases()
+  const { purchases, updatePurchase, deletePurchase } = usePurchases()
   const { settings } = useSettings()
   const navigate = useNavigate()
   const [editing, setEditing] = useState(false)
@@ -70,6 +70,12 @@ export default function PurchaseDetail() {
     if (result === 'cancelled') return
     setShareStatus(result)
     setTimeout(() => setShareStatus(null), 2500)
+  }
+
+  function handleDelete() {
+    if (!window.confirm(`Delete "${productLabel(purchase)}"? This can't be undone.`)) return
+    deletePurchase(purchase.id)
+    navigate('/purchases')
   }
 
   function startEditing() {
@@ -254,6 +260,9 @@ export default function PurchaseDetail() {
           </button>
           <button className="link-action link-action--inline" onClick={handleShare}>
             Share Purchase
+          </button>
+          <button className="link-action link-action--inline link-action--danger" onClick={handleDelete}>
+            Delete
           </button>
         </div>
         {shareStatus === 'copied' && <p className="field-hint field-hint--good">Details copied to clipboard</p>}

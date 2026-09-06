@@ -2,16 +2,18 @@ import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { usePurchases } from '../lib/PurchasesContext.jsx'
 import { formatDate, formatMoney, priceDrop, productLabel, refundMissing, returnIsOpen } from '../lib/derive.js'
-import { IconSearch, IconList } from '../components/Icons.jsx'
+import { IconSearch, IconList, IconCheck } from '../components/Icons.jsx'
 import Thumb from '../components/Thumb.jsx'
 import EmptyState from '../components/EmptyState.jsx'
 
 const FILTERS = ['All', 'Returns', 'Warranties', 'Refunds', 'Price Drops']
 
 export default function Purchases() {
-  const { purchases } = usePurchases()
+  const { purchases, deletePurchases } = usePurchases()
   const [filter, setFilter] = useState('All')
   const [query, setQuery] = useState('')
+  const [selectMode, setSelectMode] = useState(false)
+  const [selected, setSelected] = useState(new Set())
 
   const filtered = useMemo(() => {
     let list = purchases
@@ -34,11 +36,39 @@ export default function Purchases() {
 
   const totalSpent = purchases.reduce((sum, p) => sum + p.price, 0)
 
+  function toggleSelectMode() {
+    setSelectMode((on) => !on)
+    setSelected(new Set())
+  }
+
+  function toggleSelected(id) {
+    setSelected((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  function handleDeleteSelected() {
+    if (!window.confirm(`Delete ${selected.size} purchase${selected.size === 1 ? '' : 's'}? This can't be undone.`)) {
+      return
+    }
+    deletePurchases([...selected])
+    setSelected(new Set())
+    setSelectMode(false)
+  }
+
   return (
     <div className="screen">
       <div className="page-header page-header--row">
         <h1>Purchases</h1>
         <div className="page-header__actions">
+          {purchases.length > 0 && (
+            <button className="page-header__action" onClick={toggleSelectMode}>
+              {selectMode ? 'Cancel' : 'Select'}
+            </button>
+          )}
           <Link to="/watchlist" className="page-header__action">
             Watchlist
           </Link>
@@ -86,20 +116,50 @@ export default function Purchases() {
             detail="Try a different filter or search term."
           />
         )}
-        {filtered.map((p) => (
-          <Link to={`/purchases/${p.id}`} key={p.id} className="list-row list-row--simple">
-            <Thumb purchase={p} />
-            <div className="list-row__main">
-              <div className="list-row__title">{productLabel(p)}</div>
-              <div className="list-row__line">{p.store}</div>
-            </div>
-            <div className="list-row__trailing">
-              <div className="list-row__price">{formatMoney(p.price)}</div>
-              <div className="list-row__line">{formatDate(p.purchaseDate)}</div>
-            </div>
-          </Link>
-        ))}
+        {filtered.map((p) =>
+          selectMode ? (
+            <button
+              key={p.id}
+              className={'list-row list-row--simple' + (selected.has(p.id) ? ' is-selected' : '')}
+              onClick={() => toggleSelected(p.id)}
+            >
+              <div className={'select-check' + (selected.has(p.id) ? ' is-checked' : '')}>
+                {selected.has(p.id) && <IconCheck width={12} height={12} />}
+              </div>
+              <Thumb purchase={p} />
+              <div className="list-row__main">
+                <div className="list-row__title">{productLabel(p)}</div>
+                <div className="list-row__line">{p.store}</div>
+              </div>
+              <div className="list-row__trailing">
+                <div className="list-row__price">{formatMoney(p.price)}</div>
+                <div className="list-row__line">{formatDate(p.purchaseDate)}</div>
+              </div>
+            </button>
+          ) : (
+            <Link to={`/purchases/${p.id}`} key={p.id} className="list-row list-row--simple">
+              <Thumb purchase={p} />
+              <div className="list-row__main">
+                <div className="list-row__title">{productLabel(p)}</div>
+                <div className="list-row__line">{p.store}</div>
+              </div>
+              <div className="list-row__trailing">
+                <div className="list-row__price">{formatMoney(p.price)}</div>
+                <div className="list-row__line">{formatDate(p.purchaseDate)}</div>
+              </div>
+            </Link>
+          )
+        )}
       </div>
+
+      {selectMode && selected.size > 0 && (
+        <div className="bulk-bar">
+          <span>{selected.size} selected</span>
+          <button className="btn btn--primary" onClick={handleDeleteSelected} style={{ background: 'var(--accent-warn)' }}>
+            Delete
+          </button>
+        </div>
+      )}
     </div>
   )
 }

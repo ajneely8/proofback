@@ -77,8 +77,35 @@ export function PurchasesProvider({ children }) {
     if (error) refresh()
   }
 
+  async function deletePurchase(id) {
+    if (!isSupabaseConfigured) {
+      setPurchases((prev) => prev.filter((p) => p.id !== id))
+      return
+    }
+    if (!user) return
+    const prevPurchases = purchases
+    setPurchases((prev) => prev.filter((p) => p.id !== id))
+    const { error } = await supabase.from('purchases').delete().eq('id', id).eq('user_id', user.id)
+    if (error) setPurchases(prevPurchases) // roll back if the delete actually failed
+  }
+
+  async function deletePurchases(ids) {
+    const idSet = new Set(ids)
+    if (!isSupabaseConfigured) {
+      setPurchases((prev) => prev.filter((p) => !idSet.has(p.id)))
+      return
+    }
+    if (!user) return
+    const prevPurchases = purchases
+    setPurchases((prev) => prev.filter((p) => !idSet.has(p.id)))
+    const { error } = await supabase.from('purchases').delete().in('id', ids).eq('user_id', user.id)
+    if (error) setPurchases(prevPurchases)
+  }
+
   return (
-    <PurchasesContext.Provider value={{ purchases, addPurchase, updatePurchase, loading, refresh }}>
+    <PurchasesContext.Provider
+      value={{ purchases, addPurchase, updatePurchase, deletePurchase, deletePurchases, loading, refresh }}
+    >
       {children}
     </PurchasesContext.Provider>
   )

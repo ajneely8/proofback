@@ -52,6 +52,11 @@ function dataUrlToBase64(dataUrl) {
   return dataUrl.slice(dataUrl.indexOf(',') + 1)
 }
 
+function todayISO() {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
 // Flags a likely re-scan of a receipt already saved — same store and date,
 // plus either a matching receipt number or a matching total (whichever both
 // records have), rather than blocking the save outright, since it's only a
@@ -128,6 +133,13 @@ export default function AddPurchase() {
   const [barcodeTarget, setBarcodeTarget] = useState(null) // item index currently being scanned
   const [viewerIndex, setViewerIndex] = useState(null) // receipt page index currently being viewed closely
   const [duplicateDismissed, setDuplicateDismissed] = useState(false)
+  const [manualForm, setManualForm] = useState({
+    store: '',
+    product: '',
+    price: '',
+    category: 'Other',
+    purchaseDate: todayISO(),
+  })
   const { addPurchase, purchases } = usePurchases()
   const { session } = useAuth()
   const navigate = useNavigate()
@@ -199,6 +211,52 @@ export default function AddPurchase() {
       setErrorKey('network')
       setStage('error')
     }
+  }
+
+  // Builds the same shape /api/scan-receipt returns, so manual entry can
+  // reuse the entire review/edit screen below rather than needing its own
+  // separate save path — return/warranty dates are just left blank here for
+  // the user to fill in themselves, same as when a receipt doesn't state one.
+  function submitManual() {
+    const { store, product, price, category, purchaseDate } = manualForm
+    setExtracted({
+      store,
+      brand: store,
+      storeAddress: null,
+      receiptNumber: null,
+      purchaseDate,
+      purchaseTime: null,
+      subtotal: null,
+      tax: null,
+      tip: null,
+      discount: null,
+      total: null,
+      paymentMethod: null,
+      refund: { status: 'not_applicable' },
+      missingFields: [],
+      receiptImageUrls: [],
+      items: [
+        {
+          product,
+          brand: store,
+          size: null,
+          gender: null,
+          color: null,
+          sku: null,
+          quantity: 1,
+          price: Number(price),
+          currentPrice: Number(price),
+          discount: null,
+          category,
+          returnDeadline: null,
+          returnDeadlineSource: 'estimated',
+          warrantyExpires: null,
+          missingFields: [],
+          logoUrl: null,
+        },
+      ],
+    })
+    setStage('review')
   }
 
   function updateShared(field, value) {
@@ -325,6 +383,67 @@ export default function AddPurchase() {
           <button className="link-action" onClick={() => uploadInputRef.current?.click()}>
             <IconUpload />
             Upload from Photos
+          </button>
+          <button className="link-action" onClick={() => setStage('manual')}>
+            Enter Manually
+          </button>
+        </>
+      )}
+
+      {stage === 'manual' && (
+        <>
+          <p className="confirm-prompt confirm-prompt--top">
+            No receipt? Enter the basics — you can fill in return/warranty dates on the next screen.
+          </p>
+          <section className="detail-card">
+            <div className="field-row">
+              <label>Store</label>
+              <input type="text" value={manualForm.store} onChange={(e) => setManualForm((f) => ({ ...f, store: e.target.value }))} autoFocus />
+            </div>
+            <div className="field-row">
+              <label>Item</label>
+              <input type="text" value={manualForm.product} onChange={(e) => setManualForm((f) => ({ ...f, product: e.target.value }))} />
+            </div>
+            <div className="field-row">
+              <label>Price</label>
+              <div className="field-row__money">
+                <span>$</span>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={manualForm.price}
+                  onChange={(e) => setManualForm((f) => ({ ...f, price: e.target.value }))}
+                />
+              </div>
+            </div>
+            <div className="field-row">
+              <label>Category</label>
+              <select value={manualForm.category} onChange={(e) => setManualForm((f) => ({ ...f, category: e.target.value }))}>
+                <option>Electronics</option>
+                <option>Apparel</option>
+                <option>Home</option>
+                <option>Grocery</option>
+                <option>Other</option>
+              </select>
+            </div>
+            <div className="field-row">
+              <label>Purchased</label>
+              <input
+                type="date"
+                value={manualForm.purchaseDate}
+                onChange={(e) => setManualForm((f) => ({ ...f, purchaseDate: e.target.value }))}
+              />
+            </div>
+          </section>
+          <button
+            className="btn btn--primary btn--block"
+            disabled={!manualForm.store || !manualForm.product || manualForm.price === ''}
+            onClick={submitManual}
+          >
+            Continue
+          </button>
+          <button className="link-action" onClick={() => setStage('scan')}>
+            Cancel
           </button>
         </>
       )}
