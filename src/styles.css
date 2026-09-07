@@ -248,6 +248,10 @@ a {
   justify-content: space-between;
 }
 
+.page-header--row h1 {
+  line-height: 1;
+}
+
 .page-header__actions {
   display: flex;
   flex-wrap: wrap;
@@ -269,8 +273,9 @@ a {
 }
 
 .scan-status-badge {
-  font-size: 13px;
-  font-weight: 600;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1;
   color: var(--text-secondary);
   white-space: nowrap;
 }
