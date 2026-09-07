@@ -1,24 +1,44 @@
 import { useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { usePurchases } from '../lib/PurchasesContext.jsx'
 import { useSettings } from '../lib/SettingsContext.jsx'
-import { formatDate, formatMoney, productLabel, refundMissing, returnIsOpen, getPurchaseStatuses } from '../lib/derive.js'
+import {
+  formatDate,
+  formatMoney,
+  productLabel,
+  refundMissing,
+  returnIsOpen,
+  getPurchaseStatuses,
+  getRecoveryCases,
+} from '../lib/derive.js'
 import { IconSearch, IconList, IconCheck } from '../components/Icons.jsx'
 import Thumb from '../components/Thumb.jsx'
 import EmptyState from '../components/EmptyState.jsx'
 
-const FILTERS = ['All', 'Returns', 'Warranties', 'Refunds']
+const FILTERS = ['All', 'Recovery Cases', 'Returns', 'Warranties', 'Refunds']
 
 export default function Purchases() {
   const { purchases, deletePurchases } = usePurchases()
   const { settings } = useSettings()
-  const [filter, setFilter] = useState('All')
+  const [searchParams] = useSearchParams()
+  const [filter, setFilter] = useState(() => {
+    const fromUrl = searchParams.get('filter')
+    return FILTERS.includes(fromUrl) ? fromUrl : 'All'
+  })
   const [query, setQuery] = useState('')
   const [selectMode, setSelectMode] = useState(false)
   const [selected, setSelected] = useState(new Set())
 
   const filtered = useMemo(() => {
     let list = purchases
+    if (filter === 'Recovery Cases') {
+      const openCaseIds = new Set(
+        getRecoveryCases(purchases, settings)
+          .filter((c) => c.status !== 'closed')
+          .map((c) => c.purchase.id)
+      )
+      list = list.filter((p) => openCaseIds.has(p.id))
+    }
     if (filter === 'Returns') list = list.filter(returnIsOpen)
     if (filter === 'Warranties') list = list.filter((p) => !!p.warrantyExpires)
     if (filter === 'Refunds') list = list.filter(refundMissing)

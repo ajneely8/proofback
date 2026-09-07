@@ -1,7 +1,7 @@
 // A calmer, less flat "nothing here" state than a single line of gray text —
 // reuses the same gentle-motion language as onboarding (a slow pulse, not a
 // spinner) so an empty list doesn't feel like a dead end.
-export default function EmptyState({ icon: Icon, title, detail }) {
+export default function EmptyState({ icon: Icon, title, detail, action }) {
   return (
     <div className="empty-state">
       {Icon && (
@@ -11,6 +11,7 @@ export default function EmptyState({ icon: Icon, title, detail }) {
       )}
       <div className="empty-state__title">{title}</div>
       {detail && <p className="empty-state__detail">{detail}</p>}
+      {action && <div className="empty-state__action">{action}</div>}
     </div>
   )
 }

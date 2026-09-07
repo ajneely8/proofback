@@ -1,28 +1,29 @@
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { usePurchases } from '../lib/PurchasesContext.jsx'
 import { useSettings } from '../lib/SettingsContext.jsx'
-import { useWatchlist } from '../lib/WatchlistContext.jsx'
 import {
-  getNeedsAttention,
-  getDashboardStats,
-  getTotalDiscountSaved,
+  getRecoveryCases,
+  getRecoverableTotal,
+  getActSoonItems,
+  getYourImpact,
+  caseActionLabel,
   formatMoney,
   formatDate,
   productLabel,
 } from '../lib/derive.js'
-import { IconPlus, IconChevronRight, IconCheck } from '../components/Icons.jsx'
+import { IconPlus, IconCheck, IconCamera } from '../components/Icons.jsx'
 import Thumb from '../components/Thumb.jsx'
-import RadialProgress from '../components/RadialProgress.jsx'
 import EmptyState from '../components/EmptyState.jsx'
 
 export default function Home() {
+  const navigate = useNavigate()
   const { purchases } = usePurchases()
   const { settings } = useSettings()
-  const { items: watchlistItems } = useWatchlist()
-  const needsAttention = getNeedsAttention(purchases, settings)
-  const stats = getDashboardStats(purchases, settings)
-  const discountSaved = getTotalDiscountSaved(purchases)
-  const watchlistHits = watchlistItems.filter((i) => i.lastSeenPrice != null && i.lastSeenPrice <= i.targetPrice)
+
+  const cases = getRecoveryCases(purchases, settings).filter((c) => c.status !== 'closed')
+  const recoverableTotal = getRecoverableTotal(purchases, settings)
+  const actSoon = getActSoonItems(purchases, settings)
+  const impact = getYourImpact(purchases)
 
   return (
     <div className="screen">
@@ -34,67 +35,105 @@ export default function Home() {
       </div>
 
       <section className="summary">
-        <div className="summary__label">Money you could still recover</div>
-        <div className="summary__amount">{formatMoney(stats.recoverable)}</div>
-        <div className="summary__hint">Across returns and missing refunds</div>
+        <div className="summary__label">Recoverable Now</div>
+        <div className="summary__amount">{formatMoney(recoverableTotal)}</div>
+        <div className="summary__hint">Across returns, missing refunds, and possible duplicate purchases</div>
       </section>
 
-      {stats.recovered > 0 && (
-        <div className="stat-pill">
-          <div className="stat-pill__body">
-            <div className="stat-pill__label">Money recovered</div>
-            <div className="stat-pill__amount">{formatMoney(stats.recovered)}</div>
-          </div>
-        </div>
-      )}
-
-      <div className="dashboard-grid">
-        <div className="dashboard-tile">
-          <div className="dashboard-tile__value">{stats.totalPurchases}</div>
-          <div className="dashboard-tile__label">Total purchases</div>
-        </div>
-        <div className="dashboard-tile">
-          <div className="dashboard-tile__value">{formatMoney(stats.totalSpent)}</div>
-          <div className="dashboard-tile__label">Total spent</div>
-        </div>
-        <div className="dashboard-tile">
-          <div className="dashboard-tile__value">{stats.eligibleForReturn}</div>
-          <div className="dashboard-tile__label">Eligible for return</div>
-        </div>
-        <div className="dashboard-tile">
-          <div className="dashboard-tile__value">{stats.upcomingReturnDeadlines}</div>
-          <div className="dashboard-tile__label">Deadlines in 30 days</div>
-        </div>
-        <div className="dashboard-tile">
-          <div className="dashboard-tile__value">{stats.activeWarranties}</div>
-          <div className="dashboard-tile__label">Active warranties</div>
-        </div>
-        <div className="dashboard-tile">
-          <div className="dashboard-tile__value">{stats.warrantiesExpiringSoon}</div>
-          <div className="dashboard-tile__label">Warranties expiring soon</div>
-        </div>
-      </div>
-
-      {discountSaved > 0 && (
-        <div className="stat-pill">
-          <div className="stat-pill__body">
-            <div className="stat-pill__label">Saved from discounts</div>
-            <div className="stat-pill__amount">{formatMoney(discountSaved)}</div>
-          </div>
-        </div>
-      )}
-
-      {watchlistHits.length > 0 && (
-        <Link to="/watchlist" className="stat-pill stat-pill--link">
-          <div className="stat-pill__body">
-            <div className="stat-pill__label">Watchlist</div>
-            <div className="stat-pill__amount">
-              {watchlistHits.length} item{watchlistHits.length === 1 ? '' : 's'} hit your target price
+      {cases.length === 0 ? (
+        <EmptyState
+          icon={IconCheck}
+          title="Nothing to recover right now"
+          detail="Scan a receipt to start tracking a purchase's return window and warranty."
+          action={
+            <Link to="/add" className="btn btn--primary btn--small">
+              <IconCamera width={16} height={16} />
+              Scan Receipt
+            </Link>
+          }
+        />
+      ) : (
+        <div className="list">
+          {cases.map((c) => (
+            <div className="case-row" key={c.id}>
+              <Link to={`/purchases/${c.purchase.id}`} className="case-row__main">
+                <Thumb purchase={c.purchase} />
+                <div className="list-row__main">
+                  <div className="list-row__title">{productLabel(c.purchase)}</div>
+                  <div className="list-row__line">{c.eligibilityReason}</div>
+                </div>
+                <div className="list-row__trailing">
+                  <div className="list-row__price">{formatMoney(c.amount)}</div>
+                  {c.deadline && <div className="list-row__line">{formatDate(c.deadline)}</div>}
+                </div>
+              </Link>
+              <button
+                className="btn btn--secondary btn--small case-row__action"
+                onClick={() => navigate(`/purchases/${c.purchase.id}`)}
+              >
+                {caseActionLabel(c)}
+              </button>
             </div>
-          </div>
-          <IconChevronRight />
-        </Link>
+          ))}
+        </div>
       )}
+
+      <section className="section">
+        <div className="section__title">Act Soon</div>
+
+        {actSoon.length === 0 ? (
+          <EmptyState
+            icon={IconCheck}
+            title="Nothing urgent"
+            detail="Return deadlines, warranty expirations, and overdue refunds will show up here as they approach."
+          />
+        ) : (
+          <div className="list">
+            {actSoon.map((item) => (
+              <Link to={`/purchases/${item.purchase.id}`} key={item.id} className="list-row">
+                <Thumb purchase={item.purchase} />
+                <div className="list-row__main">
+                  <div className="list-row__title">{item.label}</div>
+                  <div className={'list-row__line' + (item.tone === 'warn' ? ' is-urgent' : '')}>
+                    {item.daysLeft < 0
+                      ? `${Math.abs(item.daysLeft)} day${Math.abs(item.daysLeft) === 1 ? '' : 's'} overdue`
+                      : item.daysLeft === 0
+                        ? 'Today'
+                        : `${item.daysLeft} day${item.daysLeft === 1 ? '' : 's'} left`}
+                  </div>
+                </div>
+                <span className={`status-chip status-chip--${item.tone}`}>{formatDate(item.deadlineDate)}</span>
+              </Link>
+            ))}
+          </div>
+        )}
+      </section>
+
+      <section className="section">
+        <div className="section__title">Your Impact</div>
+        <div className="dashboard-grid">
+          <div className="dashboard-tile">
+            <div className="dashboard-tile__value">{formatMoney(impact.totalSaved)}</div>
+            <div className="dashboard-tile__label">Money saved</div>
+            <div className="dashboard-tile__caption">From completed returns and received refunds</div>
+          </div>
+          <div className="dashboard-tile">
+            <div className="dashboard-tile__value">{formatMoney(impact.totalRecovered)}</div>
+            <div className="dashboard-tile__label">Money recovered</div>
+            <div className="dashboard-tile__caption">Confirmed refund/return amounts</div>
+          </div>
+          <div className="dashboard-tile">
+            <div className="dashboard-tile__value">{impact.protectedCount}</div>
+            <div className="dashboard-tile__label">Purchases protected</div>
+            <div className="dashboard-tile__caption">Proof Readiness of 60% or higher</div>
+          </div>
+          <div className="dashboard-tile">
+            <div className="dashboard-tile__value">{impact.completedClaims}</div>
+            <div className="dashboard-tile__label">Completed claims</div>
+            <div className="dashboard-tile__caption">Returns, refunds, or cases marked resolved</div>
+          </div>
+        </div>
+      </section>
 
       <div className="action-row">
         <Link to="/add" className="btn btn--primary btn--block">
@@ -104,64 +143,39 @@ export default function Home() {
       </div>
 
       <section className="section">
-        <div className="section__title">Needs attention</div>
-
-        {needsAttention.length === 0 ? (
-          <EmptyState
-            icon={IconCheck}
-            title="Nothing needs your attention"
-            detail="Return windows, warranties, and refunds are all caught up."
-          />
-        ) : (
-          <div className="list">
-            {needsAttention.map((item) => (
-              <Link to={`/purchases/${item.purchase.id}`} key={item.id} className="list-row">
-                <Thumb purchase={item.purchase} />
-                <div className="list-row__main">
-                  <div className="list-row__title">{item.label}</div>
-                  <div className="list-row__price">{formatMoney(item.purchase.price)}</div>
-                  <div className={'list-row__line' + (item.urgent ? ' is-urgent' : '')}>
-                    {item.primaryText}
-                  </div>
-                  {item.secondaryText && (
-                    <div className="list-row__line list-row__line--accent">{item.secondaryText}</div>
-                  )}
-                </div>
-                <div className="list-row__action list-row__action--stacked">
-                  {item.daysLeft != null && (
-                    <RadialProgress daysLeft={item.daysLeft} windowDays={item.windowDays} urgent={item.urgent} />
-                  )}
-                  <span className="list-row__view">
-                    View
-                    <IconChevronRight />
-                  </span>
-                </div>
-              </Link>
-            ))}
-          </div>
-        )}
+        <div className="section__title">Recently added</div>
+        <RecentlyAdded purchases={purchases} />
       </section>
+    </div>
+  )
+}
 
-      {stats.recentlyAdded.length > 0 && (
-        <section className="section">
-          <div className="section__title">Recently added</div>
-          <div className="list">
-            {stats.recentlyAdded.map((p) => (
-              <Link to={`/purchases/${p.id}`} key={p.id} className="list-row list-row--simple">
-                <Thumb purchase={p} />
-                <div className="list-row__main">
-                  <div className="list-row__title">{productLabel(p)}</div>
-                  <div className="list-row__line">{p.store}</div>
-                </div>
-                <div className="list-row__trailing">
-                  <div className="list-row__price">{formatMoney(p.price)}</div>
-                  <div className="list-row__line">{formatDate(p.purchaseDate)}</div>
-                </div>
-              </Link>
-            ))}
+function RecentlyAdded({ purchases }) {
+  const recent = [...purchases].sort((a, b) => (a.purchaseDate < b.purchaseDate ? 1 : -1)).slice(0, 5)
+  if (recent.length === 0) {
+    return (
+      <EmptyState
+        icon={IconCamera}
+        title="No purchases yet"
+        detail="Scan your first receipt to start building your protection record."
+      />
+    )
+  }
+  return (
+    <div className="list">
+      {recent.map((p) => (
+        <Link to={`/purchases/${p.id}`} key={p.id} className="list-row list-row--simple">
+          <Thumb purchase={p} />
+          <div className="list-row__main">
+            <div className="list-row__title">{productLabel(p)}</div>
+            <div className="list-row__line">{p.store}</div>
           </div>
-        </section>
-      )}
+          <div className="list-row__trailing">
+            <div className="list-row__price">{formatMoney(p.price)}</div>
+            <div className="list-row__line">{formatDate(p.purchaseDate)}</div>
+          </div>
+        </Link>
+      ))}
     </div>
   )
 }

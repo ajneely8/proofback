@@ -227,6 +227,15 @@ const EXTRACT_SCHEMA = {
       type: 'number',
       description: 'Total discount amount applied to the whole receipt, as printed. Omit if not printed.',
     },
+    feeAmount: {
+      type: 'number',
+      description:
+        'A separate fee line printed on the receipt that is NOT tax or tip — e.g. a delivery fee, service fee, bag fee, or shipping charge. Omit if none is printed.',
+    },
+    feeLabel: {
+      type: 'string',
+      description: 'The fee\'s printed label (e.g. "Delivery Fee", "Service Charge"). Omit if feeAmount is omitted.',
+    },
     total: {
       type: 'number',
       description: 'Final total amount paid, as printed. Omit if not printed.',
@@ -463,6 +472,8 @@ export async function scanReceipt(reqBody) {
         tax: data.tax ?? null,
         tip: data.tip ?? null,
         discount: data.discount ?? null,
+        feeAmount: data.feeAmount ?? null,
+        feeLabel: data.feeLabel || null,
         total: data.total ?? null,
         paymentMethod: data.paymentMethod || null,
         refund: { status: 'not_applicable' },

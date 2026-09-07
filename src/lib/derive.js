@@ -45,6 +45,14 @@ export function formatMoney(amount) {
   })
 }
 
+// Whole days between two "YYYY-MM-DD" strings (b - a), independent of TODAY —
+// used to compare two purchases' dates to each other, not a date to today.
+function daysBetween(aStr, bStr) {
+  if (!aStr || !bStr) return null
+  const ms = parseLocalDate(bStr) - parseLocalDate(aStr)
+  return Math.round(ms / 86400000)
+}
+
 export function returnIsOpen(purchase) {
   const d = daysUntil(purchase.returnDeadline)
   return d !== null && d >= 0
@@ -52,6 +60,15 @@ export function returnIsOpen(purchase) {
 
 export function refundMissing(purchase) {
   return purchase.refund?.status === 'expected_missing'
+}
+
+// A missing refund becomes "overdue" once its expected date has actually
+// passed — distinct from just "expected_missing" the moment it's logged, so
+// the UI can tell "still waiting, on schedule" from "this is late."
+export function refundOverdue(purchase) {
+  if (!refundMissing(purchase) || !purchase.refund?.expectedDate) return false
+  const d = daysUntil(purchase.refund.expectedDate)
+  return d !== null && d < 0
 }
 
 // A purchase's return/refund state, as however many of these are true at
@@ -131,6 +148,50 @@ export function getProtectionScore(purchase) {
   return { percent, checks }
 }
 
+// What each kind of claim actually needs to go through — a return doesn't
+// need a serial number, but an insurance claim does; scoring them all
+// against the same generic checklist would tell the user to add things
+// that particular claim doesn't even use. Reuses the same has-a-value
+// checks as PROTECTION_CHECKS above rather than redefining them.
+const CLAIM_TYPE_CHECKS = {
+  return: [
+    { key: 'receipt', label: 'Receipt', met: (p) => (p.receiptImageUrls?.length || 0) > 0 || !!p.receiptImageUrl },
+    { key: 'return_deadline', label: 'Return deadline', met: (p) => !!p.returnDeadline },
+    { key: 'order_number', label: 'Order number', met: (p) => !!p.orderNumber },
+  ],
+  warranty: [
+    { key: 'receipt', label: 'Receipt', met: (p) => (p.receiptImageUrls?.length || 0) > 0 || !!p.receiptImageUrl },
+    { key: 'serial_number', label: 'Serial number', met: (p) => !!p.serialNumber },
+    { key: 'warranty', label: 'Warranty expiration', met: (p) => !!p.warrantyExpires },
+  ],
+  chargeback: [
+    { key: 'receipt', label: 'Receipt', met: (p) => (p.receiptImageUrls?.length || 0) > 0 || !!p.receiptImageUrl },
+    { key: 'payment_method', label: 'Payment method', met: (p) => !!p.paymentMethod },
+    { key: 'order_number', label: 'Order number', met: (p) => !!p.orderNumber },
+    { key: 'purchase_date', label: 'Purchase date', met: (p) => !!p.purchaseDate },
+  ],
+  insurance: [
+    { key: 'receipt', label: 'Receipt', met: (p) => (p.receiptImageUrls?.length || 0) > 0 || !!p.receiptImageUrl },
+    { key: 'price', label: 'Price', met: (p) => p.price != null },
+    { key: 'serial_number', label: 'Serial number', met: (p) => !!p.serialNumber },
+    { key: 'product_photo', label: 'Product photo', met: (p) => !!p.productPhotoUrl },
+  ],
+}
+
+// Proof Readiness: the same idea as Protection Score (an overall completeness
+// read), plus a breakdown per claim type, since "ready enough" means
+// different things for a return vs. an insurance claim.
+export function getProofReadiness(purchase) {
+  const overall = getProtectionScore(purchase)
+  const byType = {}
+  Object.entries(CLAIM_TYPE_CHECKS).forEach(([type, checks]) => {
+    const evaluated = checks.map((c) => ({ key: c.key, label: c.label, met: c.met(purchase) }))
+    const met = evaluated.filter((c) => c.met).length
+    byType[type] = { percent: Math.round((met / evaluated.length) * 100), checks: evaluated }
+  })
+  return { overall, byType }
+}
+
 // Money the user has actually gotten back through a completed return or
 // refund — distinct from getTotalSaved (which also counts price
 // adjustments) and from totalRecoverable (which is still-potential money).
@@ -141,6 +202,207 @@ export function getMoneyRecovered(purchases) {
     return sum
   }, 0)
   return Math.round(total * 100) / 100
+}
+
+// Two purchases at the same store, for the same amount, logged within a few
+// days of each other — the only "duplicate charge" signal ProofBack can
+// actually see, since it has no access to real bank/card transactions. This
+// flags a possible double-scan or an actual duplicate charge worth checking,
+// never claims certainty either way.
+const DUPLICATE_WINDOW_DAYS = 3
+
+export function getDuplicatePurchaseFlags(purchases) {
+  const flags = []
+  for (let i = 0; i < purchases.length; i++) {
+    for (let j = i + 1; j < purchases.length; j++) {
+      const a = purchases[i]
+      const b = purchases[j]
+      if (a.recoveryCase || b.recoveryCase) continue
+      if (!a.store || a.store !== b.store) continue
+      if (Math.abs((Number(a.price) || 0) - (Number(b.price) || 0)) > 0.01) continue
+      const gap = daysBetween(a.purchaseDate, b.purchaseDate)
+      if (gap === null || Math.abs(gap) > DUPLICATE_WINDOW_DAYS) continue
+      flags.push({ id: `${a.id}-${b.id}-dup`, purchases: [a, b], amount: Number(a.price) || 0 })
+    }
+  }
+  return flags
+}
+
+// A recovery case is either the one the user has already started (persisted
+// as `purchase.recoveryCase`) or, if none exists yet, one ProofBack
+// auto-detects as an open opportunity — a return window still open, a
+// missing refund, or a possible duplicate purchase. Auto-detected cases
+// aren't persisted until the user actually acts on them (Start Return/Start
+// Claim/etc in PurchaseDetail.jsx), so browsing the dashboard never writes
+// anything on its own.
+export function getRecoveryCases(purchases, settings = DEFAULT_SETTINGS) {
+  const notifications = settings.notifications ?? DEFAULT_SETTINGS.notifications
+  const cases = []
+  const withCase = new Set()
+
+  purchases.forEach((p) => {
+    if (p.recoveryCase) {
+      cases.push({ ...p.recoveryCase, purchase: p })
+      withCase.add(p.id)
+    }
+  })
+
+  purchases.forEach((p) => {
+    if (withCase.has(p.id)) return
+
+    if (returnIsOpen(p) && p.returnStatus !== 'completed' && notifications.returnDeadlines) {
+      cases.push({
+        id: `${p.id}-case-return`,
+        purchase: p,
+        type: 'return',
+        status: 'opportunity',
+        amount: Number(p.price) || 0,
+        eligibilityReason: 'Return window still open',
+        deadline: p.returnDeadline,
+        requiredEvidence: ['Receipt', 'Order number'],
+        evidenceProvided: [
+          (p.receiptImageUrls?.length || p.receiptImageUrl) ? 'Receipt' : null,
+          p.orderNumber ? 'Order number' : null,
+        ].filter(Boolean),
+        submissionHistory: [],
+        resolution: null,
+      })
+    }
+
+    if (refundMissing(p) && notifications.refundAlerts) {
+      cases.push({
+        id: `${p.id}-case-refund`,
+        purchase: p,
+        type: 'refund',
+        status: refundOverdue(p) ? 'awaiting_refund' : 'opportunity',
+        amount: Number(p.refund?.expectedAmount ?? p.price) || 0,
+        eligibilityReason: 'Expected refund not received',
+        deadline: p.refund?.expectedDate || null,
+        requiredEvidence: ['Receipt'],
+        evidenceProvided: (p.receiptImageUrls?.length || p.receiptImageUrl) ? ['Receipt'] : [],
+        submissionHistory: [],
+        resolution: null,
+      })
+    }
+  })
+
+  getDuplicatePurchaseFlags(purchases).forEach((flag) => {
+    if (withCase.has(flag.purchases[0].id) || withCase.has(flag.purchases[1].id)) return
+    cases.push({
+      id: flag.id,
+      purchase: flag.purchases[0],
+      relatedPurchase: flag.purchases[1],
+      type: 'duplicate_purchase',
+      status: 'opportunity',
+      amount: flag.amount,
+      eligibilityReason: `Same amount at ${flag.purchases[0].store}, logged ${Math.abs(daysBetween(flag.purchases[0].purchaseDate, flag.purchases[1].purchaseDate))} day(s) apart`,
+      deadline: null,
+      requiredEvidence: ['Both receipts'],
+      evidenceProvided: [],
+      submissionHistory: [],
+      resolution: null,
+    })
+  })
+
+  return cases
+}
+
+const OPEN_CASE_STATUSES = ['opportunity', 'evidence_ready', 'submitted', 'awaiting_refund']
+
+// The one action worth surfacing for a case in its current state — used to
+// replace generic "View" buttons wherever a recovery case is listed.
+export function caseActionLabel(recoveryCase) {
+  if (recoveryCase.status === 'awaiting_refund') return 'Track Refund'
+  if (recoveryCase.status === 'evidence_ready' || recoveryCase.status === 'submitted') return 'Mark Resolved'
+  if (recoveryCase.type === 'refund') return 'Track Refund'
+  if (recoveryCase.type === 'return') return 'Start Return'
+  return 'Start Claim'
+}
+
+export function getRecoverableTotal(purchases, settings = DEFAULT_SETTINGS) {
+  const total = getRecoveryCases(purchases, settings)
+    .filter((c) => OPEN_CASE_STATUSES.includes(c.status))
+    .reduce((sum, c) => sum + (Number(c.amount) || 0), 0)
+  return Math.round(total * 100) / 100
+}
+
+// "Act Soon": every purchase-level deadline that matters, merged into one
+// urgency-sorted list — return deadlines, warranty expirations, and refunds
+// that are actually overdue (not just "missing," which alone isn't urgent
+// the day after purchase). The tone always matches daysLeft directly (never
+// a separately-tracked value that could drift from it).
+export function getActSoonItems(purchases, settings = DEFAULT_SETTINGS) {
+  const notifications = settings.notifications ?? DEFAULT_SETTINGS.notifications
+  const urgentWindowDays = settings.urgentWindowDays ?? DEFAULT_SETTINGS.urgentWindowDays
+  const items = []
+
+  function toneFor(daysLeft) {
+    if (daysLeft < 0) return 'warn'
+    if (daysLeft <= urgentWindowDays) return 'warn'
+    return 'good'
+  }
+
+  purchases.forEach((p) => {
+    const returnDays = daysUntil(p.returnDeadline)
+    if (returnDays !== null && returnDays >= 0 && p.returnStatus !== 'completed' && notifications.returnDeadlines) {
+      items.push({
+        id: `${p.id}-actsoon-return`,
+        purchase: p,
+        kind: 'return',
+        label: `${productLabel(p)} — return deadline`,
+        daysLeft: returnDays,
+        deadlineDate: p.returnDeadline,
+        tone: toneFor(returnDays),
+      })
+    }
+
+    const warrantyDays = daysUntil(p.warrantyExpires)
+    if (warrantyDays !== null && warrantyDays >= 0 && notifications.warrantyAlerts) {
+      items.push({
+        id: `${p.id}-actsoon-warranty`,
+        purchase: p,
+        kind: 'warranty',
+        label: `${productLabel(p)} — warranty expires`,
+        daysLeft: warrantyDays,
+        deadlineDate: p.warrantyExpires,
+        tone: toneFor(warrantyDays),
+      })
+    }
+
+    if (refundOverdue(p) && notifications.refundAlerts) {
+      const overdueDays = daysUntil(p.refund.expectedDate)
+      items.push({
+        id: `${p.id}-actsoon-refund`,
+        purchase: p,
+        kind: 'refund_overdue',
+        label: `${p.brand} refund overdue`,
+        daysLeft: overdueDays,
+        deadlineDate: p.refund.expectedDate,
+        tone: 'warn',
+      })
+    }
+  })
+
+  return items.sort((a, b) => a.daysLeft - b.daysLeft)
+}
+
+// "Your Impact": confirmed outcomes only — nothing still-potential counts
+// here, that's Recoverable Now's job. `protectedCount` uses the same 60%
+// threshold as the "incomplete" alert in getAlerts below, so a purchase
+// that stops triggering that alert is exactly the one that starts counting
+// as protected here.
+export function getYourImpact(purchases) {
+  const completedClaims = purchases.filter(
+    (p) => p.recoveryCase?.status === 'recovered' || p.returnStatus === 'completed' || p.refund?.status === 'received'
+  ).length
+  const protectedCount = purchases.filter((p) => getProtectionScore(p).percent >= 60).length
+
+  return {
+    totalSaved: getTotalSaved(purchases),
+    totalRecovered: getMoneyRecovered(purchases),
+    protectedCount,
+    completedClaims,
+  }
 }
 
 // A persistent, dismissible alert feed (unlike notify.js's ephemeral OS

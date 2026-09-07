@@ -7,6 +7,7 @@ import ProductImage from '../components/ProductImage.jsx'
 import BarcodeScanner, { isBarcodeScanSupported } from '../components/BarcodeScanner.jsx'
 import ReceiptViewer from '../components/ReceiptViewer.jsx'
 import { ReceiptScan } from '../components/OnboardingVisuals.jsx'
+import { normalizeProductName, normalizeBrandName } from '../lib/normalizeProduct.js'
 
 // Downscales and re-encodes a photo as a compressed JPEG data URL, rather
 // than sending/storing it at full camera resolution — a phone photo can
@@ -134,6 +135,7 @@ export default function AddPurchase() {
   const [barcodeTarget, setBarcodeTarget] = useState(null) // item index currently being scanned
   const [viewerIndex, setViewerIndex] = useState(null) // receipt page index currently being viewed closely
   const [duplicateDismissed, setDuplicateDismissed] = useState(false)
+  const [reviewChecked, setReviewChecked] = useState(false)
   const [manualForm, setManualForm] = useState({
     store: '',
     product: '',
@@ -207,6 +209,7 @@ export default function AddPurchase() {
         return
       }
       setExtracted({ ...data, receiptImageUrls: prepared.map((p) => p.receiptImageUrl) })
+      setReviewChecked(false)
       setStage('review')
     } catch {
       setErrorKey('network')
@@ -256,11 +259,13 @@ export default function AddPurchase() {
         },
       ],
     })
+    setReviewChecked(false)
     setStage('review')
   }
 
   function updateShared(field, value) {
     setExtracted((prev) => ({ ...prev, [field]: value }))
+    setReviewChecked(false)
   }
 
   function updateItem(index, field, value) {
@@ -268,6 +273,7 @@ export default function AddPurchase() {
       ...prev,
       items: prev.items.map((item, i) => (i === index ? { ...item, [field]: value } : item)),
     }))
+    setReviewChecked(false)
   }
 
   function sharedHint(field) {
@@ -287,12 +293,13 @@ export default function AddPurchase() {
 
   function save() {
     extracted.items.forEach((item, i) => {
+      const brand = normalizeBrandName(item.brand || extracted.store)
       addPurchase({
         store: extracted.store,
-        brand: item.brand || extracted.store,
+        brand,
         storeAddress: extracted.storeAddress,
         receiptNumber: extracted.receiptNumber,
-        product: item.product,
+        product: normalizeProductName(item.product, brand),
         size: item.size || null,
         gender: item.gender || null,
         color: item.color || null,
@@ -306,6 +313,8 @@ export default function AddPurchase() {
         tax: extracted.tax,
         tip: extracted.tip,
         discount: extracted.discount,
+        feeAmount: extracted.feeAmount ?? null,
+        feeLabel: extracted.feeLabel || null,
         total: extracted.total,
         paymentMethod: extracted.paymentMethod,
         itemDiscount: item.discount,
@@ -333,9 +342,14 @@ export default function AddPurchase() {
     setStage('scan')
   }
 
+  const needsReview =
+    extracted?.missingFields?.length > 0 ||
+    extracted?.items?.some((item) => item.missingFields?.length > 0 || item.returnDeadlineSource === 'estimated')
+
   const canSave =
     extracted?.items?.length > 0 &&
-    extracted.items.every((item) => item.product && item.price !== '' && !isNaN(Number(item.price)))
+    extracted.items.every((item) => item.product && item.price !== '' && !isNaN(Number(item.price))) &&
+    (!needsReview || reviewChecked)
 
   return (
     <div className="screen">
@@ -634,6 +648,12 @@ export default function AddPurchase() {
                   <strong className="text-accent">+${Number(extracted.tip).toFixed(2)}</strong>
                 </div>
               )}
+              {extracted.feeAmount != null && (
+                <div className="detail-card__row">
+                  <span>{extracted.feeLabel || 'Fee'}</span>
+                  <strong className="text-accent">+${Number(extracted.feeAmount).toFixed(2)}</strong>
+                </div>
+              )}
               {extracted.total != null && (
                 <div className="detail-card__row">
                   <span>Total</span>
@@ -794,6 +814,20 @@ export default function AddPurchase() {
           ))}
 
           <p className="confirm-prompt">Does everything look correct?</p>
+
+          {needsReview && (
+            <label className="review-confirm">
+              <input
+                type="checkbox"
+                checked={reviewChecked}
+                onChange={(e) => setReviewChecked(e.target.checked)}
+              />
+              <span>
+                Some fields are missing or estimated (highlighted above) — I've reviewed and corrected what I can.
+              </span>
+            </label>
+          )}
+
           <button className="btn btn--primary btn--block" disabled={!canSave} onClick={save}>
             {extracted.items.length > 1 ? `Save ${extracted.items.length} Purchases` : 'Save Purchase'}
           </button>

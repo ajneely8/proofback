@@ -2,11 +2,46 @@ import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { usePurchases } from '../lib/PurchasesContext.jsx'
 import { useSettings } from '../lib/SettingsContext.jsx'
-import { daysUntil, formatDate, formatDateTime, formatMoney, productLabel, getPurchaseStatuses, getProtectionScore, todayISO } from '../lib/derive.js'
+import {
+  daysUntil,
+  formatDate,
+  formatDateTime,
+  formatMoney,
+  productLabel,
+  getPurchaseStatuses,
+  getProofReadiness,
+  refundOverdue,
+  getDuplicatePurchaseFlags,
+  todayISO,
+} from '../lib/derive.js'
+import { getMerchantPolicy } from '../data/merchantPolicies.js'
 import { IconChevronLeft } from '../components/Icons.jsx'
 import ProductImage from '../components/ProductImage.jsx'
 import ReceiptViewer from '../components/ReceiptViewer.jsx'
 import { sharePurchase } from '../lib/share.js'
+
+const CLAIM_TYPE_LABELS = { return: 'Return', warranty: 'Warranty', chargeback: 'Chargeback', insurance: 'Insurance claim' }
+
+function compressPhoto(file, maxWidth = 900, quality = 0.75) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => {
+      const img = new Image()
+      img.onload = () => {
+        const scale = Math.min(1, maxWidth / img.width)
+        const canvas = document.createElement('canvas')
+        canvas.width = img.width * scale
+        canvas.height = img.height * scale
+        canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height)
+        resolve(canvas.toDataURL('image/jpeg', quality))
+      }
+      img.onerror = reject
+      img.src = reader.result
+    }
+    reader.onerror = reject
+    reader.readAsDataURL(file)
+  })
+}
 
 export default function PurchaseDetail() {
   const { id } = useParams()
@@ -23,6 +58,11 @@ export default function PurchaseDetail() {
   const [claimProblem, setClaimProblem] = useState('')
   const [claimSummary, setClaimSummary] = useState(null)
   const [claimCopyStatus, setClaimCopyStatus] = useState(null)
+  const [refundTrackOpen, setRefundTrackOpen] = useState(false)
+  const [refundTrackForm, setRefundTrackForm] = useState({ expectedAmount: '', expectedDate: '' })
+  const [readinessOpen, setReadinessOpen] = useState(false)
+  const [photoUploading, setPhotoUploading] = useState(false)
+  const [docUploading, setDocUploading] = useState(false)
 
   const purchase = purchases.find((p) => p.id === id)
 
@@ -37,8 +77,13 @@ export default function PurchaseDetail() {
 
   const daysLeft = daysUntil(purchase.returnDeadline)
   const statuses = getPurchaseStatuses(purchase, settings)
-  const protection = getProtectionScore(purchase)
+  const readiness = getProofReadiness(purchase)
+  const protection = readiness.overall
   const refund = purchase.refund
+  const merchantPolicy = getMerchantPolicy(purchase.store)
+  const duplicateFlag = getDuplicatePurchaseFlags(purchases).find(
+    (f) => f.purchases[0].id === purchase.id || f.purchases[1].id === purchase.id
+  )
   const receiptPhotos = purchase.receiptImageUrls?.length
     ? purchase.receiptImageUrls
     : purchase.receiptImageUrl
@@ -102,6 +147,105 @@ export default function PurchaseDetail() {
     updatePurchase(purchase.id, { refund: { ...refund, status: 'received', receivedDate: todayISO() } })
   }
 
+  function openTrackRefund() {
+    setRefundTrackForm({
+      expectedAmount: String(refund?.expectedAmount ?? purchase.price ?? ''),
+      expectedDate: refund?.expectedDate || '',
+    })
+    setRefundTrackOpen(true)
+  }
+
+  function saveTrackRefund() {
+    updatePurchase(purchase.id, {
+      refund: {
+        ...refund,
+        status: 'expected_missing',
+        expectedAmount: refundTrackForm.expectedAmount === '' ? null : Number(refundTrackForm.expectedAmount),
+        expectedDate: refundTrackForm.expectedDate || null,
+      },
+    })
+    setRefundTrackOpen(false)
+  }
+
+  function dismissRecovery(resolution) {
+    updatePurchase(purchase.id, {
+      recoveryCase: {
+        id: `${purchase.id}-case-closed`,
+        type: 'return',
+        status: 'closed',
+        amount: 0,
+        eligibilityReason: null,
+        deadline: null,
+        requiredEvidence: [],
+        evidenceProvided: [],
+        submissionHistory: [{ date: todayISO(), note: resolution === 'kept_item' ? 'Kept the item' : 'Marked not relevant' }],
+        resolution,
+      },
+    })
+  }
+
+  function startDuplicateClaim() {
+    if (!duplicateFlag) return
+    updatePurchase(purchase.id, {
+      recoveryCase: {
+        id: duplicateFlag.id,
+        type: 'duplicate_purchase',
+        status: 'evidence_ready',
+        amount: duplicateFlag.amount,
+        eligibilityReason: `Possible duplicate charge at ${purchase.store}`,
+        deadline: null,
+        requiredEvidence: ['Both receipts'],
+        evidenceProvided: receiptPhotos.length ? ['Both receipts'] : [],
+        submissionHistory: [{ date: todayISO(), note: 'Flagged as a possible duplicate purchase' }],
+        resolution: null,
+      },
+    })
+  }
+
+  function dismissDuplicate() {
+    if (!duplicateFlag) return
+    updatePurchase(purchase.id, {
+      recoveryCase: {
+        id: duplicateFlag.id,
+        type: 'duplicate_purchase',
+        status: 'closed',
+        amount: 0,
+        submissionHistory: [{ date: todayISO(), note: 'Not a duplicate — dismissed' }],
+        resolution: 'not_relevant',
+      },
+    })
+  }
+
+  async function handlePhotoUpload(e) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setPhotoUploading(true)
+    try {
+      const dataUrl = await compressPhoto(file)
+      updatePurchase(purchase.id, { productPhotoUrl: dataUrl })
+    } finally {
+      setPhotoUploading(false)
+      e.target.value = ''
+    }
+  }
+
+  async function handleDocUpload(e) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setDocUploading(true)
+    try {
+      const dataUrl = await compressPhoto(file, 1100, 0.75)
+      updatePurchase(purchase.id, { supportingDocs: [...(purchase.supportingDocs || []), dataUrl] })
+    } finally {
+      setDocUploading(false)
+      e.target.value = ''
+    }
+  }
+
+  function removeDoc(index) {
+    updatePurchase(purchase.id, { supportingDocs: purchase.supportingDocs.filter((_, i) => i !== index) })
+  }
+
   async function handleShare() {
     const result = await sharePurchase(purchase)
     if (result === 'cancelled') return
@@ -129,9 +273,11 @@ export default function PurchaseDetail() {
       purchaseDate: purchase.purchaseDate,
       serialNumber: purchase.serialNumber || '',
       orderNumber: purchase.orderNumber || '',
+      trackingNumber: purchase.trackingNumber || '',
       warrantyExpires: purchase.warrantyExpires || '',
       returnDeadline: purchase.returnDeadline || '',
       notes: purchase.notes || '',
+      isBusinessExpense: !!purchase.isBusinessExpense,
     })
     setEditing(true)
   }
@@ -150,9 +296,11 @@ export default function PurchaseDetail() {
       purchaseDate: draft.purchaseDate,
       serialNumber: draft.serialNumber || null,
       orderNumber: draft.orderNumber || null,
+      trackingNumber: draft.trackingNumber || null,
       warrantyExpires: draft.warrantyExpires || null,
       returnDeadline: draft.returnDeadline || null,
       notes: draft.notes || null,
+      isBusinessExpense: draft.isBusinessExpense,
     })
     setEditing(false)
     setDraft(null)
@@ -292,6 +440,23 @@ export default function PurchaseDetail() {
               onChange={(e) => setDraft({ ...draft, orderNumber: e.target.value })}
             />
           </div>
+          <div className="field-row">
+            <label>Tracking number</label>
+            <input
+              type="text"
+              value={draft.trackingNumber}
+              onChange={(e) => setDraft({ ...draft, trackingNumber: e.target.value })}
+            />
+          </div>
+          <div className="field-row">
+            <label>Business expense</label>
+            <input
+              type="checkbox"
+              checked={draft.isBusinessExpense}
+              onChange={(e) => setDraft({ ...draft, isBusinessExpense: e.target.checked })}
+              style={{ width: 'auto' }}
+            />
+          </div>
           <div className="field-row field-row--stacked">
             <label>Notes</label>
             <textarea
@@ -368,6 +533,7 @@ export default function PurchaseDetail() {
         purchase.tax != null ||
         purchase.tip != null ||
         purchase.discount != null ||
+        purchase.feeAmount != null ||
         purchase.total != null ||
         purchase.paymentMethod) && (
         <section className="detail-card">
@@ -396,6 +562,12 @@ export default function PurchaseDetail() {
               <strong className="text-accent">+{formatMoney(purchase.tip)}</strong>
             </div>
           )}
+          {purchase.feeAmount != null && (
+            <div className="detail-card__row">
+              <span>{purchase.feeLabel || 'Fee'}</span>
+              <strong className="text-accent">+{formatMoney(purchase.feeAmount)}</strong>
+            </div>
+          )}
           {purchase.total != null && (
             <div className="detail-card__row">
               <span>Total</span>
@@ -412,9 +584,9 @@ export default function PurchaseDetail() {
       )}
 
       <section className="detail-card">
-        <div className="detail-card__label">Protection Score</div>
+        <div className="detail-card__label">Proof Readiness</div>
         <div className="detail-card__row">
-          <span>{protection.percent}% protected</span>
+          <span>{protection.percent}% ready</span>
         </div>
         <ul className="protection-checklist">
           {protection.checks.map((c) => (
@@ -428,9 +600,31 @@ export default function PurchaseDetail() {
             Add the missing details above (edit this purchase) to raise your score.
           </p>
         )}
+        <button className="link-action" onClick={() => setReadinessOpen((v) => !v)} style={{ marginTop: 8 }}>
+          {readinessOpen ? 'Hide' : 'Show'} readiness by claim type
+        </button>
+        {readinessOpen && (
+          <div className="readiness-by-type">
+            {Object.entries(readiness.byType).map(([type, r]) => (
+              <div key={type} className="readiness-by-type__row">
+                <div className="readiness-by-type__head">
+                  <span>{CLAIM_TYPE_LABELS[type]}</span>
+                  <strong>{r.percent}%</strong>
+                </div>
+                <ul className="protection-checklist">
+                  {r.checks.map((c) => (
+                    <li key={c.key} className={c.met ? 'is-met' : 'is-missing'}>
+                      {c.label} {c.met ? '✓' : '— missing'}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+        )}
       </section>
 
-      {(purchase.sku || purchase.barcode || purchase.serialNumber || purchase.orderNumber) && (
+      {(purchase.sku || purchase.barcode || purchase.serialNumber || purchase.orderNumber || purchase.trackingNumber) && (
         <section className="detail-card">
           <div className="detail-card__label">Item Code</div>
           {purchase.sku && (
@@ -457,13 +651,26 @@ export default function PurchaseDetail() {
               <strong>{purchase.orderNumber}</strong>
             </div>
           )}
+          {purchase.trackingNumber && (
+            <div className="detail-card__row">
+              <span>Tracking number</span>
+              <strong>{purchase.trackingNumber}</strong>
+            </div>
+          )}
         </section>
       )}
 
-      {purchase.notes && (
+      {(purchase.notes || purchase.isBusinessExpense) && (
         <section className="detail-card">
           <div className="detail-card__label">Notes</div>
-          <p className="field-hint" style={{ color: 'var(--text-secondary)', margin: 0 }}>{purchase.notes}</p>
+          {purchase.notes && (
+            <p className="field-hint" style={{ color: 'var(--text-secondary)', margin: 0 }}>{purchase.notes}</p>
+          )}
+          {purchase.isBusinessExpense && (
+            <div className="detail-card__row" style={{ marginTop: purchase.notes ? 10 : 0 }}>
+              <span>Marked as a business expense</span>
+            </div>
+          )}
         </section>
       )}
 
@@ -546,6 +753,10 @@ export default function PurchaseDetail() {
             <button className="btn btn--primary btn--block" onClick={openReturnForm}>
               Mark Return Complete
             </button>
+          ) : purchase.recoveryCase?.status === 'closed' ? (
+            <p className="field-hint" style={{ margin: 0 }}>
+              {purchase.recoveryCase.resolution === 'kept_item' ? 'Kept the item.' : 'Marked not relevant.'}
+            </p>
           ) : (
             daysLeft >= 0 && (
               <>
@@ -555,6 +766,14 @@ export default function PurchaseDetail() {
                 <button className="btn btn--secondary btn--block" onClick={openReturnForm}>
                   Returned
                 </button>
+                <div className="action-row" style={{ marginTop: 8 }}>
+                  <button className="link-action link-action--inline" onClick={() => dismissRecovery('kept_item')}>
+                    Keep Item
+                  </button>
+                  <button className="link-action link-action--inline" onClick={() => dismissRecovery('not_relevant')}>
+                    Not Relevant
+                  </button>
+                </div>
               </>
             )
           )}
@@ -636,28 +855,199 @@ export default function PurchaseDetail() {
             {refund.status === 'received'
               ? 'Received'
               : refund.status === 'expected_missing'
-                ? 'Not received'
+                ? refundOverdue(purchase) ? 'Overdue' : 'Not received'
                 : 'Not applicable'}
           </strong>
         </div>
-        {refund.status === 'expected_missing' && (
+        {refund.status === 'expected_missing' && refund.expectedAmount != null && (
+          <div className="detail-card__row">
+            <span>Expected amount</span>
+            <strong className="text-accent">{formatMoney(refund.expectedAmount)}</strong>
+          </div>
+        )}
+        {refund.status === 'expected_missing' && refund.expectedDate && (
+          <div className="detail-card__row">
+            <span>Expected</span>
+            <strong className={refundOverdue(purchase) ? 'text-warning' : ''}>{formatDate(refund.expectedDate)}</strong>
+          </div>
+        )}
+
+        {refundTrackOpen ? (
           <>
-            <div className="detail-card__row">
-              <span>Expected</span>
-              <strong>{formatDate(refund.expectedDate)}</strong>
+            <div className="field-row">
+              <label>Expected refund amount</label>
+              <div className="field-row__money">
+                <span>$</span>
+                <input
+                  type="number"
+                  step="0.01"
+                  autoFocus
+                  value={refundTrackForm.expectedAmount}
+                  onChange={(e) => setRefundTrackForm({ ...refundTrackForm, expectedAmount: e.target.value })}
+                />
+              </div>
             </div>
-            <button className="btn btn--secondary btn--block" onClick={markRefundReceived}>
-              Mark Refund Received
+            <div className="field-row">
+              <label>Expected date</label>
+              <input
+                type="date"
+                value={refundTrackForm.expectedDate}
+                onChange={(e) => setRefundTrackForm({ ...refundTrackForm, expectedDate: e.target.value })}
+              />
+            </div>
+            <div className="action-row">
+              <button className="btn btn--secondary" onClick={() => setRefundTrackOpen(false)}>
+                Cancel
+              </button>
+              <button className="btn btn--primary" onClick={saveTrackRefund}>
+                Save
+              </button>
+            </div>
+          </>
+        ) : refund.status === 'expected_missing' ? (
+          <>
+            <button className="btn btn--secondary btn--block" onClick={openTrackRefund}>
+              {refund.expectedAmount != null ? 'Update Tracked Refund' : 'Track Refund'}
+            </button>
+            <button className="btn btn--primary btn--block" onClick={markRefundReceived} style={{ marginTop: 8 }}>
+              Mark Resolved — Refund Received
             </button>
           </>
-        )}
-        {refund.status === 'received' && (
+        ) : refund.status === 'received' ? (
           <div className="detail-card__row">
             <span>Received</span>
             <strong>{formatDate(refund.receivedDate)}</strong>
           </div>
+        ) : (
+          <button className="btn btn--secondary btn--block" onClick={openTrackRefund}>
+            Track Refund
+          </button>
         )}
       </section>
+
+      {duplicateFlag && (
+        <section className="detail-card">
+          <div className="detail-card__label">Possible Duplicate Purchase</div>
+          <p className="field-hint" style={{ color: 'var(--text-secondary)', margin: '0 0 10px' }}>
+            {duplicateFlag.eligibilityReason ||
+              `Another purchase at ${purchase.store} for ${formatMoney(duplicateFlag.amount)} was logged around the
+              same time — this may be a duplicate scan or an actual duplicate charge worth checking.`}
+          </p>
+          {purchase.recoveryCase?.type === 'duplicate_purchase' ? (
+            <p className="field-hint" style={{ margin: 0 }}>
+              {purchase.recoveryCase.status === 'closed'
+                ? 'Marked not relevant.'
+                : `Claim started — status: ${purchase.recoveryCase.status.replace('_', ' ')}.`}
+            </p>
+          ) : (
+            <div className="action-row">
+              <button className="btn btn--secondary" onClick={dismissDuplicate}>
+                Not Relevant
+              </button>
+              <button className="btn btn--primary" onClick={startDuplicateClaim}>
+                Start Claim
+              </button>
+            </div>
+          )}
+        </section>
+      )}
+
+      {merchantPolicy && (
+        <section className="detail-card">
+          <div className="detail-card__label">Merchant Policy — {purchase.store}</div>
+          <p className="field-hint" style={{ color: 'var(--text-secondary)', margin: '0 0 10px' }}>
+            ProofBack's general understanding of this store's typical policy — not a confirmed live lookup; always
+            verify with {purchase.store} directly.
+          </p>
+          <div className="detail-card__row">
+            <span>Return window</span>
+            <strong>{merchantPolicy.returnWindowDays ? `${merchantPolicy.returnWindowDays} days` : 'No stated limit'}</strong>
+          </div>
+          <div className="detail-card__row">
+            <span>Receipt required</span>
+            <strong>{merchantPolicy.receiptRequired ? 'Yes' : 'Not always'}</strong>
+          </div>
+          {merchantPolicy.restockingFeePercent > 0 && (
+            <div className="detail-card__row">
+              <span>Restocking fee</span>
+              <strong>{merchantPolicy.restockingFeePercent}%</strong>
+            </div>
+          )}
+          <div className="detail-card__row">
+            <span>Refund method</span>
+            <strong>{merchantPolicy.refundMethod}</strong>
+          </div>
+          {merchantPolicy.exclusions?.length > 0 && (
+            <p className="field-hint" style={{ margin: '6px 0 0' }}>
+              Exclusions: {merchantPolicy.exclusions.join('; ')}
+            </p>
+          )}
+          {merchantPolicy.warrantyInstructions && (
+            <p className="field-hint" style={{ margin: '6px 0 0', color: 'var(--text-secondary)' }}>
+              Warranty: {merchantPolicy.warrantyInstructions}
+            </p>
+          )}
+        </section>
+      )}
+
+      <section className="detail-card">
+        <div className="detail-card__label">Product Photo</div>
+        {purchase.productPhotoUrl ? (
+          <img src={purchase.productPhotoUrl} alt={productLabel(purchase)} className="product-photo" />
+        ) : (
+          <p className="field-hint" style={{ color: 'var(--text-secondary)', margin: '0 0 10px' }}>
+            No photo added yet — ProofBack can't look up a real product photo automatically, but you can add your own.
+          </p>
+        )}
+        <label className="btn btn--secondary btn--block" style={{ marginTop: purchase.productPhotoUrl ? 10 : 0 }}>
+          {photoUploading ? 'Uploading…' : purchase.productPhotoUrl ? 'Replace Photo' : 'Add Photo'}
+          <input type="file" accept="image/*" onChange={handlePhotoUpload} hidden disabled={photoUploading} />
+        </label>
+      </section>
+
+      <section className="detail-card">
+        <div className="detail-card__label">Supporting Documents</div>
+        <p className="field-hint" style={{ color: 'var(--text-secondary)', margin: '0 0 10px' }}>
+          Anything beyond the original receipt — a repair estimate, an email, a shipping label.
+        </p>
+        {purchase.supportingDocs?.length > 0 && (
+          <div className="page-strip">
+            {purchase.supportingDocs.map((url, i) => (
+              <div key={i} className="page-strip__photo-btn" style={{ position: 'relative' }}>
+                <img src={url} alt={`Supporting document ${i + 1}`} className="page-strip__photo" />
+                <button
+                  className="doc-remove"
+                  onClick={() => removeDoc(i)}
+                  aria-label={`Remove document ${i + 1}`}
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+        <label className="btn btn--secondary btn--block">
+          {docUploading ? 'Uploading…' : 'Add Document'}
+          <input type="file" accept="image/*" onChange={handleDocUpload} hidden disabled={docUploading} />
+        </label>
+      </section>
+
+      {purchase.recoveryCase?.submissionHistory?.length > 0 && (
+        <section className="detail-card">
+          <div className="detail-card__label">Claim History</div>
+          <ul className="claim-history">
+            {purchase.recoveryCase.submissionHistory.map((entry, i) => (
+              <li key={i}>
+                <strong>{formatDate(entry.date)}</strong> — {entry.note}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      <Link to={`/purchases/${purchase.id}/evidence`} className="btn btn--secondary btn--block" style={{ marginTop: 4 }}>
+        Generate Evidence Package
+      </Link>
 
       {receiptPhotos.length > 0 && (
         <section className="detail-card">
