@@ -4,7 +4,6 @@ import { useSettings } from '../lib/SettingsContext.jsx'
 import {
   getRecoveryCases,
   getRecoverableTotal,
-  getActSoonItems,
   getYourImpact,
   caseActionLabel,
   formatMoney,
@@ -22,7 +21,6 @@ export default function Home() {
 
   const cases = getRecoveryCases(purchases, settings).filter((c) => c.status !== 'closed')
   const recoverableTotal = getRecoverableTotal(purchases, settings)
-  const actSoon = getActSoonItems(purchases, settings)
   const impact = getYourImpact(purchases)
 
   return (
@@ -110,37 +108,6 @@ export default function Home() {
           ))}
         </div>
       )}
-
-      <section className="section">
-        <div className="section__title">Act Soon</div>
-
-        {actSoon.length === 0 ? (
-          <EmptyState
-            icon={IconCheck}
-            title="Nothing urgent"
-            detail="Return deadlines, warranty expirations, and overdue refunds will show up here as they approach."
-          />
-        ) : (
-          <div className="list">
-            {actSoon.map((item) => (
-              <Link to={`/purchases/${item.purchase.id}`} key={item.id} className="list-row">
-                <Thumb purchase={item.purchase} />
-                <div className="list-row__main">
-                  <div className="list-row__title">{item.label}</div>
-                  <div className={'list-row__line' + (item.tone === 'warn' ? ' is-urgent' : '')}>
-                    {item.daysLeft < 0
-                      ? `${Math.abs(item.daysLeft)} day${Math.abs(item.daysLeft) === 1 ? '' : 's'} overdue`
-                      : item.daysLeft === 0
-                        ? 'Today'
-                        : `${item.daysLeft} day${item.daysLeft === 1 ? '' : 's'} left`}
-                  </div>
-                </div>
-                <span className={`status-chip status-chip--${item.tone}`}>{formatDate(item.deadlineDate)}</span>
-              </Link>
-            ))}
-          </div>
-        )}
-      </section>
     </div>
   )
 }
