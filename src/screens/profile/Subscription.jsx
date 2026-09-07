@@ -128,13 +128,18 @@ export default function Subscription() {
         </button>
       </div>
 
-      {TIERS.map((tier) => {
+      {TIERS.map((tier, index) => {
         const isCurrent = (settings.plan || 'free') === tier.key
         return (
-          <section className={'pricing-card' + (isCurrent ? ' is-current' : '')} key={tier.key}>
+          <section
+            className={'pricing-card' + (isCurrent ? ' is-current' : '')}
+            key={tier.key}
+            style={{ animationDelay: `${index * 0.08}s` }}
+          >
+            {tier.key === 'pro' && !isCurrent && <span className="pricing-card__badge">Most Popular</span>}
             <div className="pricing-card__head">
               <div className="pricing-card__name">{tier.name}</div>
-              <div className="pricing-card__price">
+              <div className="pricing-card__price" key={billing}>
                 {billing === 'annual' && tier.annualPrice ? tier.annualPrice : tier.price}
                 <span className="pricing-card__period">{billing === 'annual' && tier.annualPrice ? '/year' : tier.period}</span>
               </div>

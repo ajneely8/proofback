@@ -2448,16 +2448,60 @@ a {
 }
 
 .pricing-card {
+  position: relative;
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   padding: 18px;
   margin-bottom: 12px;
   background: var(--bg-app);
+  animation: card-in 0.4s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.pricing-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(20, 20, 20, 0.08);
 }
 
 .pricing-card.is-current {
   border-color: var(--accent-navy);
   border-width: 2px;
+  animation: card-in 0.4s cubic-bezier(0.16, 1, 0.3, 1) backwards, pricing-card-glow 3.2s ease-in-out infinite;
+}
+
+.pricing-card__badge {
+  position: absolute;
+  top: -11px;
+  right: 16px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: #ffffff;
+  background: linear-gradient(100deg, var(--accent-navy) 0%, #3b7fc4 50%, var(--accent-navy) 100%);
+  background-size: 220% 100%;
+  box-shadow: 0 2px 6px rgba(27, 75, 133, 0.35);
+  animation: pricing-badge-shimmer 3.5s ease-in-out infinite;
+}
+
+@keyframes pricing-badge-shimmer {
+  0% {
+    background-position: 0% 0;
+  }
+  100% {
+    background-position: 220% 0;
+  }
+}
+
+@keyframes pricing-card-glow {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(27, 75, 133, 0.18);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgba(27, 75, 133, 0);
+  }
 }
 
 .pricing-card__head {
@@ -2475,6 +2519,18 @@ a {
 .pricing-card__price {
   font-size: 20px;
   font-weight: 700;
+  animation: pricing-price-swap 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes pricing-price-swap {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .pricing-card__period {
@@ -2498,7 +2554,29 @@ a {
   gap: 8px;
   font-size: 13px;
   color: var(--text-secondary);
+  animation: pricing-feature-in 0.3s ease backwards;
 }
+
+@keyframes pricing-feature-in {
+  from {
+    opacity: 0;
+    transform: translateX(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.pricing-card__features li:nth-child(1) { animation-delay: 0.03s; }
+.pricing-card__features li:nth-child(2) { animation-delay: 0.06s; }
+.pricing-card__features li:nth-child(3) { animation-delay: 0.09s; }
+.pricing-card__features li:nth-child(4) { animation-delay: 0.12s; }
+.pricing-card__features li:nth-child(5) { animation-delay: 0.15s; }
+.pricing-card__features li:nth-child(6) { animation-delay: 0.18s; }
+.pricing-card__features li:nth-child(7) { animation-delay: 0.21s; }
+.pricing-card__features li:nth-child(8) { animation-delay: 0.24s; }
+.pricing-card__features li:nth-child(9) { animation-delay: 0.27s; }
 
 .pricing-card__features svg {
   color: var(--accent-navy);
