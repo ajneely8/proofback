@@ -1,4 +1,4 @@
-import { TODAY, DEFAULT_SETTINGS, RETURN_ALERT_THRESHOLDS, WARRANTY_ALERT_THRESHOLDS } from '../data/mockData.js'
+import { DEFAULT_SETTINGS, RETURN_ALERT_THRESHOLDS, WARRANTY_ALERT_THRESHOLDS } from '../data/mockData.js'
 
 // Parse a "YYYY-MM-DD" string as a local-midnight Date, avoiding the UTC
 // interpretation `new Date(str)` uses (which shifts the displayed day in
@@ -8,11 +8,19 @@ function parseLocalDate(dateStr) {
   return new Date(year, month - 1, day)
 }
 
+// Today, at local midnight — the real current date, not a fixed mock value.
+// Every deadline/countdown in the app is computed relative to this, so it
+// has to track actual elapsed time, not a snapshot from whenever this file
+// was last touched.
+function today() {
+  const now = new Date()
+  return new Date(now.getFullYear(), now.getMonth(), now.getDate())
+}
+
 export function daysUntil(dateStr) {
   if (!dateStr) return null
   const target = parseLocalDate(dateStr)
-  const today = new Date(TODAY.getFullYear(), TODAY.getMonth(), TODAY.getDate())
-  const ms = target - today
+  const ms = target - today()
   return Math.round(ms / 86400000)
 }
 
@@ -45,8 +53,9 @@ export function formatMoney(amount) {
   })
 }
 
-// Whole days between two "YYYY-MM-DD" strings (b - a), independent of TODAY —
-// used to compare two purchases' dates to each other, not a date to today.
+// Whole days between two "YYYY-MM-DD" strings (b - a), independent of the
+// current date — used to compare two purchases' dates to each other, not a
+// date to today.
 function daysBetween(aStr, bStr) {
   if (!aStr || !bStr) return null
   const ms = parseLocalDate(bStr) - parseLocalDate(aStr)
@@ -510,9 +519,10 @@ export function getDashboardStats(purchases, settings = DEFAULT_SETTINGS) {
 }
 
 export function todayISO() {
-  const y = TODAY.getFullYear()
-  const m = String(TODAY.getMonth() + 1).padStart(2, '0')
-  const d = String(TODAY.getDate()).padStart(2, '0')
+  const t = today()
+  const y = t.getFullYear()
+  const m = String(t.getMonth() + 1).padStart(2, '0')
+  const d = String(t.getDate()).padStart(2, '0')
   return `${y}-${m}-${d}`
 }
 
@@ -657,10 +667,10 @@ export function getSpendByCategory(purchases) {
 // (default 6), oldest first — always includes every month in that range
 // even at $0, so the chart's x-axis stays evenly spaced.
 export function getSpendByMonth(purchases, months = 6) {
-  const today = new Date(TODAY.getFullYear(), TODAY.getMonth(), 1)
+  const thisMonth = new Date(today().getFullYear(), today().getMonth(), 1)
   const buckets = []
   for (let i = months - 1; i >= 0; i--) {
-    const d = new Date(today.getFullYear(), today.getMonth() - i, 1)
+    const d = new Date(thisMonth.getFullYear(), thisMonth.getMonth() - i, 1)
     buckets.push({
       key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`,
       label: d.toLocaleDateString('en-US', { month: 'short' }),

@@ -1,9 +1,3 @@
-// Reference "today" for this dataset. Deadlines below are expressed relative to it.
-// Built with new Date(y, m, d) (local midnight) rather than new Date('2026-09-03')
-// (parsed as UTC midnight), which shifted this back a day in any timezone behind
-// UTC and threw off every "days remaining" calculation app-wide.
-export const TODAY = new Date(2026, 8, 3)
-
 export const STORAGE_KEY = 'proofback.purchases.v1'
 export const ONBOARDING_KEY = 'proofback.onboarded.v1'
 export const SETTINGS_KEY = 'proofback.settings.v1'
