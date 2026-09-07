@@ -66,12 +66,12 @@ export default function Home() {
         <div className="section__title">Your Impact</div>
         <div className="dashboard-grid">
           <div className="dashboard-tile">
-            <div className="dashboard-tile__value">{formatMoney(impact.totalSaved)}</div>
+            <div className="dashboard-tile__value text-accent">{formatMoney(impact.totalSaved)}</div>
             <div className="dashboard-tile__label">Money saved</div>
             <div className="dashboard-tile__caption">From completed returns and received refunds</div>
           </div>
           <div className="dashboard-tile">
-            <div className="dashboard-tile__value">{formatMoney(impact.totalRecovered)}</div>
+            <div className="dashboard-tile__value text-accent">{formatMoney(impact.totalRecovered)}</div>
             <div className="dashboard-tile__label">Money recovered</div>
             <div className="dashboard-tile__caption">Confirmed refund/return amounts</div>
           </div>
