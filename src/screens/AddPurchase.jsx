@@ -636,7 +636,7 @@ export default function AddPurchase() {
             </button>
           </div>
 
-          <button className="btn btn--primary btn--block" onClick={submitScan}>
+          <button className="btn btn--primary btn--block" onClick={() => submitScan()}>
             Scan {photos.length > 1 ? `${photos.length} Pages` : 'Receipt'}
           </button>
           <button className="link-action" onClick={startOver}>
