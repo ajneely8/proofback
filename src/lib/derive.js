@@ -104,7 +104,7 @@ export function getPurchaseStatuses(purchase, settings = DEFAULT_SETTINGS) {
         tone: 'warn',
       })
     } else {
-      statuses.push({ key: 'closed', label: 'Return expired', tone: 'neutral' })
+      statuses.push({ key: 'closed', label: 'Return window closed', tone: 'warn' })
     }
 
     if (isOpen && ['Apparel', 'Electronics', 'Home'].includes(purchase.category)) {
