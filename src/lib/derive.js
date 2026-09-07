@@ -163,8 +163,12 @@ export function getWarrantyState(purchase, settings = DEFAULT_SETTINGS) {
 const PROTECTION_CHECKS = [
   { key: 'receipt', label: 'Receipt', met: (p) => (p.receiptImageUrls?.length || 0) > 0 || !!p.receiptImageUrl },
   { key: 'product', label: 'Product identified', met: (p) => !!(p.product && p.brand) },
-  { key: 'return_deadline', label: 'Return deadline', met: (p) => !!p.returnDeadline },
-  { key: 'warranty', label: 'Warranty', met: (p) => !!p.warrantyExpires },
+  // A never-returnable category (Dining) or a non-warranty-eligible one has
+  // nothing to "add" here — counting it as missing would tell the user to
+  // fill in a field that can never apply, which is worse than not asking.
+  { key: 'return_deadline', label: 'Return deadline', met: (p) => !!p.returnDeadline || p.category === 'Dining' },
+  { key: 'warranty', label: 'Warranty', met: (p) => !!p.warrantyExpires || !p.warrantyEligible },
+  { key: 'model_number', label: 'Model number', met: (p) => !!p.modelNumber },
   { key: 'serial_number', label: 'Serial number', met: (p) => !!p.serialNumber },
 ]
 
@@ -219,6 +223,43 @@ export function getProofReadiness(purchase) {
   return { overall, byType }
 }
 
+// A single traffic-light read on a purchase — "needs_attention" always wins
+// over "incomplete" (a closing deadline matters more right now than a
+// missing serial number), and "protected" only once nothing else applies.
+// Reuses the exact same signals as getAlerts/getProtectionScore rather than
+// inventing a new completeness rule.
+export function getReceiptHealth(purchase, settings = DEFAULT_SETTINGS) {
+  const urgentWindowDays = settings.urgentWindowDays ?? DEFAULT_SETTINGS.urgentWindowDays
+  const returnDaysLeft = daysUntil(purchase.returnDeadline)
+  const warrantyDaysLeft = daysUntil(purchase.warrantyExpires)
+
+  if (
+    (returnDaysLeft !== null && returnDaysLeft > 0 && returnDaysLeft <= urgentWindowDays && purchase.returnStatus !== 'completed') ||
+    (warrantyDaysLeft !== null && warrantyDaysLeft >= 0 && warrantyDaysLeft <= urgentWindowDays) ||
+    refundOverdue(purchase)
+  ) {
+    const message = refundOverdue(purchase)
+      ? 'A refund you were expecting is overdue.'
+      : returnDaysLeft !== null && returnDaysLeft <= urgentWindowDays && returnDaysLeft > 0
+        ? 'Your return deadline expires soon.'
+        : 'Your warranty expires soon.'
+    return { status: 'needs_attention', message }
+  }
+
+  const protection = getProtectionScore(purchase)
+  if (protection.percent < 100) {
+    const firstMissing = protection.checks.find((c) => !c.met)
+    return {
+      status: 'incomplete',
+      message: firstMissing
+        ? `Add your ${firstMissing.label.toLowerCase()} to improve protection.`
+        : 'Some purchase information is missing.',
+    }
+  }
+
+  return { status: 'protected', message: 'Your purchase information is complete.' }
+}
+
 // Money the user has actually gotten back through a completed return or
 // refund — distinct from getTotalSaved (which also counts price
 // adjustments) and from totalRecoverable (which is still-potential money).
@@ -258,6 +299,25 @@ export function getDuplicatePurchaseFlags(purchases) {
     }
   }
   return flags
+}
+
+const TRANSACTION_MATCH_WINDOW_DAYS = 3
+
+// Card -> Receipt Matching's core heuristic: no live bank connection exists
+// (see ConnectedAccounts.jsx), so this only ever runs against a manually
+// entered {store, amount, date} the user typed in to try the feature — same
+// approximate, never-certain spirit as getDuplicatePurchaseFlags above.
+export function matchTransactionToPurchase(transaction, purchases) {
+  const store = (transaction.store || '').trim().toLowerCase()
+  if (!store || transaction.amount == null) return null
+  return (
+    purchases.find((p) => {
+      if (!p.store || p.store.trim().toLowerCase() !== store) return false
+      if (Math.abs((Number(p.price) || 0) - Number(transaction.amount)) > 0.01) return false
+      const gap = daysBetween(transaction.date, p.purchaseDate)
+      return gap !== null && Math.abs(gap) <= TRANSACTION_MATCH_WINDOW_DAYS
+    }) || null
+  )
 }
 
 // A recovery case is either the one the user has already started (persisted
@@ -402,6 +462,33 @@ export function getRecoverableTotal(purchases, settings = DEFAULT_SETTINGS) {
   return Math.round(total * 100) / 100
 }
 
+// The "Your Purchases" summary on Home: three at-a-glance groups, each
+// built from data ProofBack actually has rather than anything invented —
+// "needs attention" from real deadline/duplicate signals already computed
+// elsewhere, "protected" as a plain documented-purchase count/value, and
+// "potential savings" reusing getRecoverableTotal (real open return/refund/
+// duplicate opportunities) rather than a fabricated price-drop figure.
+export function getPurchaseProtectionSummary(purchases, settings = DEFAULT_SETTINGS) {
+  const urgentWindowDays = settings.urgentWindowDays ?? DEFAULT_SETTINGS.urgentWindowDays
+
+  const returnsExpiring = purchases.filter((p) => {
+    const d = daysUntil(p.returnDeadline)
+    return d !== null && d > 0 && d <= urgentWindowDays && p.returnStatus !== 'completed'
+  }).length
+
+  const warrantiesExpiring = purchases.filter((p) => getWarrantyState(p, settings) === 'expiring_soon').length
+
+  const duplicatesFlagged = getDuplicatePurchaseFlags(purchases).length
+
+  const totalValue = Math.round(purchases.reduce((sum, p) => sum + (Number(p.price) || 0), 0) * 100) / 100
+
+  return {
+    needsAttention: { returnsExpiring, warrantiesExpiring, duplicatesFlagged },
+    protectedSummary: { count: purchases.length, totalValue },
+    potentialSavings: getRecoverableTotal(purchases, settings),
+  }
+}
+
 // "Act Soon": every purchase-level deadline that matters, merged into one
 // urgency-sorted list — return deadlines, warranty expirations, and refunds
 // that are actually overdue (not just "missing," which alone isn't urgent
@@ -501,7 +588,7 @@ export function getAlerts(purchases, settings = DEFAULT_SETTINGS) {
           type: 'return_deadline',
           urgent: daysLeft <= 3,
           daysLeft,
-          message: `Your ${p.brand} return deadline is in ${daysLeft} day${daysLeft === 1 ? '' : 's'}.`,
+          message: `Your ${productLabel(p)} can still be returned for ${daysLeft} more day${daysLeft === 1 ? '' : 's'}.`,
         })
       }
     }
@@ -544,13 +631,16 @@ export function getAlerts(purchases, settings = DEFAULT_SETTINGS) {
 
     const protection = getProtectionScore(p)
     if (protection.percent < 60) {
+      const firstMissing = protection.checks.find((c) => !c.met)
       alerts.push({
         id: `${p.id}-alert-incomplete`,
         purchase: p,
         type: 'incomplete',
         urgent: false,
         daysLeft: null,
-        message: `Your protection information for ${productLabel(p)} is incomplete.`,
+        message: firstMissing
+          ? `Your ${productLabel(p)} is missing a ${firstMissing.label.toLowerCase()}. Add it to improve protection.`
+          : `Your protection information for ${productLabel(p)} is incomplete.`,
       })
     }
   })
@@ -711,10 +801,26 @@ export function totalRecoverable(purchases, settings = DEFAULT_SETTINGS) {
 // unrelated same-day purchases could share. With neither signal, a purchase
 // never gets merged with anything — better to show it on its own than to
 // wrongly combine two unrelated purchases.
+// A short, deterministic fingerprint — receiptImageUrls are base64 data
+// URIs (the app stores cropped receipt photos inline, not as hosted URLs),
+// so joining them directly into a key would embed the entire image in
+// anything that key touches (a route path, a link href) — hundreds of KB
+// per photo. Collisions are effectively irrelevant here: worst case, two
+// truly different receipts with byte-identical photos show as one group.
+function fingerprint(str) {
+  let hash = 0
+  for (let i = 0; i < str.length; i++) {
+    hash = (hash * 31 + str.charCodeAt(i)) | 0
+  }
+  return (hash >>> 0).toString(36)
+}
+
 export function getReceiptGroupKey(p) {
   if (p.receiptGroupId) return p.receiptGroupId
   if (p.receiptNumber) return `legacy:${p.store || ''}|${p.purchaseDate || ''}|num:${p.receiptNumber}`
-  if (p.receiptImageUrls?.length) return `legacy:${p.store || ''}|${p.purchaseDate || ''}|imgs:${p.receiptImageUrls.join(',')}`
+  if (p.receiptImageUrls?.length) {
+    return `legacy:${p.store || ''}|${p.purchaseDate || ''}|imgs:${fingerprint(p.receiptImageUrls.join(','))}`
+  }
   return `single:${p.id}`
 }
 
@@ -886,4 +992,98 @@ export function getNeedsAttention(purchases, settings = DEFAULT_SETTINGS) {
   })
 
   return items
+}
+
+const MONTH_NAMES = [
+  'january', 'february', 'march', 'april', 'may', 'june',
+  'july', 'august', 'september', 'october', 'november', 'december',
+]
+
+// "Find My Purchase": a plain-English query parsed against ONLY what's
+// actually in the user's own data (real store names, real category names
+// already used in their purchases) — never a guessed category/store that
+// doesn't exist, and never a server round-trip. Returns a structured filter
+// the caller (Purchases.jsx) applies deterministically, plus `sumMode` when
+// the query reads like "how much did I spend..." rather than "show me...".
+export function parseSearchQuery(query, purchases) {
+  const q = (query || '').toLowerCase().trim()
+  if (!q) return null
+
+  const filter = { keyword: null, store: null, category: null, dateFrom: null, dateTo: null, returnOpenOnly: false, sumMode: false }
+
+  const knownStores = [...new Set(purchases.map((p) => p.store).filter(Boolean))]
+  const matchedStore = knownStores.find((s) => q.includes(s.toLowerCase()))
+  if (matchedStore) filter.store = matchedStore
+
+  const knownCategories = [...new Set(purchases.map((p) => p.category).filter(Boolean))]
+  const matchedCategory = knownCategories.find((c) => q.includes(c.toLowerCase()))
+  if (matchedCategory) filter.category = matchedCategory
+
+  const now = today()
+  if (q.includes('this year')) {
+    filter.dateFrom = `${now.getFullYear()}-01-01`
+    filter.dateTo = `${now.getFullYear()}-12-31`
+  } else if (q.includes('this month')) {
+    const y = now.getFullYear()
+    const m = String(now.getMonth() + 1).padStart(2, '0')
+    filter.dateFrom = `${y}-${m}-01`
+    filter.dateTo = `${y}-${m}-31`
+  } else {
+    const monthIndex = MONTH_NAMES.findIndex((name) => q.includes(name))
+    if (monthIndex !== -1) {
+      const y = now.getFullYear()
+      const m = String(monthIndex + 1).padStart(2, '0')
+      filter.dateFrom = `${y}-${m}-01`
+      filter.dateTo = `${y}-${m}-31`
+    }
+  }
+
+  if (q.includes('return window') || q.includes('still returnable') || q.includes('within the return')) {
+    filter.returnOpenOnly = true
+  }
+
+  if (q.includes('how much') || q.includes('spent') || q.includes('spend')) {
+    filter.sumMode = true
+  }
+
+  // Whatever's left after stripping the recognized store/category/date
+  // phrases still gets used as a plain keyword, so a query like "find my
+  // nike shoes" keeps matching "nike shoes" the same way today's search
+  // already does. Word-boundary matching matters here — a naive substring
+  // replace of the stopword "i" would also delete the "i" out of "Nike",
+  // turning it into "n ke" and breaking that exact match.
+  let remainder = q
+  ;[matchedStore, matchedCategory, 'this year', 'this month', 'return window', 'still returnable', 'how much', 'spent', 'spend', 'find', 'my', 'show', 'me', 'purchases', 'everything', 'i', 'bought', 'at', 'on', 'from', 'did'].forEach((phrase) => {
+    if (!phrase) return
+    const escaped = phrase.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    remainder = remainder.replace(new RegExp(`\\b${escaped}\\b`, 'g'), ' ')
+  })
+  remainder = remainder.replace(/[?.!]/g, ' ').replace(/\s+/g, ' ').trim()
+  if (remainder) filter.keyword = remainder
+
+  return filter
+}
+
+// Applies a parseSearchQuery() filter to a purchase list — pure and
+// deterministic, no fuzziness beyond what parseSearchQuery already decided.
+export function applySearchFilter(purchases, filter) {
+  if (!filter) return purchases
+  return purchases.filter((p) => {
+    if (filter.store && p.store !== filter.store) return false
+    if (filter.category && p.category !== filter.category) return false
+    if (filter.dateFrom && (!p.purchaseDate || p.purchaseDate < filter.dateFrom)) return false
+    if (filter.dateTo && (!p.purchaseDate || p.purchaseDate > filter.dateTo)) return false
+    if (filter.returnOpenOnly && !returnIsOpen(p)) return false
+    if (filter.keyword) {
+      const hay = [p.product, p.brand, p.store, p.category, p.notes].filter(Boolean).join(' ').toLowerCase()
+      // Each remaining word has to show up somewhere (order-independent) —
+      // a leftover multi-word phrase like "nike shoes" shouldn't require
+      // "nike" and "shoes" to sit adjacent in the product name, since a
+      // real record is more likely "Nike Air Max" (brand "Nike") than a
+      // product literally named "Nike shoes".
+      const words = filter.keyword.split(/\s+/).filter(Boolean)
+      if (!words.every((w) => hay.includes(w))) return false
+    }
+    return true
+  })
 }

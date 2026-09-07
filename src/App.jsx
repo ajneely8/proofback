@@ -20,10 +20,13 @@ import ReceiptGroup from './screens/ReceiptGroup.jsx'
 import EvidencePackage from './screens/EvidencePackage.jsx'
 import AddPurchase from './screens/AddPurchase.jsx'
 import Alerts from './screens/Alerts.jsx'
+import MyProducts from './screens/MyProducts.jsx'
+import ReceiptInbox from './screens/ReceiptInbox.jsx'
 import Profile from './screens/Profile.jsx'
 import Account from './screens/profile/Account.jsx'
 import Notifications from './screens/profile/Notifications.jsx'
 import EmailConnections from './screens/profile/EmailConnections.jsx'
+import ConnectedAccounts from './screens/profile/ConnectedAccounts.jsx'
 import Privacy from './screens/profile/Privacy.jsx'
 import Subscription from './screens/profile/Subscription.jsx'
 import Help from './screens/profile/Help.jsx'
@@ -89,10 +92,13 @@ export default function App() {
               <Route path="/purchases/:id/evidence" element={<EvidencePackage />} />
               <Route path="/add" element={<AddPurchase />} />
               <Route path="/alerts" element={<Alerts />} />
+              <Route path="/products" element={<MyProducts />} />
+              <Route path="/inbox" element={<ReceiptInbox />} />
               <Route path="/profile" element={<Profile />} />
               <Route path="/profile/account" element={<Account />} />
               <Route path="/profile/notifications" element={<Notifications />} />
               <Route path="/profile/email" element={<EmailConnections />} />
+              <Route path="/profile/accounts" element={<ConnectedAccounts />} />
               <Route path="/profile/privacy" element={<Privacy />} />
               <Route path="/profile/subscription" element={<Subscription />} />
               <Route path="/profile/help" element={<Help />} />

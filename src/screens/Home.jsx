@@ -6,6 +6,8 @@ import {
   getRecoverableTotal,
   getYourImpact,
   getWarrantyState,
+  getAlerts,
+  getDashboardStats,
   groupCasesByReceipt,
   caseActionLabel,
   formatMoney,
@@ -34,14 +36,24 @@ export default function Home() {
   const impact = getYourImpact(purchases)
   const activeWarranties = purchases.filter((p) => getWarrantyState(p, settings) === 'active').length
   const warrantiesExpiringSoon = purchases.filter((p) => getWarrantyState(p, settings) === 'expiring_soon').length
+  const greeting = (() => {
+    const hour = new Date().getHours()
+    return hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening'
+  })()
+  const namedAlerts = getAlerts(purchases, settings)
+    .filter((a) => a.urgent || (a.daysLeft != null && a.daysLeft <= 7))
+    .slice(0, 3)
+  const recentPurchases = getDashboardStats(purchases, settings).recentlyAdded
 
   return (
     <div className="screen">
       <div className="page-header">
+        <div className="home-greeting">{greeting}</div>
         <div className="page-header__brand">
           <span className="brand-icon" />
           <span><span className="brand-word">Proof</span><span className="brand-word brand-word--accent">Back</span></span>
         </div>
+        <div className="brand-tagline">Scan it. Protect it. Proof it.</div>
       </div>
 
       <section className="summary">
@@ -89,12 +101,47 @@ export default function Home() {
         </div>
       </section>
 
+      {namedAlerts.length > 0 && (
+        <section className="section">
+          <div className="section__title">Needs Attention</div>
+          <div className="list">
+            {namedAlerts.map((a) => (
+              <Link to={`/purchases/${a.purchase.id}`} key={a.id} className="list-row list-row--simple">
+                <Thumb purchase={a.purchase} />
+                <div className="list-row__main">
+                  <div className="list-row__title">{productLabel(a.purchase)}</div>
+                  <div className="list-row__line">{a.message}</div>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
+
       <div className="action-row">
         <Link to="/add" className="btn btn--primary btn--block">
           <IconPlus />
           Add Purchase
         </Link>
       </div>
+
+      {recentPurchases.length > 0 && (
+        <section className="section">
+          <div className="section__title">Recent Purchases</div>
+          <div className="recent-purchases">
+            {recentPurchases.map((p) => (
+              <Link to={`/purchases/${p.id}`} key={p.id} className="recent-purchases__item">
+                <Thumb purchase={p} size="lg" />
+                <div className="recent-purchases__title">{productLabel(p)}</div>
+                <div className="recent-purchases__line">{p.store}</div>
+                <div className="recent-purchases__line">
+                  {formatMoney(p.price)} · {formatDate(p.purchaseDate)}
+                </div>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
 
       {cases.length === 0 ? (
         <EmptyState

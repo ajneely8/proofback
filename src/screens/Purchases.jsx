@@ -11,7 +11,10 @@ import {
   getPurchaseStatuses,
   getRecoveryCases,
   getWarrantyState,
+  getReceiptHealth,
   groupByReceipt,
+  parseSearchQuery,
+  applySearchFilter,
 } from '../lib/derive.js'
 import { IconSearch, IconList, IconCheck } from '../components/Icons.jsx'
 import Thumb from '../components/Thumb.jsx'
@@ -28,6 +31,11 @@ const FILTERS = [
   'Not Confirmed',
   'No Warranty Expected',
 ]
+
+function StatusDot({ purchase, settings }) {
+  const health = getReceiptHealth(purchase, settings)
+  return <span className={`status-dot status-dot--${health.status}`} title={health.message} />
+}
 
 const WARRANTY_FILTER_STATES = {
   Active: 'active',
@@ -49,6 +57,11 @@ export default function Purchases() {
   const [selectMode, setSelectMode] = useState(false)
   const [selected, setSelected] = useState(new Set())
 
+  const smartSearch = useMemo(() => {
+    if (!query.trim()) return null
+    return parseSearchQuery(query, purchases)
+  }, [query, purchases])
+
   const filtered = useMemo(() => {
     let list = purchases
     if (filter === 'Recovery Cases') {
@@ -67,7 +80,7 @@ export default function Purchases() {
 
     if (query.trim()) {
       const q = query.trim().toLowerCase()
-      list = list.filter((p) => {
+      const plainMatches = list.filter((p) => {
         const statusText = getPurchaseStatuses(p, settings).map((s) => s.label.toLowerCase()).join(' ')
         const fields = [
           p.product,
@@ -77,6 +90,7 @@ export default function Purchases() {
           p.receiptNumber,
           p.orderNumber,
           p.serialNumber,
+          p.notes,
           p.purchaseDate,
           p.returnDeadline,
           p.warrantyExpires,
@@ -85,9 +99,31 @@ export default function Purchases() {
         ]
         return fields.some((f) => f && String(f).toLowerCase().includes(q))
       })
+      // "Find My Purchase": a natural-language-ish query ("show me
+      // everything I bought at Walmart", "this year", "still returnable")
+      // often matches nothing with a plain substring search — fall back to
+      // the parsed structured filter in that case rather than showing
+      // "no purchases match" for something the user's own data can answer.
+      // Only worth falling back to when the parse actually recognized
+      // something — an all-null filter (a query with no store/category/
+      // date/keyword signal at all) would otherwise match every purchase,
+      // turning "no results" into "show everything" for a typo'd search.
+      const smartSearchActive =
+        smartSearch &&
+        (smartSearch.store || smartSearch.category || smartSearch.dateFrom || smartSearch.dateTo || smartSearch.returnOpenOnly || smartSearch.keyword)
+      list = plainMatches.length > 0 || !smartSearchActive ? plainMatches : applySearchFilter(list, smartSearch)
     }
     return list
-  }, [purchases, filter, query, settings])
+  }, [purchases, filter, query, settings, smartSearch])
+
+  const searchSumLine =
+    query.trim() && smartSearch?.sumMode
+      ? `You spent ${formatMoney(filtered.reduce((sum, p) => sum + (Number(p.price) || 0), 0))}${
+          smartSearch.category ? ` on ${smartSearch.category}` : ''
+        }${smartSearch.store ? ` at ${smartSearch.store}` : ''}${
+          smartSearch.dateFrom?.slice(5) === '01-01' ? ` this year` : ''
+        }.`
+      : null
 
   const totalSpent = purchases.reduce((sum, p) => sum + p.price, 0)
 
@@ -136,6 +172,9 @@ export default function Purchases() {
           <Link to="/watchlist" className="page-header__action">
             Watchlist
           </Link>
+          <Link to="/products" className="page-header__action">
+            What I Own
+          </Link>
           <Link to="/insights" className="page-header__action">
             Insights
           </Link>
@@ -159,6 +198,8 @@ export default function Purchases() {
           onChange={(e) => setQuery(e.target.value)}
         />
       </div>
+
+      {searchSumLine && <p className="search-sum">{searchSumLine}</p>}
 
       <div className="chip-row">
         {FILTERS.map((f) => (
@@ -186,7 +227,10 @@ export default function Purchases() {
                 <Link to={`/purchases/${g.purchases[0].id}`} key={g.key} className="list-row list-row--simple">
                   <Thumb purchase={g.purchases[0]} />
                   <div className="list-row__main">
-                    <div className="list-row__title">{productLabel(g.purchases[0])}</div>
+                    <div className="list-row__title">
+                      <StatusDot purchase={g.purchases[0]} settings={settings} />
+                      {productLabel(g.purchases[0])}
+                    </div>
                     <div className="list-row__line">{g.purchases[0].store}</div>
                   </div>
                   <div className="list-row__trailing">
@@ -231,7 +275,10 @@ export default function Purchases() {
                 <Link to={`/purchases/${p.id}`} key={p.id} className="list-row list-row--simple">
                   <Thumb purchase={p} />
                   <div className="list-row__main">
-                    <div className="list-row__title">{productLabel(p)}</div>
+                    <div className="list-row__title">
+                      <StatusDot purchase={p} settings={settings} />
+                      {productLabel(p)}
+                    </div>
                     <div className="list-row__line">{p.store}</div>
                   </div>
                   <div className="list-row__trailing">

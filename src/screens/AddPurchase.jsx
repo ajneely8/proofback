@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
+import { useNavigate, useLocation, Link } from 'react-router-dom'
 import { usePurchases } from '../lib/PurchasesContext.jsx'
 import { useAuth } from '../lib/AuthContext.jsx'
 import { IconCamera, IconUpload, IconChevronLeft, IconCheck, IconBarcode } from '../components/Icons.jsx'
@@ -8,6 +8,7 @@ import BarcodeScanner, { isBarcodeScanSupported } from '../components/BarcodeSca
 import ReceiptViewer from '../components/ReceiptViewer.jsx'
 import { ReceiptScan } from '../components/OnboardingVisuals.jsx'
 import { normalizeProductName, normalizeBrandName } from '../lib/normalizeProduct.js'
+import { updateInboxItem } from '../lib/receiptInbox.js'
 
 // Downscales and re-encodes a photo as a compressed JPEG data URL, rather
 // than sending/storing it at full camera resolution — a phone photo can
@@ -210,10 +211,26 @@ export default function AddPurchase() {
   })
   const { addPurchase, updatePurchase, purchases } = usePurchases()
   const [attachStatus, setAttachStatus] = useState(null)
+  const [savedInfo, setSavedInfo] = useState(null) // { firstId, groupId, count }
   const { session } = useAuth()
   const navigate = useNavigate()
+  const location = useLocation()
+  const inboxEntryId = location.state?.inboxEntryId || null
   const cameraInputRef = useRef(null)
   const uploadInputRef = useRef(null)
+
+  // Arriving from the Receipt Inbox's "Upload" button — skip straight to
+  // scanning the handed-off file instead of showing the camera/upload
+  // picker again, reusing this exact same pipeline rather than a parallel
+  // one built just for the inbox.
+  useEffect(() => {
+    const file = location.state?.inboxFile
+    if (!file) return
+    const nextPhotos = [{ file, previewUrl: URL.createObjectURL(file) }]
+    setPhotos(nextPhotos)
+    submitScan(nextPhotos)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const duplicate = useMemo(
     () => (extracted ? findDuplicateReceipt(extracted, purchases) : null),
@@ -291,6 +308,7 @@ export default function AddPurchase() {
       if (!res.ok) {
         setErrorKey(data.error || 'scan_failed')
         setStage('error')
+        if (inboxEntryId) updateInboxItem(inboxEntryId, { status: 'needs_review' })
         return
       }
       // Cropped to just the receipt using the model's own reading of where
@@ -303,9 +321,18 @@ export default function AddPurchase() {
       setExtracted({ ...data, receiptImageUrls })
       setReviewChecked(false)
       setStage('review')
+      if (inboxEntryId) {
+        const needsReviewNow =
+          data.missingFields?.length > 0 ||
+          data.uncertainFields?.length > 0 ||
+          data.imageQualityIssues?.some((issues) => issues.length > 0) ||
+          data.items?.some((item) => item.missingFields?.length > 0 || item.uncertainFields?.length > 0)
+        if (needsReviewNow) updateInboxItem(inboxEntryId, { status: 'needs_review' })
+      }
     } catch {
       setErrorKey('network')
       setStage('error')
+      if (inboxEntryId) updateInboxItem(inboxEntryId, { status: 'needs_review' })
     }
   }
 
@@ -408,8 +435,11 @@ export default function AddPurchase() {
     // from the same place"), regardless of whether the receipt printed a
     // receipt number.
     const receiptGroupId = `grp-${Date.now()}`
+    let firstId = null
     extracted.items.forEach((item, i) => {
       const brand = normalizeBrandName(item.brand || extracted.store)
+      const id = `p-${Date.now()}-${i}`
+      if (i === 0) firstId = id
       addPurchase({
         store: extracted.store,
         brand,
@@ -451,11 +481,39 @@ export default function AddPurchase() {
         refund: extracted.refund,
         receiptImageUrls: extracted.receiptImageUrls,
         logoUrl: item.logoUrl,
-        id: `p-${Date.now()}-${i}`,
+        id,
       })
+      triggerRecallCheck(id, brand, normalizeProductName(item.product, brand))
     })
+    setSavedInfo({ firstId, groupId: receiptGroupId, count: extracted.items.length })
     setStage('saved')
-    setTimeout(() => navigate('/'), 700)
+    if (inboxEntryId) updateInboxItem(inboxEntryId, { status: 'processed', purchaseId: firstId })
+  }
+
+  function viewSavedPurchase() {
+    if (!savedInfo) return
+    navigate(savedInfo.count > 1 ? `/receipt/${encodeURIComponent(savedInfo.groupId)}` : `/purchases/${savedInfo.firstId}`)
+  }
+
+  // Fires a best-effort CPSC recall lookup after a purchase is saved —
+  // never awaited, never blocks the save/navigate flow, and fails silently.
+  // Only worth checking when there's a real brand+product to search for;
+  // a manual entry with a vague name would just waste the request.
+  function triggerRecallCheck(id, brand, product) {
+    if (!brand || !product) return
+    fetch('/api/check-recall', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+      },
+      body: JSON.stringify({ query: `${brand} ${product}` }),
+    })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((result) => {
+        if (result) updatePurchase(id, { recallCheck: { ...result, checkedAt: todayISO() } })
+      })
+      .catch(() => {})
   }
 
   function retry() {
@@ -1015,10 +1073,18 @@ export default function AddPurchase() {
       )}
 
       {stage === 'saved' && (
-        <div className="scan-area">
-          <IconCheck />
-          <span>Purchase saved</span>
-        </div>
+        <>
+          <div className="scan-area">
+            <IconCheck />
+            <span>{savedInfo?.count > 1 ? `${savedInfo.count} purchases saved` : 'Purchase saved'}</span>
+          </div>
+          <button className="btn btn--primary btn--block" onClick={viewSavedPurchase}>
+            View Purchase
+          </button>
+          <button className="link-action" onClick={() => navigate('/')}>
+            Done
+          </button>
+        </>
       )}
     </div>
   )

@@ -7,7 +7,7 @@ const leftTabs = [
 ]
 
 const rightTabs = [
-  { to: '/alerts', label: 'Alerts', Icon: IconBell },
+  { to: '/alerts', label: 'Protection', Icon: IconBell },
   { to: '/profile', label: 'Profile', Icon: IconUser },
 ]
 

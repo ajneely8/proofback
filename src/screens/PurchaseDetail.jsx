@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { usePurchases } from '../lib/PurchasesContext.jsx'
 import { useSettings } from '../lib/SettingsContext.jsx'
+import { useAuth } from '../lib/AuthContext.jsx'
 import {
   daysUntil,
   formatDate,
@@ -10,6 +11,7 @@ import {
   productLabel,
   getPurchaseStatuses,
   getProofReadiness,
+  getReceiptHealth,
   getWarrantyState,
   refundOverdue,
   getDuplicatePurchaseFlags,
@@ -68,7 +70,12 @@ export default function PurchaseDetail() {
   const { id } = useParams()
   const { purchases, updatePurchase, deletePurchase } = usePurchases()
   const { settings } = useSettings()
+  const { session } = useAuth()
   const navigate = useNavigate()
+  const returnRef = useRef(null)
+  const warrantyRef = useRef(null)
+  const receiptRef = useRef(null)
+  const [recallChecking, setRecallChecking] = useState(false)
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(null)
   const [viewerIndex, setViewerIndex] = useState(null) // receipt page index currently being viewed closely
@@ -105,6 +112,7 @@ export default function PurchaseDetail() {
   }
 
   const daysLeft = daysUntil(purchase.returnDeadline)
+  const health = getReceiptHealth(purchase, settings)
   const statuses = getPurchaseStatuses(purchase, settings)
   const readiness = getProofReadiness(purchase)
   const protection = readiness.overall
@@ -377,6 +385,40 @@ export default function PurchaseDetail() {
     navigate('/purchases')
   }
 
+  function scrollToSection(ref) {
+    ref.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
+
+  function checkPriceElsewhere() {
+    const query = encodeURIComponent(`${purchase.brand} ${purchase.product}`)
+    window.open(`https://www.google.com/search?tbm=shop&q=${query}`, '_blank', 'noopener')
+  }
+
+  // A real CPSC lookup by product name (see server/checkRecall.js) — never
+  // a confirmed match, just "does CPSC have anything under this name."
+  // Fires automatically after a purchase is first saved (AddPurchase.jsx);
+  // this is the manual re-check for items saved before that existed, or to
+  // simply check again.
+  async function checkRecallNow() {
+    setRecallChecking(true)
+    try {
+      const res = await fetch('/api/check-recall', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+        },
+        body: JSON.stringify({ query: `${purchase.brand} ${purchase.product}` }),
+      })
+      const result = res.ok ? await res.json() : { status: 'error', matches: [] }
+      updatePurchase(purchase.id, { recallCheck: { ...result, checkedAt: todayISO() } })
+    } catch {
+      updatePurchase(purchase.id, { recallCheck: { status: 'error', matches: [], checkedAt: todayISO() } })
+    } finally {
+      setRecallChecking(false)
+    }
+  }
+
   function startEditing() {
     setDraft({
       store: purchase.store,
@@ -632,6 +674,11 @@ export default function PurchaseDetail() {
       <div className="detail-hero">
         <div className="detail-hero__title">{productLabel(purchase)}</div>
         <div className="detail-hero__price">{formatMoney(purchase.price)}</div>
+        <span className={`status-pill status-pill--${health.status}`}>
+          {health.status === 'protected' ? 'Protected' : health.status === 'incomplete' ? 'Incomplete' : 'Needs Attention'}
+          {' — '}
+          {health.message}
+        </span>
         {statuses.length > 0 && (
           <div className="status-chips">
             {statuses.map((s) => (
@@ -673,6 +720,85 @@ export default function PurchaseDetail() {
           <p className="field-hint">Sharing isn't supported on this device/browser</p>
         )}
       </div>
+
+      <section className="action-center">
+        <div className="action-center__stats">
+          {purchase.returnDeadline && (
+            <div className="action-center__stat">
+              <div className="action-center__stat-label">Return</div>
+              <div className="action-center__stat-value">{daysLeft > 0 ? `${daysLeft} days remaining` : 'Closed'}</div>
+            </div>
+          )}
+          {purchase.warrantyEligible && purchase.warrantyExpires && (
+            <div className="action-center__stat">
+              <div className="action-center__stat-label">Warranty</div>
+              <div className="action-center__stat-value">
+                {(() => {
+                  const wd = daysUntil(purchase.warrantyExpires)
+                  return wd >= 0 ? `${wd} days remaining` : 'Expired'
+                })()}
+              </div>
+            </div>
+          )}
+        </div>
+        <div className="action-center__actions">
+          <button className="action-center__btn" onClick={checkPriceElsewhere}>
+            Check Price
+          </button>
+          {purchase.returnDeadline && (
+            <button className="action-center__btn" onClick={() => scrollToSection(returnRef)}>
+              Return Info
+            </button>
+          )}
+          {purchase.warrantyEligible && (
+            <button className="action-center__btn" onClick={() => scrollToSection(warrantyRef)}>
+              Warranty
+            </button>
+          )}
+          {receiptPhotos.length > 0 && (
+            <button className="action-center__btn" onClick={() => scrollToSection(receiptRef)}>
+              View Receipt
+            </button>
+          )}
+        </div>
+        <p className="field-hint field-hint--block" style={{ margin: '10px 0 0' }}>
+          "Check Price" opens a search elsewhere — ProofBack doesn't track live prices automatically.
+        </p>
+        {purchase.brand && purchase.product && (!purchase.recallCheck || purchase.recallCheck.status !== 'potential_matches') && (
+          <button className="link-action link-action--inline" onClick={checkRecallNow} disabled={recallChecking} style={{ marginTop: 6 }}>
+            {recallChecking
+              ? 'Checking for recalls…'
+              : purchase.recallCheck?.status === 'none_found'
+                ? `No recall found (checked ${formatDate(purchase.recallCheck.checkedAt)}) — Re-check`
+                : 'Check for Recalls'}
+          </button>
+        )}
+      </section>
+
+      {purchase.recallCheck?.status === 'potential_matches' && (
+        <section className="detail-card recall-alert">
+          <div className="recall-alert__title">⚠️ Important Product Alert</div>
+          <p className="field-hint field-hint--block" style={{ color: 'var(--text-secondary)', margin: '4px 0 10px' }}>
+            We found a potential recall involving this product, based on matching its name in CPSC's public recall
+            database. This is not a confirmed match — verify it's your exact model before acting.
+          </p>
+          {purchase.recallCheck.matches.map((m, i) => (
+            <div className="recall-alert__match" key={m.recallId || i}>
+              <div className="recall-alert__match-title">{m.title}</div>
+              {m.recallDate && <div className="recall-alert__match-meta">Recall date: {formatDate(m.recallDate)}</div>}
+              {m.hazard && <div className="recall-alert__match-meta">Hazard: {m.hazard}</div>}
+              {m.url && (
+                <a className="btn btn--secondary btn--small" href={m.url} target="_blank" rel="noopener noreferrer">
+                  View Official Recall
+                </a>
+              )}
+            </div>
+          ))}
+          <p className="field-hint field-hint--block" style={{ margin: '10px 0 0' }}>
+            Checked {formatDate(purchase.recallCheck.checkedAt)}.
+          </p>
+        </section>
+      )}
 
       {(purchase.subtotal != null ||
         purchase.tax != null ||
@@ -728,10 +854,10 @@ export default function PurchaseDetail() {
         </section>
       )}
 
-      <section className="detail-card">
-        <div className="detail-card__label">Proof Readiness</div>
+      <section className="detail-card" id="protection-score-card">
+        <div className="detail-card__label">Purchase Protection Score</div>
         <div className="detail-card__row">
-          <span>{protection.percent}% ready</span>
+          <span className="protection-score-value">{protection.percent}/100</span>
         </div>
         <ul className="protection-checklist">
           {protection.checks.map((c) => (
@@ -741,9 +867,9 @@ export default function PurchaseDetail() {
           ))}
         </ul>
         {protection.percent < 100 && (
-          <p className="field-hint field-hint--block" style={{ margin: '8px 0 0' }}>
-            Add the missing details above (edit this purchase) to raise your score.
-          </p>
+          <button className="btn btn--secondary btn--block" onClick={startEditing} style={{ marginTop: 10 }}>
+            Improve My Protection
+          </button>
         )}
         <button className="link-action" onClick={() => setReadinessOpen((v) => !v)} style={{ marginTop: 8 }}>
           {readinessOpen ? 'Hide' : 'Show'} readiness by claim type
@@ -836,7 +962,7 @@ export default function PurchaseDetail() {
       )}
 
       {purchase.returnDeadline && (
-        <section className="detail-card">
+        <section className="detail-card" ref={returnRef}>
           <div className="detail-card__label">Return</div>
           <div className="detail-card__row">
             <span>Return deadline</span>
@@ -934,7 +1060,7 @@ export default function PurchaseDetail() {
       )}
 
       {purchase.warrantyEligible && (
-        <section className="detail-card">
+        <section className="detail-card" ref={warrantyRef}>
           <div className="detail-card__label">Warranty</div>
 
           <div className="detail-card__row">
@@ -1377,7 +1503,7 @@ export default function PurchaseDetail() {
       </Link>
 
       {receiptPhotos.length > 0 && (
-        <section className="detail-card">
+        <section className="detail-card" ref={receiptRef}>
           <div className="detail-card__label">
             Receipt{receiptPhotos.length > 1 ? ` (${receiptPhotos.length} pages)` : ''}
           </div>

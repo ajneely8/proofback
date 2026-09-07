@@ -19,6 +19,8 @@ import {
 const ROWS = [
   { Icon: IconUser, label: 'Account', to: '/profile/account' },
   { Icon: IconClock, label: 'History', to: '/profile/history' },
+  { Icon: IconCard, label: 'Connected Accounts', to: '/profile/accounts' },
+  { Icon: IconMail, label: 'Receipt Inbox', to: '/inbox' },
   { Icon: IconBell, label: 'Notification settings', to: '/profile/notifications' },
   { Icon: IconMail, label: 'Email connections', to: '/profile/email' },
   { Icon: IconLock, label: 'Privacy', to: '/profile/privacy' },

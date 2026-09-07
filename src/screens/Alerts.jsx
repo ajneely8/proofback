@@ -80,7 +80,7 @@ export default function Alerts() {
   return (
     <div className="screen">
       <div className="page-header">
-        <h1>Alerts</h1>
+        <h1>Protection</h1>
         <p className="page-header__sub">
           Deadlines, incomplete evidence, and claims you've started that still need a next step.
         </p>

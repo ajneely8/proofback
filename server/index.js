@@ -7,6 +7,7 @@
  */
 import express from 'express'
 import { scanReceipt, scanReceiptWarnings } from './scanReceipt.js'
+import { checkRecall } from './checkRecall.js'
 import { getAuthedUser, isAuthConfigured } from './auth.js'
 import { checkScanAllowed, recordScanUsed, FREE_PURCHASE_LIMIT } from './scanLimit.js'
 import { isTierConfigured } from './stripeClient.js'
@@ -46,6 +47,18 @@ app.post('/api/scan-receipt', async (req, res) => {
   const { status, body } = await scanReceipt(req.body)
   if (userId && status === 200) await recordScanUsed(userId)
   res.status(status).json(body)
+})
+
+app.post('/api/check-recall', async (req, res) => {
+  if (isAuthConfigured()) {
+    const user = await getAuthedUser(req.headers.authorization)
+    if (!user) {
+      res.status(401).json({ error: 'unauthorized' })
+      return
+    }
+  }
+  const result = await checkRecall(req.body?.query)
+  res.status(200).json(result)
 })
 
 app.post('/api/create-checkout-session', async (req, res) => {
