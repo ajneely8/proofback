@@ -4,7 +4,7 @@ import { getSupabaseAdmin } from './supabaseAdmin.js'
 // scan can create several purchase records, one per line item, so what
 // actually matters to the user is how many purchases they're tracking).
 // 'pro'/'family' plans lift this cap entirely.
-export const FREE_PURCHASE_LIMIT = 10
+export const FREE_PURCHASE_LIMIT = 5
 
 /**
  * Returns { allowed, remaining } without changing anything — used to reject

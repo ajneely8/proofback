@@ -12,7 +12,7 @@ export const RETURN_ALERT_THRESHOLDS = [30, 14, 7, 3, 1]
 // Free plan cap: total purchases on the account, not scans-per-month — a
 // single scan can create several purchase records (one per line item), so
 // this is checked against the purchases table directly, not a scan counter.
-export const FREE_PURCHASE_LIMIT = 10
+export const FREE_PURCHASE_LIMIT = 5
 
 export const DEFAULT_SETTINGS = {
   name: '',

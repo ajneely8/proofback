@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom'
 import { useAuth } from '../lib/AuthContext.jsx'
 import { useSettings } from '../lib/SettingsContext.jsx'
 import { usePurchases } from '../lib/PurchasesContext.jsx'
-import { normalizePlan } from '../data/mockData.js'
+import { normalizePlan, FREE_PURCHASE_LIMIT } from '../data/mockData.js'
 import {
   IconUser,
   IconBell,
@@ -63,13 +63,13 @@ export default function Profile() {
         {plan === 'free' && (
           <div className="detail-card__row">
             <span>Scans used</span>
-            <strong>{purchases.length} of 10</strong>
+            <strong>{purchases.length} of {FREE_PURCHASE_LIMIT}</strong>
           </div>
         )}
         <p className="field-hint" style={{ textAlign: 'left', margin: '6px 0 12px' }}>
           {plan === 'free'
-            ? 'Free plan: up to 10 purchases. Pro and Family unlock unlimited purchases, automatic return tracking, and more.'
-            : 'Unlimited purchases and automatic tracking are on.'}
+            ? `Free plan: up to ${FREE_PURCHASE_LIMIT} scans. Pro and Family unlock unlimited scans, automatic return tracking, and more.`
+            : 'Unlimited scans and automatic tracking are on.'}
         </p>
         <Link to="/profile/subscription" className="btn btn--primary btn--block">
           {plan === 'free' ? 'View Plans' : 'Manage Plan'}

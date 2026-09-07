@@ -1,10 +1,11 @@
 import { useState } from 'react'
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
-import { PurchasesProvider } from './lib/PurchasesContext.jsx'
-import { SettingsProvider } from './lib/SettingsContext.jsx'
+import { PurchasesProvider, usePurchases } from './lib/PurchasesContext.jsx'
+import { SettingsProvider, useSettings } from './lib/SettingsContext.jsx'
 import { useAuth } from './lib/AuthContext.jsx'
 import { isSupabaseConfigured } from './lib/supabaseClient.js'
 import { hasOnboarded, getAnonScanCount, ANON_FREE_SCAN_LIMIT } from './lib/storage.js'
+import { normalizePlan, FREE_PURCHASE_LIMIT } from './data/mockData.js'
 import BottomNav from './components/BottomNav.jsx'
 import NotificationWatcher from './components/NotificationWatcher.jsx'
 import ThemeEffect from './components/ThemeEffect.jsx'
@@ -37,6 +38,28 @@ function Shell({ children, showNav = true }) {
       {showNav && <BottomNav />}
     </div>
   )
+}
+
+// A logged-in Free-plan account that's used up its free scans gets the
+// Subscription screen instead of the app, full stop — no bottom nav, no
+// route lets them past it (whatever they navigate to still renders this),
+// until they upgrade. Anonymous visitors are handled separately, above,
+// by the free-scan-then-signup gate — this is specifically "you have an
+// account, now you have to pay to keep going."
+function PaywallGate({ children }) {
+  const { user } = useAuth()
+  const { settings } = useSettings()
+  const { purchases, loading } = usePurchases()
+
+  if (!loading && user && normalizePlan(settings.plan) === 'free' && purchases.length >= FREE_PURCHASE_LIMIT) {
+    return (
+      <Shell showNav={false}>
+        <Subscription locked />
+      </Shell>
+    )
+  }
+
+  return children
 }
 
 export default function App() {
@@ -79,9 +102,9 @@ export default function App() {
   return (
     <SettingsProvider>
       <PurchasesProvider>
-        <>
-          <ThemeEffect />
-          <NotificationWatcher />
+        <ThemeEffect />
+        <NotificationWatcher />
+        <PaywallGate>
           <Shell>
             <Routes>
               <Route path="/" element={<Home />} />
@@ -106,7 +129,7 @@ export default function App() {
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </Shell>
-        </>
+        </PaywallGate>
       </PurchasesProvider>
     </SettingsProvider>
   )

@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../lib/AuthContext.jsx'
 import { useSettings } from '../../lib/SettingsContext.jsx'
 import { usePurchases } from '../../lib/PurchasesContext.jsx'
-import { normalizePlan } from '../../data/mockData.js'
+import { normalizePlan, FREE_PURCHASE_LIMIT } from '../../data/mockData.js'
 import { IconChevronLeft, IconCheck } from '../../components/Icons.jsx'
 
 const UPGRADE_ERROR_MESSAGES = {
@@ -18,7 +18,7 @@ const TIERS = [
     name: 'Free',
     price: '$0',
     period: '/month',
-    features: ['Up to 10 purchases', 'Receipt scanning', 'Basic search', 'Basic return tracking'],
+    features: [`Up to ${FREE_PURCHASE_LIMIT} scans`, 'Receipt scanning', 'Basic search', 'Basic return tracking'],
   },
   {
     key: 'pro',
@@ -55,9 +55,9 @@ const TIERS = [
   },
 ]
 
-export default function Subscription() {
+export default function Subscription({ locked = false }) {
   const navigate = useNavigate()
-  const { session } = useAuth()
+  const { session, signOut } = useAuth()
   const { settings, updateSettings } = useSettings()
   const { purchases } = usePurchases()
   const [billing, setBilling] = useState('monthly')
@@ -93,16 +93,19 @@ export default function Subscription() {
 
   return (
     <div className="screen">
-      <button className="back-link" onClick={() => navigate(-1)}>
-        <IconChevronLeft />
-        Back
-      </button>
+      {!locked && (
+        <button className="back-link" onClick={() => navigate(-1)}>
+          <IconChevronLeft />
+          Back
+        </button>
+      )}
 
       <div className="page-header">
-        <h1>Subscription</h1>
+        <h1>{locked ? "You've used your free scans" : 'Subscription'}</h1>
         <p className="page-header__sub">
-          Free covers the basics. Pro and Family unlock full protection — unlimited purchases, automatic tracking,
-          and recall alerts.
+          {locked
+            ? `Your Free plan includes ${FREE_PURCHASE_LIMIT} scans. Upgrade to Pro or Family to keep scanning and unlock unlimited purchases, automatic tracking, and recall alerts.`
+            : 'Free covers the basics. Pro and Family unlock full protection — unlimited purchases, automatic tracking, and recall alerts.'}
         </p>
       </div>
 
@@ -158,17 +161,19 @@ export default function Subscription() {
                 Current plan
                 {tier.key === 'free' && (
                   <span className="field-hint" style={{ margin: '4px 0 0', textAlign: 'center' }}>
-                    {purchases.length} of 10 purchases used
+                    {purchases.length} of {FREE_PURCHASE_LIMIT} scans used
                   </span>
                 )}
               </div>
             ) : tier.key === 'free' ? (
-              <button
-                className="btn btn--secondary btn--block"
-                onClick={() => updateSettings({ plan: 'free' })}
-              >
-                Downgrade to Free
-              </button>
+              !locked && (
+                <button
+                  className="btn btn--secondary btn--block"
+                  onClick={() => updateSettings({ plan: 'free' })}
+                >
+                  Downgrade to Free
+                </button>
+              )
             ) : (
               <button
                 className="btn btn--primary btn--block"
@@ -182,17 +187,23 @@ export default function Subscription() {
         )
       })}
 
-      <button
-        className="link-action"
-        onClick={() => {
-          const order = ['free', 'pro', 'family']
-          const next = order[(order.indexOf(settings.plan || 'free') + 1) % order.length]
-          updateSettings({ plan: next })
-          setSearchParams({})
-        }}
-      >
-        Cycle plan (dev test)
-      </button>
+      {locked ? (
+        <button className="link-action" onClick={signOut}>
+          Sign out
+        </button>
+      ) : (
+        <button
+          className="link-action"
+          onClick={() => {
+            const order = ['free', 'pro', 'family']
+            const next = order[(order.indexOf(settings.plan || 'free') + 1) % order.length]
+            updateSettings({ plan: next })
+            setSearchParams({})
+          }}
+        >
+          Cycle plan (dev test)
+        </button>
+      )}
     </div>
   )
 }
