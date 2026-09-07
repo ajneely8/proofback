@@ -40,6 +40,32 @@ export default function Home() {
         <div className="summary__hint">Across returns, missing refunds, and possible duplicate purchases</div>
       </section>
 
+      <section className="section">
+        <div className="section__title">Your Impact</div>
+        <div className="dashboard-grid">
+          <div className="dashboard-tile">
+            <div className="dashboard-tile__value">{formatMoney(impact.totalSaved)}</div>
+            <div className="dashboard-tile__label">Money saved</div>
+            <div className="dashboard-tile__caption">From completed returns and received refunds</div>
+          </div>
+          <div className="dashboard-tile">
+            <div className="dashboard-tile__value">{formatMoney(impact.totalRecovered)}</div>
+            <div className="dashboard-tile__label">Money recovered</div>
+            <div className="dashboard-tile__caption">Confirmed refund/return amounts</div>
+          </div>
+          <div className="dashboard-tile">
+            <div className="dashboard-tile__value">{impact.protectedCount}</div>
+            <div className="dashboard-tile__label">Purchases protected</div>
+            <div className="dashboard-tile__caption">Proof Readiness of 60% or higher</div>
+          </div>
+          <div className="dashboard-tile">
+            <div className="dashboard-tile__value">{impact.completedClaims}</div>
+            <div className="dashboard-tile__label">Completed claims</div>
+            <div className="dashboard-tile__caption">Returns, refunds, or cases marked resolved</div>
+          </div>
+        </div>
+      </section>
+
       {cases.length === 0 ? (
         <EmptyState
           icon={IconCheck}
@@ -77,32 +103,6 @@ export default function Home() {
           ))}
         </div>
       )}
-
-      <section className="section">
-        <div className="section__title">Your Impact</div>
-        <div className="dashboard-grid">
-          <div className="dashboard-tile">
-            <div className="dashboard-tile__value">{formatMoney(impact.totalSaved)}</div>
-            <div className="dashboard-tile__label">Money saved</div>
-            <div className="dashboard-tile__caption">From completed returns and received refunds</div>
-          </div>
-          <div className="dashboard-tile">
-            <div className="dashboard-tile__value">{formatMoney(impact.totalRecovered)}</div>
-            <div className="dashboard-tile__label">Money recovered</div>
-            <div className="dashboard-tile__caption">Confirmed refund/return amounts</div>
-          </div>
-          <div className="dashboard-tile">
-            <div className="dashboard-tile__value">{impact.protectedCount}</div>
-            <div className="dashboard-tile__label">Purchases protected</div>
-            <div className="dashboard-tile__caption">Proof Readiness of 60% or higher</div>
-          </div>
-          <div className="dashboard-tile">
-            <div className="dashboard-tile__value">{impact.completedClaims}</div>
-            <div className="dashboard-tile__label">Completed claims</div>
-            <div className="dashboard-tile__caption">Returns, refunds, or cases marked resolved</div>
-          </div>
-        </div>
-      </section>
 
       <div className="action-row">
         <Link to="/add" className="btn btn--primary btn--block">
