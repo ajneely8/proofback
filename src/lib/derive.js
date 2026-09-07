@@ -62,9 +62,12 @@ function daysBetween(aStr, bStr) {
   return Math.round(ms / 86400000)
 }
 
+// A return deadline is the LAST day the window was open — once that day has
+// fully elapsed (i.e. we're now on or past it), it's closed. Deliberately
+// strict (> 0, not >= 0): the deadline date itself already counts as closed.
 export function returnIsOpen(purchase) {
   const d = daysUntil(purchase.returnDeadline)
-  return d !== null && d >= 0
+  return d !== null && d > 0
 }
 
 export function refundMissing(purchase) {
@@ -91,7 +94,7 @@ export function getPurchaseStatuses(purchase, settings = DEFAULT_SETTINGS) {
   const urgentWindowDays = settings.urgentWindowDays ?? DEFAULT_SETTINGS.urgentWindowDays
   const statuses = []
   const daysLeft = daysUntil(purchase.returnDeadline)
-  const isOpen = daysLeft !== null && daysLeft >= 0
+  const isOpen = daysLeft !== null && daysLeft > 0
   const returnDone = purchase.returnStatus === 'completed'
 
   if (!returnDone && purchase.returnDeadline) {
@@ -353,7 +356,7 @@ export function getActSoonItems(purchases, settings = DEFAULT_SETTINGS) {
 
   purchases.forEach((p) => {
     const returnDays = daysUntil(p.returnDeadline)
-    if (returnDays !== null && returnDays >= 0 && p.returnStatus !== 'completed' && notifications.returnDeadlines) {
+    if (returnDays !== null && returnDays > 0 && p.returnStatus !== 'completed' && notifications.returnDeadlines) {
       items.push({
         id: `${p.id}-actsoon-return`,
         purchase: p,
@@ -424,7 +427,7 @@ export function getAlerts(purchases, settings = DEFAULT_SETTINGS) {
 
   purchases.forEach((p) => {
     const daysLeft = daysUntil(p.returnDeadline)
-    if (daysLeft !== null && daysLeft >= 0 && notifications.returnDeadlines) {
+    if (daysLeft !== null && daysLeft > 0 && notifications.returnDeadlines) {
       const threshold = RETURN_ALERT_THRESHOLDS.find((t) => daysLeft <= t)
       if (threshold != null) {
         alerts.push({
@@ -433,10 +436,7 @@ export function getAlerts(purchases, settings = DEFAULT_SETTINGS) {
           type: 'return_deadline',
           urgent: daysLeft <= 3,
           daysLeft,
-          message:
-            daysLeft === 0
-              ? `Your ${p.brand} return deadline is today.`
-              : `Your ${p.brand} return deadline is in ${daysLeft} day${daysLeft === 1 ? '' : 's'}.`,
+          message: `Your ${p.brand} return deadline is in ${daysLeft} day${daysLeft === 1 ? '' : 's'}.`,
         })
       }
     }
@@ -491,7 +491,7 @@ export function getDashboardStats(purchases, settings = DEFAULT_SETTINGS) {
   const eligibleForReturn = purchases.filter((p) => returnIsOpen(p) && p.returnStatus !== 'completed').length
   const upcomingReturnDeadlines = purchases.filter((p) => {
     const d = daysUntil(p.returnDeadline)
-    return d !== null && d >= 0 && d <= 30 && p.returnStatus !== 'completed'
+    return d !== null && d > 0 && d <= 30 && p.returnStatus !== 'completed'
   }).length
   const activeWarranties = purchases.filter((p) => {
     const d = daysUntil(p.warrantyExpires)
@@ -594,7 +594,7 @@ export function getOpportunities(purchases, settings = DEFAULT_SETTINGS) {
     }
 
     const daysLeft = daysUntil(p.returnDeadline)
-    if (daysLeft !== null && daysLeft >= 0 && daysLeft <= urgentWindowDays && notifications.returnDeadlines) {
+    if (daysLeft !== null && daysLeft > 0 && daysLeft <= urgentWindowDays && notifications.returnDeadlines) {
       opps.push({
         id: `${p.id}-return`,
         type: 'return_deadline',
@@ -694,7 +694,7 @@ export function getNeedsAttention(purchases, settings = DEFAULT_SETTINGS) {
 
   purchases.forEach((p) => {
     const daysLeft = daysUntil(p.returnDeadline)
-    if (daysLeft !== null && daysLeft >= 0 && daysLeft <= reminderWindowDays && notifications.returnDeadlines) {
+    if (daysLeft !== null && daysLeft > 0 && daysLeft <= reminderWindowDays && notifications.returnDeadlines) {
       items.push({
         id: `${p.id}-attn-return`,
         purchase: p,

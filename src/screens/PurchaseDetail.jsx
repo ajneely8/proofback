@@ -699,7 +699,7 @@ export default function PurchaseDetail() {
           <div className="detail-card__row">
             <span>Days remaining</span>
             <strong className={daysLeft <= settings.urgentWindowDays ? 'text-warning' : ''}>
-              {daysLeft >= 0 ? `${daysLeft} days` : 'Closed'}
+              {daysLeft > 0 ? `${daysLeft} days` : 'Closed'}
             </strong>
           </div>
           {purchase.returnStatus === 'completed' ? (
@@ -758,7 +758,7 @@ export default function PurchaseDetail() {
               {purchase.recoveryCase.resolution === 'kept_item' ? 'Kept the item.' : 'Marked not relevant.'}
             </p>
           ) : (
-            daysLeft >= 0 && (
+            daysLeft > 0 && (
               <>
                 <button className="btn btn--primary btn--block" onClick={startReturn}>
                   Start Return
