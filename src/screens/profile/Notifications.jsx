@@ -122,8 +122,23 @@ export default function Notifications() {
             onChange={(e) => updateSettings({ urgentWindowDays: clampDays(e.target.value, settings.urgentWindowDays) })}
           />
         </div>
-        <p className="field-hint" style={{ textAlign: 'left', margin: '0' }}>
+        <p className="field-hint" style={{ textAlign: 'left', margin: '0 0 12px' }}>
           Inside this many days, a deadline is flagged urgent instead of just "still returnable".
+        </p>
+        <div className="field-row">
+          <label>Warranty alerts (days before)</label>
+          <input
+            type="number"
+            min="1"
+            max="365"
+            value={settings.warrantyReminderDays}
+            onChange={(e) =>
+              updateSettings({ warrantyReminderDays: clampDays(e.target.value, settings.warrantyReminderDays) })
+            }
+          />
+        </div>
+        <p className="field-hint" style={{ textAlign: 'left', margin: '0' }}>
+          How far ahead a warranty expiration or registration deadline shows up in Alerts.
         </p>
       </section>
     </div>

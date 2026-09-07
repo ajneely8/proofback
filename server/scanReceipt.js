@@ -154,6 +154,13 @@ const STORE_RETURN_WINDOW_DAYS = {
 // a special null/"forever" case threaded through the whole app.
 const NO_LIMIT_WINDOW_DAYS = 3650
 
+// Warrantable-category default lengths — also doubles as the
+// warrantable/non-warrantable classification (a category mapped to 0 here
+// never gets a warranty at all, not even an estimate). Deliberately
+// computed only from category + what's explicitly printed on THIS receipt —
+// never from a return deadline, receipt-expiration date, membership date,
+// benefit date, or coupon date, which are unrelated concepts that happen to
+// also be dates on a receipt.
 const WARRANTY_YEARS = {
   Electronics: 1,
   Home: 1,
@@ -179,6 +186,20 @@ function toISO(dt) {
   const m = String(dt.getMonth() + 1).padStart(2, '0')
   const d = String(dt.getDate()).padStart(2, '0')
   return `${y}-${m}-${d}`
+}
+
+// Parses a printed warranty length like "1 year", "2-Yr", "90 days", "6
+// month" into a day count. Returns null (never guesses) if the text doesn't
+// match a recognizable "<number> <unit>" pattern.
+function parseWarrantyPeriodDays(text) {
+  if (!text) return null
+  const match = String(text).match(/(\d+)\s*[- ]?\s*(year|yr|month|mo|day)/i)
+  if (!match) return null
+  const n = Number(match[1])
+  const unit = match[2].toLowerCase()
+  if (unit.startsWith('year') || unit === 'yr') return n * 365
+  if (unit.startsWith('month') || unit === 'mo') return n * 30
+  return n
 }
 
 const EXTRACT_SCHEMA = {
@@ -315,6 +336,21 @@ const EXTRACT_SCHEMA = {
             description:
               "This item's order number, if printed and different from the receipt-level order/transaction number above (e.g. a multi-item online order where each line shows its own order/item number). Omit if not printed, or if it's the same as the receipt-level number already captured.",
           },
+          modelNumber: {
+            type: 'string',
+            description:
+              'Manufacturer model number for this item, ONLY if actually printed (e.g. "Model XPS-13-9310"), distinct from the store\'s own SKU/item code. Omit entirely if not printed — never guess or invent one.',
+          },
+          warrantyPeriodPrinted: {
+            type: 'string',
+            description:
+              'ONLY if the receipt explicitly prints a warranty length for this item (e.g. "1 YEAR MANUFACTURER WARRANTY", "90-DAY WARRANTY") — the length as printed (e.g. "1 year", "90 days"). Omit entirely if no warranty length is printed; never calculate or guess this from the item category.',
+          },
+          warrantyProviderPrinted: {
+            type: 'string',
+            description:
+              'ONLY if the receipt explicitly names who provides the warranty (e.g. "Samsung", "Manufacturer", "Store Protection Plan"). Omit if not printed.',
+          },
         },
         required: ['product', 'price'],
       },
@@ -434,9 +470,27 @@ export async function scanReceipt(reqBody) {
         : storeWindowDaysResolved !== undefined
           ? 'store_policy'
           : 'estimated'
-      const warrantyYears = WARRANTY_YEARS[category]
-      const warrantyExpires = warrantyYears > 0 ? addYears(purchaseDate, warrantyYears) : null
-      if (warrantyYears === 0) itemMissing.push('warrantyExpires')
+      // Warranty: category decides eligibility at all (a 0-year category —
+      // Apparel/Grocery/Other — never gets a warranty, not even an
+      // estimate). Within an eligible category, a warranty length actually
+      // printed on the receipt is trusted as 'confirmed'; otherwise it
+      // falls back to the category default, always labeled 'estimated'.
+      const warrantyEligible = WARRANTY_YEARS[category] > 0
+      const printedWarrantyDays = warrantyEligible ? parseWarrantyPeriodDays(raw.warrantyPeriodPrinted) : null
+      let warrantyExpires = null
+      let warrantyStatus = null
+      let warrantyExpiresSource = null
+      if (warrantyEligible) {
+        if (printedWarrantyDays != null) {
+          warrantyExpires = addDays(purchaseDate, printedWarrantyDays)
+          warrantyStatus = 'confirmed'
+          warrantyExpiresSource = 'receipt'
+        } else {
+          warrantyExpires = addYears(purchaseDate, WARRANTY_YEARS[category])
+          warrantyStatus = 'estimated'
+          warrantyExpiresSource = 'category_default'
+        }
+      }
 
       return {
         product: raw.product || '',
@@ -445,13 +499,18 @@ export async function scanReceipt(reqBody) {
         gender: raw.gender || null,
         color: raw.color || null,
         sku: raw.sku || null,
+        modelNumber: raw.modelNumber || null,
         quantity: raw.quantity && raw.quantity > 1 ? Number(raw.quantity) : 1,
         price: raw.price ? Number(raw.price) : '',
         discount: raw.discount ?? null,
         category,
         returnDeadline,
         returnDeadlineSource,
+        warrantyEligible,
         warrantyExpires,
+        warrantyStatus,
+        warrantyExpiresSource,
+        warrantyProvider: raw.warrantyProviderPrinted || null,
         serialNumber: raw.serialNumber || null,
         orderNumber: raw.orderNumber || data.receiptNumber || null,
         missingFields: itemMissing,

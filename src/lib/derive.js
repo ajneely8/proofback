@@ -1,4 +1,4 @@
-import { DEFAULT_SETTINGS, RETURN_ALERT_THRESHOLDS, WARRANTY_ALERT_THRESHOLDS } from '../data/mockData.js'
+import { DEFAULT_SETTINGS, RETURN_ALERT_THRESHOLDS } from '../data/mockData.js'
 
 // Parse a "YYYY-MM-DD" string as a local-midnight Date, avoiding the UTC
 // interpretation `new Date(str)` uses (which shifts the displayed day in
@@ -135,9 +135,24 @@ export function getPurchaseStatuses(purchase, settings = DEFAULT_SETTINGS) {
     } else {
       statuses.push({ key: 'warranty_expired', label: 'Warranty expired', tone: 'neutral' })
     }
+  } else if (purchase.warrantyEligible) {
+    statuses.push({ key: 'warranty_not_confirmed', label: 'Warranty not confirmed', tone: 'neutral' })
   }
 
   return statuses
+}
+
+// One of five buckets for the Purchases warranty filters — 'none' covers
+// both a non-warrantable category and a warrantable one nobody's filled in
+// yet is instead 'not_confirmed', so the two are never conflated.
+export function getWarrantyState(purchase, settings = DEFAULT_SETTINGS) {
+  const urgentWindowDays = settings.urgentWindowDays ?? DEFAULT_SETTINGS.urgentWindowDays
+  if (!purchase.warrantyEligible) return 'none'
+  if (!purchase.warrantyExpires) return 'not_confirmed'
+  const daysLeft = daysUntil(purchase.warrantyExpires)
+  if (daysLeft < 0) return 'expired'
+  if (daysLeft <= urgentWindowDays) return 'expiring_soon'
+  return 'active'
 }
 
 // A purchase's Protection Score: how much of the record ProofBack (or the
@@ -418,9 +433,10 @@ export function getYourImpact(purchases) {
 }
 
 // A persistent, dismissible alert feed (unlike notify.js's ephemeral OS
-// notification) — a return/warranty crosses in the moment it's within any
-// threshold in RETURN_ALERT_THRESHOLDS/WARRANTY_ALERT_THRESHOLDS, gated by
-// the same per-category notification toggles as getNeedsAttention.
+// notification) — a return crosses in the moment it's within any threshold
+// in RETURN_ALERT_THRESHOLDS; a warranty (or its registration deadline)
+// crosses in within the user's configurable warrantyReminderDays. Both
+// gated by the same per-category notification toggles as getNeedsAttention.
 export function getAlerts(purchases, settings = DEFAULT_SETTINGS) {
   const notifications = settings.notifications ?? DEFAULT_SETTINGS.notifications
   const alerts = []
@@ -441,19 +457,29 @@ export function getAlerts(purchases, settings = DEFAULT_SETTINGS) {
       }
     }
 
+    const warrantyReminderDays = settings.warrantyReminderDays ?? DEFAULT_SETTINGS.warrantyReminderDays
     const warrantyDaysLeft = daysUntil(p.warrantyExpires)
-    if (warrantyDaysLeft !== null && warrantyDaysLeft >= 0 && notifications.warrantyAlerts) {
-      const threshold = WARRANTY_ALERT_THRESHOLDS.find((t) => warrantyDaysLeft <= t)
-      if (threshold != null) {
-        alerts.push({
-          id: `${p.id}-alert-warranty`,
-          purchase: p,
-          type: 'warranty_expiring',
-          urgent: warrantyDaysLeft <= 7,
-          daysLeft: warrantyDaysLeft,
-          message: `Your ${p.brand} warranty expires in ${warrantyDaysLeft} day${warrantyDaysLeft === 1 ? '' : 's'}.`,
-        })
-      }
+    if (warrantyDaysLeft !== null && warrantyDaysLeft >= 0 && warrantyDaysLeft <= warrantyReminderDays && notifications.warrantyAlerts) {
+      alerts.push({
+        id: `${p.id}-alert-warranty`,
+        purchase: p,
+        type: 'warranty_expiring',
+        urgent: warrantyDaysLeft <= 7,
+        daysLeft: warrantyDaysLeft,
+        message: `Your ${p.brand} warranty expires in ${warrantyDaysLeft} day${warrantyDaysLeft === 1 ? '' : 's'}.`,
+      })
+    }
+
+    const registrationDaysLeft = daysUntil(p.warrantyRegistrationDeadline)
+    if (registrationDaysLeft !== null && registrationDaysLeft >= 0 && registrationDaysLeft <= warrantyReminderDays && notifications.warrantyAlerts) {
+      alerts.push({
+        id: `${p.id}-alert-warranty-registration`,
+        purchase: p,
+        type: 'warranty_registration_deadline',
+        urgent: registrationDaysLeft <= 7,
+        daysLeft: registrationDaysLeft,
+        message: `Register your ${p.brand} purchase for warranty coverage within ${registrationDaysLeft} day${registrationDaysLeft === 1 ? '' : 's'}.`,
+      })
     }
 
     if (refundMissing(p) && notifications.refundAlerts) {

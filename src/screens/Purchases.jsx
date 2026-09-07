@@ -10,12 +10,31 @@ import {
   returnIsOpen,
   getPurchaseStatuses,
   getRecoveryCases,
+  getWarrantyState,
 } from '../lib/derive.js'
 import { IconSearch, IconList, IconCheck } from '../components/Icons.jsx'
 import Thumb from '../components/Thumb.jsx'
 import EmptyState from '../components/EmptyState.jsx'
 
-const FILTERS = ['All', 'Recovery Cases', 'Returns', 'Warranties', 'Refunds']
+const FILTERS = [
+  'All',
+  'Recovery Cases',
+  'Returns',
+  'Refunds',
+  'Active',
+  'Expiring Soon',
+  'Expired',
+  'Not Confirmed',
+  'No Warranty Expected',
+]
+
+const WARRANTY_FILTER_STATES = {
+  Active: 'active',
+  'Expiring Soon': 'expiring_soon',
+  Expired: 'expired',
+  'Not Confirmed': 'not_confirmed',
+  'No Warranty Expected': 'none',
+}
 
 export default function Purchases() {
   const { purchases, deletePurchases } = usePurchases()
@@ -40,8 +59,10 @@ export default function Purchases() {
       list = list.filter((p) => openCaseIds.has(p.id))
     }
     if (filter === 'Returns') list = list.filter(returnIsOpen)
-    if (filter === 'Warranties') list = list.filter((p) => !!p.warrantyExpires)
     if (filter === 'Refunds') list = list.filter(refundMissing)
+    if (WARRANTY_FILTER_STATES[filter]) {
+      list = list.filter((p) => getWarrantyState(p, settings) === WARRANTY_FILTER_STATES[filter])
+    }
 
     if (query.trim()) {
       const q = query.trim().toLowerCase()

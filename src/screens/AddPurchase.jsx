@@ -223,6 +223,11 @@ export default function AddPurchase() {
   // the user to fill in themselves, same as when a receipt doesn't state one.
   function submitManual() {
     const { store, product, price, category, purchaseDate } = manualForm
+    // Mirrors server/scanReceipt.js's WARRANTY_YEARS classification (which
+    // categories ever get a warranty at all) — manual entry has no receipt
+    // to read a warranty length off of, so eligible items start out
+    // 'not_confirmed' rather than guessing a length.
+    const warrantyEligible = category === 'Electronics' || category === 'Home'
     setExtracted({
       store,
       brand: store,
@@ -253,7 +258,11 @@ export default function AddPurchase() {
           category,
           returnDeadline: null,
           returnDeadlineSource: 'estimated',
+          warrantyEligible,
           warrantyExpires: null,
+          warrantyStatus: warrantyEligible ? 'not_confirmed' : null,
+          warrantyExpiresSource: null,
+          warrantyProvider: null,
           missingFields: [],
           logoUrl: null,
         },
@@ -304,6 +313,7 @@ export default function AddPurchase() {
         gender: item.gender || null,
         color: item.color || null,
         sku: item.sku || null,
+        modelNumber: item.modelNumber || null,
         barcode: item.barcode || null,
         quantity: item.quantity || 1,
         price: Number(item.price),
@@ -321,7 +331,12 @@ export default function AddPurchase() {
         category: item.category,
         returnDeadline: item.returnDeadline,
         returnDeadlineSource: item.returnDeadlineSource,
+        warrantyEligible: !!item.warrantyEligible,
         warrantyExpires: item.warrantyExpires,
+        warrantyStatus: item.warrantyStatus || null,
+        warrantyExpiresSource: item.warrantyExpiresSource || null,
+        warrantyProvider: item.warrantyProvider || null,
+        warrantyStartDate: item.warrantyEligible ? extracted.purchaseDate : null,
         serialNumber: item.serialNumber || null,
         orderNumber: item.orderNumber || null,
         refund: extracted.refund,

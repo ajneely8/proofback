@@ -5,6 +5,7 @@ import {
   getRecoveryCases,
   getRecoverableTotal,
   getYourImpact,
+  getWarrantyState,
   caseActionLabel,
   formatMoney,
   formatDate,
@@ -22,6 +23,8 @@ export default function Home() {
   const cases = getRecoveryCases(purchases, settings).filter((c) => c.status !== 'closed')
   const recoverableTotal = getRecoverableTotal(purchases, settings)
   const impact = getYourImpact(purchases)
+  const activeWarranties = purchases.filter((p) => getWarrantyState(p, settings) === 'active').length
+  const warrantiesExpiringSoon = purchases.filter((p) => getWarrantyState(p, settings) === 'expiring_soon').length
 
   return (
     <div className="screen">
@@ -61,6 +64,19 @@ export default function Home() {
             <div className="dashboard-tile__label">Completed claims</div>
             <div className="dashboard-tile__caption">Returns, refunds, or cases marked resolved</div>
           </div>
+        </div>
+      </section>
+
+      <section className="section">
+        <div className="dashboard-grid">
+          <Link to="/purchases?filter=Active" className="dashboard-tile">
+            <div className="dashboard-tile__value">{activeWarranties}</div>
+            <div className="dashboard-tile__label">Active warranties</div>
+          </Link>
+          <Link to="/purchases?filter=Expiring Soon" className="dashboard-tile">
+            <div className="dashboard-tile__value">{warrantiesExpiringSoon}</div>
+            <div className="dashboard-tile__label">Warranties expiring soon</div>
+          </Link>
         </div>
       </section>
 

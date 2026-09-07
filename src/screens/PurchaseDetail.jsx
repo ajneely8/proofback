@@ -10,6 +10,7 @@ import {
   productLabel,
   getPurchaseStatuses,
   getProofReadiness,
+  getWarrantyState,
   refundOverdue,
   getDuplicatePurchaseFlags,
   todayISO,
@@ -21,6 +22,16 @@ import ReceiptViewer from '../components/ReceiptViewer.jsx'
 import { sharePurchase } from '../lib/share.js'
 
 const CLAIM_TYPE_LABELS = { return: 'Return', warranty: 'Warranty', chargeback: 'Chargeback', insurance: 'Insurance claim' }
+
+const WARRANTY_CLAIM_LABELS = {
+  draft: 'Draft',
+  evidence_ready: 'Evidence Ready',
+  submitted: 'Submitted',
+  in_review: 'In Review',
+  approved: 'Approved',
+  denied: 'Denied',
+  closed: 'Closed',
+}
 
 function compressPhoto(file, maxWidth = 900, quality = 0.75) {
   return new Promise((resolve, reject) => {
@@ -54,8 +65,7 @@ export default function PurchaseDetail() {
   const [shareStatus, setShareStatus] = useState(null) // brief confirmation after a share/copy action
   const [returnFormOpen, setReturnFormOpen] = useState(false)
   const [returnForm, setReturnForm] = useState({ refundAmount: '', returnMethod: '', notes: '' })
-  const [claimOpen, setClaimOpen] = useState(false)
-  const [claimProblem, setClaimProblem] = useState('')
+  const [claimIssueDraft, setClaimIssueDraft] = useState('')
   const [claimSummary, setClaimSummary] = useState(null)
   const [claimCopyStatus, setClaimCopyStatus] = useState(null)
   const [refundTrackOpen, setRefundTrackOpen] = useState(false)
@@ -63,6 +73,15 @@ export default function PurchaseDetail() {
   const [readinessOpen, setReadinessOpen] = useState(false)
   const [photoUploading, setPhotoUploading] = useState(false)
   const [docUploading, setDocUploading] = useState(false)
+  const [warrantyDocUploading, setWarrantyDocUploading] = useState(false)
+  const [warrantyFormOpen, setWarrantyFormOpen] = useState(false)
+  const [warrantyForm, setWarrantyForm] = useState({
+    provider: '',
+    coverageType: '',
+    startDate: '',
+    expiresDate: '',
+    serialNumber: '',
+  })
 
   const purchase = purchases.find((p) => p.id === id)
 
@@ -79,6 +98,7 @@ export default function PurchaseDetail() {
   const statuses = getPurchaseStatuses(purchase, settings)
   const readiness = getProofReadiness(purchase)
   const protection = readiness.overall
+  const warrantyState = getWarrantyState(purchase, settings)
   const refund = purchase.refund
   const merchantPolicy = getMerchantPolicy(purchase.store)
   const duplicateFlag = getDuplicatePurchaseFlags(purchases).find(
@@ -113,7 +133,9 @@ export default function PurchaseDetail() {
     setReturnFormOpen(false)
   }
 
-  function generateClaimSummary() {
+  const warrantyClaim = purchase.warrantyClaim
+
+  function buildClaimSummary(issueDescription) {
     const lines = [
       `Warranty claim — ${productLabel(purchase)}`,
       '',
@@ -122,25 +144,111 @@ export default function PurchaseDetail() {
       `Store: ${purchase.store}`,
       `Price: ${formatMoney(purchase.price)}`,
       `Receipt: ${receiptPhotos.length ? 'Saved in ProofBack' : 'Not on file'}`,
+      purchase.modelNumber ? `Model number: ${purchase.modelNumber}` : null,
       purchase.serialNumber ? `Serial number: ${purchase.serialNumber}` : null,
-      purchase.warrantyExpires ? `Warranty expires: ${formatDate(purchase.warrantyExpires)}` : null,
+      purchase.warrantyExpires
+        ? `Warranty expires: ${formatDate(purchase.warrantyExpires)}${purchase.warrantyStatus === 'estimated' ? ' (estimated)' : ''}`
+        : null,
       '',
-      'Problem description:',
-      claimProblem || '(not described)',
+      'Issue description:',
+      issueDescription || '(not described)',
     ].filter((l) => l !== null)
-    const summary = lines.join('\n')
+    return lines.join('\n')
+  }
+
+  function appendClaimHistory(patch, note) {
+    updatePurchase(purchase.id, {
+      warrantyClaim: {
+        ...warrantyClaim,
+        ...patch,
+        updatedAt: todayISO(),
+        communicationHistory: [...(warrantyClaim?.communicationHistory || []), { date: todayISO(), note }],
+      },
+    })
+  }
+
+  function startWarrantyClaim() {
+    setClaimIssueDraft('')
+    setClaimSummary(null)
+    updatePurchase(purchase.id, {
+      warrantyClaim: {
+        id: `${purchase.id}-claim`,
+        status: 'draft',
+        issueDescription: '',
+        outcome: null,
+        createdAt: todayISO(),
+        updatedAt: todayISO(),
+        communicationHistory: [{ date: todayISO(), note: 'Claim started' }],
+      },
+    })
+  }
+
+  function markEvidenceReady() {
+    const summary = buildClaimSummary(claimIssueDraft)
     setClaimSummary(summary)
-    updatePurchase(purchase.id, { warrantyClaimDraft: { problemDescription: claimProblem, createdAt: todayISO() } })
+    appendClaimHistory(
+      { status: 'evidence_ready', issueDescription: claimIssueDraft },
+      'Evidence summary generated'
+    )
+  }
+
+  function advanceClaim(status, note) {
+    appendClaimHistory({ status }, note)
+  }
+
+  function closeClaim() {
+    appendClaimHistory({ status: 'closed' }, 'Claim closed')
   }
 
   async function copyClaimSummary() {
     try {
-      await navigator.clipboard.writeText(claimSummary)
+      await navigator.clipboard.writeText(claimSummary || buildClaimSummary(warrantyClaim?.issueDescription))
       setClaimCopyStatus('copied')
     } catch {
       setClaimCopyStatus('unsupported')
     }
     setTimeout(() => setClaimCopyStatus(null), 2500)
+  }
+
+  function openWarrantyForm() {
+    setWarrantyForm({
+      provider: purchase.warrantyProvider || '',
+      coverageType: purchase.warrantyCoverageType || '',
+      startDate: purchase.warrantyStartDate || purchase.purchaseDate || '',
+      expiresDate: purchase.warrantyExpires || '',
+      serialNumber: purchase.serialNumber || '',
+    })
+    setWarrantyFormOpen(true)
+  }
+
+  function saveWarrantyForm() {
+    updatePurchase(purchase.id, {
+      warrantyProvider: warrantyForm.provider || null,
+      warrantyCoverageType: warrantyForm.coverageType || null,
+      warrantyStartDate: warrantyForm.startDate || null,
+      warrantyExpires: warrantyForm.expiresDate || null,
+      warrantyStatus: warrantyForm.expiresDate ? 'confirmed' : 'not_confirmed',
+      warrantyExpiresSource: warrantyForm.expiresDate ? 'manufacturer' : null,
+      serialNumber: warrantyForm.serialNumber || purchase.serialNumber || null,
+    })
+    setWarrantyFormOpen(false)
+  }
+
+  async function handleWarrantyDocUpload(e) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setWarrantyDocUploading(true)
+    try {
+      const dataUrl = await compressPhoto(file, 1100, 0.75)
+      updatePurchase(purchase.id, { warrantyDocuments: [...(purchase.warrantyDocuments || []), dataUrl] })
+    } finally {
+      setWarrantyDocUploading(false)
+      e.target.value = ''
+    }
+  }
+
+  function removeWarrantyDoc(index) {
+    updatePurchase(purchase.id, { warrantyDocuments: purchase.warrantyDocuments.filter((_, i) => i !== index) })
   }
 
   function markRefundReceived() {
@@ -274,7 +382,9 @@ export default function PurchaseDetail() {
       serialNumber: purchase.serialNumber || '',
       orderNumber: purchase.orderNumber || '',
       trackingNumber: purchase.trackingNumber || '',
+      modelNumber: purchase.modelNumber || '',
       warrantyExpires: purchase.warrantyExpires || '',
+      warrantyRegistrationDeadline: purchase.warrantyRegistrationDeadline || '',
       returnDeadline: purchase.returnDeadline || '',
       notes: purchase.notes || '',
       isBusinessExpense: !!purchase.isBusinessExpense,
@@ -297,7 +407,13 @@ export default function PurchaseDetail() {
       serialNumber: draft.serialNumber || null,
       orderNumber: draft.orderNumber || null,
       trackingNumber: draft.trackingNumber || null,
+      modelNumber: draft.modelNumber || null,
       warrantyExpires: draft.warrantyExpires || null,
+      // Editing the expiration directly here counts as the user confirming
+      // it themselves, same as the dedicated warranty form.
+      warrantyStatus: draft.warrantyExpires ? 'confirmed' : purchase.warrantyStatus,
+      warrantyExpiresSource: draft.warrantyExpires !== purchase.warrantyExpires ? 'manufacturer' : purchase.warrantyExpiresSource,
+      warrantyRegistrationDeadline: draft.warrantyRegistrationDeadline || null,
       returnDeadline: draft.returnDeadline || null,
       notes: draft.notes || null,
       isBusinessExpense: draft.isBusinessExpense,
@@ -446,6 +562,22 @@ export default function PurchaseDetail() {
               type="text"
               value={draft.trackingNumber}
               onChange={(e) => setDraft({ ...draft, trackingNumber: e.target.value })}
+            />
+          </div>
+          <div className="field-row">
+            <label>Model number</label>
+            <input
+              type="text"
+              value={draft.modelNumber}
+              onChange={(e) => setDraft({ ...draft, modelNumber: e.target.value })}
+            />
+          </div>
+          <div className="field-row">
+            <label>Warranty registration deadline</label>
+            <input
+              type="date"
+              value={draft.warrantyRegistrationDeadline}
+              onChange={(e) => setDraft({ ...draft, warrantyRegistrationDeadline: e.target.value })}
             />
           </div>
           <div className="field-row">
@@ -624,13 +756,19 @@ export default function PurchaseDetail() {
         )}
       </section>
 
-      {(purchase.sku || purchase.barcode || purchase.serialNumber || purchase.orderNumber || purchase.trackingNumber) && (
+      {(purchase.sku || purchase.barcode || purchase.serialNumber || purchase.orderNumber || purchase.trackingNumber || purchase.modelNumber) && (
         <section className="detail-card">
           <div className="detail-card__label">Item Code</div>
           {purchase.sku && (
             <div className="detail-card__row">
               <span>SKU</span>
               <strong>{purchase.sku}</strong>
+            </div>
+          )}
+          {purchase.modelNumber && (
+            <div className="detail-card__row">
+              <span>Model number</span>
+              <strong>{purchase.modelNumber}</strong>
             </div>
           )}
           {purchase.barcode && (
@@ -780,69 +918,245 @@ export default function PurchaseDetail() {
         </section>
       )}
 
-      {purchase.warrantyExpires && (
+      {purchase.warrantyEligible && (
         <section className="detail-card">
           <div className="detail-card__label">Warranty</div>
+
           <div className="detail-card__row">
-            <span>Warranty expires</span>
-            <strong>{formatDate(purchase.warrantyExpires)}</strong>
+            <span>Status</span>
+            <span
+              className={`status-chip status-chip--${
+                warrantyState === 'active' ? 'good' : warrantyState === 'expiring_soon' ? 'warn' : 'neutral'
+              }`}
+            >
+              {warrantyState === 'active' && 'Active'}
+              {warrantyState === 'expiring_soon' && 'Expiring soon'}
+              {warrantyState === 'expired' && 'Expired'}
+              {warrantyState === 'not_confirmed' && 'Not confirmed'}
+            </span>
           </div>
 
-          {claimOpen ? (
+          {purchase.warrantyProvider && (
+            <div className="detail-card__row">
+              <span>Provider</span>
+              <strong>{purchase.warrantyProvider}</strong>
+            </div>
+          )}
+          {purchase.warrantyCoverageType && (
+            <div className="detail-card__row">
+              <span>Coverage</span>
+              <strong>{purchase.warrantyCoverageType}</strong>
+            </div>
+          )}
+          {purchase.warrantyStartDate && (
+            <div className="detail-card__row">
+              <span>Start date</span>
+              <strong>{formatDate(purchase.warrantyStartDate)}</strong>
+            </div>
+          )}
+          {purchase.warrantyExpires && (
+            <div className="detail-card__row">
+              <span>Expires ({purchase.warrantyStatus === 'confirmed' ? 'Confirmed' : 'Estimated'})</span>
+              <strong>{formatDate(purchase.warrantyExpires)}</strong>
+            </div>
+          )}
+          {purchase.modelNumber && (
+            <div className="detail-card__row">
+              <span>Model number</span>
+              <strong>{purchase.modelNumber}</strong>
+            </div>
+          )}
+          {purchase.serialNumber && (
+            <div className="detail-card__row">
+              <span>Serial number</span>
+              <strong>{purchase.serialNumber}</strong>
+            </div>
+          )}
+          <div className="detail-card__row">
+            <span>Proof of purchase</span>
+            <strong>{receiptPhotos.length ? 'Receipt on file' : 'Not on file'}</strong>
+          </div>
+
+          {warrantyFormOpen ? (
             <>
-              <div className="field-row field-row--stacked">
-                <label>Describe the problem</label>
-                <textarea
-                  rows={3}
-                  autoFocus
-                  value={claimProblem}
-                  onChange={(e) => setClaimProblem(e.target.value)}
-                  placeholder="What's wrong with the product?"
+              <div className="field-row">
+                <label>Provider</label>
+                <input
+                  type="text"
+                  value={warrantyForm.provider}
+                  onChange={(e) => setWarrantyForm({ ...warrantyForm, provider: e.target.value })}
                 />
               </div>
-              {!claimSummary ? (
-                <div className="action-row">
-                  <button className="btn btn--secondary" onClick={() => setClaimOpen(false)}>
-                    Cancel
-                  </button>
-                  <button className="btn btn--primary" onClick={generateClaimSummary} disabled={!claimProblem.trim()}>
-                    Generate Claim Summary
+              <div className="field-row">
+                <label>Coverage type</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Limited manufacturer"
+                  value={warrantyForm.coverageType}
+                  onChange={(e) => setWarrantyForm({ ...warrantyForm, coverageType: e.target.value })}
+                />
+              </div>
+              <div className="field-row">
+                <label>Start date</label>
+                <input
+                  type="date"
+                  value={warrantyForm.startDate}
+                  onChange={(e) => setWarrantyForm({ ...warrantyForm, startDate: e.target.value })}
+                />
+              </div>
+              <div className="field-row">
+                <label>Expiration date</label>
+                <input
+                  type="date"
+                  value={warrantyForm.expiresDate}
+                  onChange={(e) => setWarrantyForm({ ...warrantyForm, expiresDate: e.target.value })}
+                />
+              </div>
+              <div className="field-row">
+                <label>Serial number</label>
+                <input
+                  type="text"
+                  value={warrantyForm.serialNumber}
+                  onChange={(e) => setWarrantyForm({ ...warrantyForm, serialNumber: e.target.value })}
+                />
+              </div>
+              <div className="action-row">
+                <button className="btn btn--secondary" onClick={() => setWarrantyFormOpen(false)}>
+                  Cancel
+                </button>
+                <button className="btn btn--primary" onClick={saveWarrantyForm}>
+                  Save
+                </button>
+              </div>
+            </>
+          ) : (
+            <button className="btn btn--secondary btn--block" onClick={openWarrantyForm}>
+              {warrantyState === 'not_confirmed' ? 'Add Warranty Details' : 'Edit Warranty Details'}
+            </button>
+          )}
+
+          <div className="detail-card__label" style={{ marginTop: 16 }}>
+            Warranty Documents
+          </div>
+          {purchase.warrantyDocuments?.length > 0 && (
+            <div className="page-strip">
+              {purchase.warrantyDocuments.map((url, i) => (
+                <div key={i} className="page-strip__photo-btn" style={{ position: 'relative' }}>
+                  <img src={url} alt={`Warranty document ${i + 1}`} className="page-strip__photo" />
+                  <button className="doc-remove" onClick={() => removeWarrantyDoc(i)} aria-label={`Remove document ${i + 1}`}>
+                    ×
                   </button>
                 </div>
-              ) : (
+              ))}
+            </div>
+          )}
+          <div className="action-row">
+            <label className="btn btn--secondary" style={{ flex: 1 }}>
+              {warrantyDocUploading ? 'Uploading…' : 'Upload Document'}
+              <input type="file" accept="image/*" onChange={handleWarrantyDocUpload} hidden disabled={warrantyDocUploading} />
+            </label>
+            <label className="btn btn--secondary" style={{ flex: 1 }}>
+              Photograph Label
+              <input type="file" accept="image/*" capture="environment" onChange={handleWarrantyDocUpload} hidden disabled={warrantyDocUploading} />
+            </label>
+          </div>
+
+          <div className="detail-card__label" style={{ marginTop: 16 }}>
+            Warranty Claim
+          </div>
+          {!warrantyClaim ? (
+            <button className="btn btn--secondary btn--block" onClick={startWarrantyClaim}>
+              Start Warranty Claim
+            </button>
+          ) : (
+            <>
+              <div className="detail-card__row">
+                <span>Claim status</span>
+                <strong>{WARRANTY_CLAIM_LABELS[warrantyClaim.status]}</strong>
+              </div>
+
+              {warrantyClaim.status === 'draft' && (
+                <>
+                  <div className="field-row field-row--stacked">
+                    <label>Describe the issue</label>
+                    <textarea
+                      rows={3}
+                      autoFocus
+                      value={claimIssueDraft}
+                      onChange={(e) => setClaimIssueDraft(e.target.value)}
+                      placeholder="What's wrong with the product?"
+                    />
+                  </div>
+                  <button
+                    className="btn btn--primary btn--block"
+                    onClick={markEvidenceReady}
+                    disabled={!claimIssueDraft.trim()}
+                  >
+                    Mark Evidence Ready
+                  </button>
+                </>
+              )}
+
+              {warrantyClaim.status === 'evidence_ready' && (
                 <>
                   <p className="field-hint field-hint--block" style={{ color: 'var(--text-secondary)' }}>
                     ProofBack doesn't submit claims on your behalf — copy this summary and send it to the
-                    manufacturer or retailer yourself.
+                    manufacturer or retailer yourself, then mark it submitted.
                   </p>
-                  <pre className="claim-summary">{claimSummary}</pre>
+                  <pre className="claim-summary">{claimSummary || buildClaimSummary(warrantyClaim.issueDescription)}</pre>
                   <div className="action-row">
-                    <button
-                      className="btn btn--secondary"
-                      onClick={() => {
-                        setClaimOpen(false)
-                        setClaimSummary(null)
-                      }}
-                    >
-                      Close
-                    </button>
-                    <button className="btn btn--primary" onClick={copyClaimSummary}>
+                    <button className="btn btn--secondary" onClick={copyClaimSummary}>
                       Copy Summary
                     </button>
+                    <button className="btn btn--primary" onClick={() => advanceClaim('submitted', 'Claim submitted')}>
+                      Mark Submitted
+                    </button>
                   </div>
-                  {claimCopyStatus === 'copied' && (
-                    <p className="field-hint field-hint--good">Copied to clipboard</p>
-                  )}
+                  {claimCopyStatus === 'copied' && <p className="field-hint field-hint--good">Copied to clipboard</p>}
                   {claimCopyStatus === 'unsupported' && (
                     <p className="field-hint">Copying isn't supported on this device/browser</p>
                   )}
                 </>
               )}
+
+              {warrantyClaim.status === 'submitted' && (
+                <button
+                  className="btn btn--primary btn--block"
+                  onClick={() => advanceClaim('in_review', 'Manufacturer/retailer began reviewing the claim')}
+                >
+                  Mark In Review
+                </button>
+              )}
+
+              {warrantyClaim.status === 'in_review' && (
+                <div className="action-row">
+                  <button
+                    className="btn btn--secondary"
+                    onClick={() => advanceClaim('denied', 'Claim denied')}
+                  >
+                    Mark Denied
+                  </button>
+                  <button
+                    className="btn btn--primary"
+                    onClick={() => advanceClaim('approved', 'Claim approved')}
+                  >
+                    Mark Approved
+                  </button>
+                </div>
+              )}
+
+              {(warrantyClaim.status === 'approved' || warrantyClaim.status === 'denied') && (
+                <button className="btn btn--secondary btn--block" onClick={closeClaim}>
+                  Close Claim
+                </button>
+              )}
+
+              {warrantyClaim.status === 'closed' && (
+                <p className="field-hint field-hint--block" style={{ margin: 0 }}>
+                  Claim closed.
+                </p>
+              )}
             </>
-          ) : (
-            <button className="btn btn--secondary btn--block" onClick={() => setClaimOpen(true)}>
-              Start Warranty Claim
-            </button>
           )}
         </section>
       )}
@@ -1032,15 +1346,17 @@ export default function PurchaseDetail() {
         </label>
       </section>
 
-      {purchase.recoveryCase?.submissionHistory?.length > 0 && (
+      {(purchase.recoveryCase?.submissionHistory?.length > 0 || warrantyClaim?.communicationHistory?.length > 0) && (
         <section className="detail-card">
           <div className="detail-card__label">Claim History</div>
           <ul className="claim-history">
-            {purchase.recoveryCase.submissionHistory.map((entry, i) => (
-              <li key={i}>
-                <strong>{formatDate(entry.date)}</strong> — {entry.note}
-              </li>
-            ))}
+            {[...(purchase.recoveryCase?.submissionHistory || []), ...(warrantyClaim?.communicationHistory || [])]
+              .sort((a, b) => (a.date < b.date ? -1 : 1))
+              .map((entry, i) => (
+                <li key={i}>
+                  <strong>{formatDate(entry.date)}</strong> — {entry.note}
+                </li>
+              ))}
           </ul>
         </section>
       )}
