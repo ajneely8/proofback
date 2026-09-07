@@ -170,7 +170,7 @@ a {
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-top: -22px;
+  margin-top: -12px;
 }
 
 .bottom-nav__scan::before {
