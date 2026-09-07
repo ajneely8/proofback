@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { PurchasesProvider } from './lib/PurchasesContext.jsx'
 import { SettingsProvider } from './lib/SettingsContext.jsx'
-import { WatchlistProvider } from './lib/WatchlistContext.jsx'
 import { useAuth } from './lib/AuthContext.jsx'
 import { isSupabaseConfigured } from './lib/supabaseClient.js'
 import { hasOnboarded } from './lib/storage.js'
@@ -14,13 +13,11 @@ import Auth from './screens/Auth.jsx'
 import Home from './screens/Home.jsx'
 import Purchases from './screens/Purchases.jsx'
 import Insights from './screens/Insights.jsx'
-import Watchlist from './screens/Watchlist.jsx'
 import PurchaseDetail from './screens/PurchaseDetail.jsx'
 import ReceiptGroup from './screens/ReceiptGroup.jsx'
 import EvidencePackage from './screens/EvidencePackage.jsx'
 import AddPurchase from './screens/AddPurchase.jsx'
 import Alerts from './screens/Alerts.jsx'
-import MyProducts from './screens/MyProducts.jsx'
 import ReceiptInbox from './screens/ReceiptInbox.jsx'
 import Profile from './screens/Profile.jsx'
 import Account from './screens/profile/Account.jsx'
@@ -78,7 +75,7 @@ export default function App() {
   return (
     <SettingsProvider>
       <PurchasesProvider>
-        <WatchlistProvider>
+        <>
           <ThemeEffect />
           <NotificationWatcher />
           <Shell>
@@ -86,13 +83,11 @@ export default function App() {
               <Route path="/" element={<Home />} />
               <Route path="/purchases" element={<Purchases />} />
               <Route path="/insights" element={<Insights />} />
-              <Route path="/watchlist" element={<Watchlist />} />
               <Route path="/purchases/:id" element={<PurchaseDetail />} />
               <Route path="/receipt/:groupKey" element={<ReceiptGroup />} />
               <Route path="/purchases/:id/evidence" element={<EvidencePackage />} />
               <Route path="/add" element={<AddPurchase />} />
               <Route path="/alerts" element={<Alerts />} />
-              <Route path="/products" element={<MyProducts />} />
               <Route path="/inbox" element={<ReceiptInbox />} />
               <Route path="/profile" element={<Profile />} />
               <Route path="/profile/account" element={<Account />} />
@@ -107,7 +102,7 @@ export default function App() {
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </Shell>
-        </WatchlistProvider>
+        </>
       </PurchasesProvider>
     </SettingsProvider>
   )
