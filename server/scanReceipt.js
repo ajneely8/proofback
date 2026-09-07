@@ -111,11 +111,17 @@ function logoUrlFor(name) {
   return domain ? `https://logo.clearbit.com/${domain}?size=160` : null
 }
 
+// null means "never returnable" — no deadline gets computed at all, not
+// even an estimate (as opposed to a store/category window that's merely
+// unknown). Dining is the clearest case: a restaurant/fast-food/cafe order
+// is consumed immediately and was never returnable in the first place, so
+// it should never generate a "return window" of any kind.
 const RETURN_WINDOW_DAYS = {
   Electronics: 15,
   Apparel: 30,
   Home: 30,
   Grocery: 7,
+  Dining: null,
   Other: 30,
 }
 
@@ -166,6 +172,7 @@ const WARRANTY_YEARS = {
   Home: 1,
   Apparel: 0,
   Grocery: 0,
+  Dining: 0,
   Other: 0,
 }
 
@@ -373,8 +380,9 @@ const EXTRACT_SCHEMA = {
           },
           category: {
             type: 'string',
-            enum: ['Electronics', 'Apparel', 'Home', 'Grocery', 'Other'],
-            description: 'Best-guess category of this item.',
+            enum: ['Electronics', 'Apparel', 'Home', 'Grocery', 'Dining', 'Other'],
+            description:
+              'Best-guess category of this item. Use "Dining" for anything from a restaurant, fast-food counter, cafe, coffee shop, food truck, or bar — a prepared meal or drink consumed on the spot or as takeout, which is never returnable and should never get a return window. Use "Grocery" only for unopened packaged goods bought to take home from a grocery/convenience store.',
           },
           serialNumber: {
             type: 'string',
@@ -519,14 +527,24 @@ export async function scanReceipt(reqBody) {
       if (!raw.price) itemMissing.push('price')
       const itemUncertain = Array.isArray(raw.uncertainFields) ? raw.uncertainFields : []
 
-      const category = raw.category && RETURN_WINDOW_DAYS[raw.category] ? raw.category : 'Other'
-      const windowDays = storeWindowDaysResolved !== undefined ? storeWindowDaysResolved : RETURN_WINDOW_DAYS[category]
-      const returnDeadline = explicitReturnBy || addDays(purchaseDate, windowDays)
-      const returnDeadlineSource = explicitReturnBy
-        ? 'receipt'
-        : storeWindowDaysResolved !== undefined
-          ? 'store_policy'
-          : 'estimated'
+      const category = raw.category && raw.category in RETURN_WINDOW_DAYS ? raw.category : 'Other'
+      // A never-returnable category (Dining) stays null even if the store
+      // would otherwise have a recognized policy — you can't return a meal
+      // just because the chain also sells returnable merchandise elsewhere.
+      const windowDays =
+        RETURN_WINDOW_DAYS[category] === null
+          ? null
+          : storeWindowDaysResolved !== undefined
+            ? storeWindowDaysResolved
+            : RETURN_WINDOW_DAYS[category]
+      const returnDeadline = explicitReturnBy || (windowDays == null ? null : addDays(purchaseDate, windowDays))
+      const returnDeadlineSource = !returnDeadline
+        ? null
+        : explicitReturnBy
+          ? 'receipt'
+          : storeWindowDaysResolved !== undefined
+            ? 'store_policy'
+            : 'estimated'
       // Warranty: category decides eligibility at all (a 0-year category —
       // Apparel/Grocery/Other — never gets a warranty, not even an
       // estimate). Within an eligible category, a warranty length actually

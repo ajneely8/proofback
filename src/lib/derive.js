@@ -246,6 +246,11 @@ export function getDuplicatePurchaseFlags(purchases) {
       const b = purchases[j]
       if (a.recoveryCase || b.recoveryCase) continue
       if (!a.store || a.store !== b.store) continue
+      // Two identical-price items on the SAME receipt (e.g. two orders of
+      // onion rings on one Whataburger ticket) are just what was ordered,
+      // not a duplicate charge — that concern only makes sense across two
+      // separate transactions.
+      if (getReceiptGroupKey(a) === getReceiptGroupKey(b)) continue
       if (Math.abs((Number(a.price) || 0) - (Number(b.price) || 0)) > 0.01) continue
       const gap = daysBetween(a.purchaseDate, b.purchaseDate)
       if (gap === null || Math.abs(gap) > DUPLICATE_WINDOW_DAYS) continue
@@ -789,6 +794,7 @@ const CATEGORY_COLORS = {
   Apparel: '#8A5CF6',
   Home: '#279A49',
   Grocery: '#C98A12',
+  Dining: '#D6604A',
   Other: '#9A9EA3',
 }
 

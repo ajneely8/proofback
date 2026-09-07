@@ -580,6 +580,7 @@ export default function AddPurchase() {
                 <option>Apparel</option>
                 <option>Home</option>
                 <option>Grocery</option>
+                <option>Dining</option>
                 <option>Other</option>
               </select>
             </div>
