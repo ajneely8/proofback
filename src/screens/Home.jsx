@@ -66,6 +66,13 @@ export default function Home() {
         </div>
       </section>
 
+      <div className="action-row">
+        <Link to="/add" className="btn btn--primary btn--block">
+          <IconPlus />
+          Add Purchase
+        </Link>
+      </div>
+
       {cases.length === 0 ? (
         <EmptyState
           icon={IconCheck}
@@ -103,13 +110,6 @@ export default function Home() {
           ))}
         </div>
       )}
-
-      <div className="action-row">
-        <Link to="/add" className="btn btn--primary btn--block">
-          <IconPlus />
-          Add Purchase
-        </Link>
-      </div>
 
       <section className="section">
         <div className="section__title">Act Soon</div>
