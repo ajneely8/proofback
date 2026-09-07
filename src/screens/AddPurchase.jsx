@@ -2,6 +2,8 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useLocation, Link } from 'react-router-dom'
 import { usePurchases } from '../lib/PurchasesContext.jsx'
 import { useAuth } from '../lib/AuthContext.jsx'
+import { useSettings } from '../lib/SettingsContext.jsx'
+import { FREE_PURCHASE_LIMIT } from '../data/mockData.js'
 import { IconCamera, IconUpload, IconChevronLeft, IconCheck, IconBarcode } from '../components/Icons.jsx'
 import ProductImage from '../components/ProductImage.jsx'
 import BarcodeScanner, { isBarcodeScanSupported } from '../components/BarcodeScanner.jsx'
@@ -9,6 +11,7 @@ import ReceiptViewer from '../components/ReceiptViewer.jsx'
 import { ReceiptScan } from '../components/OnboardingVisuals.jsx'
 import { normalizeProductName, normalizeBrandName } from '../lib/normalizeProduct.js'
 import { updateInboxItem } from '../lib/receiptInbox.js'
+import { incrementAnonScanCount, getAnonScanCount, ANON_FREE_SCAN_LIMIT } from '../lib/storage.js'
 
 // Downscales and re-encodes a photo as a compressed JPEG data URL, rather
 // than sending/storing it at full camera resolution — a phone photo can
@@ -213,6 +216,7 @@ export default function AddPurchase() {
   const [attachStatus, setAttachStatus] = useState(null)
   const [savedInfo, setSavedInfo] = useState(null) // { firstId, groupId, count }
   const { session } = useAuth()
+  const { settings } = useSettings()
   const navigate = useNavigate()
   const location = useLocation()
   const inboxEntryId = location.state?.inboxEntryId || null
@@ -321,6 +325,12 @@ export default function AddPurchase() {
       setExtracted({ ...data, receiptImageUrls })
       setReviewChecked(false)
       setStage('review')
+      // Counts toward the free-scan limit only for a visitor who hasn't
+      // signed up yet, and only for a real successful extraction — never
+      // for manual entry (submitManual doesn't run this code) and never
+      // for a failed/blurry attempt (the !res.ok branch above returns
+      // before reaching here).
+      if (!session) incrementAnonScanCount()
       if (inboxEntryId) {
         const needsReviewNow =
           data.missingFields?.length > 0 ||
@@ -540,6 +550,18 @@ export default function AddPurchase() {
     extracted.items.every((item) => item.product && item.price !== '' && !isNaN(Number(item.price))) &&
     (!needsReview || reviewChecked)
 
+  // How many scans are left under whatever plan applies right now — a
+  // signed-out visitor's free-scan allowance (ANON_FREE_SCAN_LIMIT), a
+  // logged-in Free plan's purchase cap (mirrors the "X of 10 purchases
+  // used" count already shown on the Subscription screen), or unlimited
+  // for Pro/Family.
+  const plan = settings.plan || 'free'
+  const scanStatusText = !session
+    ? `${Math.max(0, ANON_FREE_SCAN_LIMIT - getAnonScanCount())} of ${ANON_FREE_SCAN_LIMIT} free scans left`
+    : plan === 'free'
+      ? `${Math.max(0, FREE_PURCHASE_LIMIT - purchases.length)} of ${FREE_PURCHASE_LIMIT} free scans left`
+      : 'Unlimited scans'
+
   return (
     <div className="screen">
       {barcodeTarget != null && (
@@ -551,8 +573,9 @@ export default function AddPurchase() {
         Back
       </button>
 
-      <div className="page-header">
+      <div className="page-header page-header--row">
         <h1>Add a purchase</h1>
+        <span className="scan-status-badge">{scanStatusText}</span>
       </div>
 
       <input

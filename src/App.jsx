@@ -4,7 +4,7 @@ import { PurchasesProvider } from './lib/PurchasesContext.jsx'
 import { SettingsProvider } from './lib/SettingsContext.jsx'
 import { useAuth } from './lib/AuthContext.jsx'
 import { isSupabaseConfigured } from './lib/supabaseClient.js'
-import { hasOnboarded } from './lib/storage.js'
+import { hasOnboarded, getAnonScanCount, ANON_FREE_SCAN_LIMIT } from './lib/storage.js'
 import BottomNav from './components/BottomNav.jsx'
 import NotificationWatcher from './components/NotificationWatcher.jsx'
 import ThemeEffect from './components/ThemeEffect.jsx'
@@ -47,18 +47,22 @@ export default function App() {
   // Accounts are opt-in until VITE_SUPABASE_URL/VITE_SUPABASE_ANON_KEY are
   // set — until then, skip straight to onboarding exactly as it worked before
   // accounts existed, using local storage. Once those env vars are added,
-  // this switches over on its own with no code change. Signing up/in comes
-  // before the onboarding carousel so a new visitor lands on an account
-  // screen first, not several slides of marketing.
+  // this switches over on its own with no code change.
+  //
+  // A brand-new visitor gets ANON_FREE_SCAN_LIMIT free scans before an
+  // account is required — read directly here (not via state) since App
+  // already re-renders on every route change (useLocation below), so this
+  // stays current the moment AddPurchase.jsx increments it after the 5th
+  // scan, no extra plumbing needed.
   if (isSupabaseConfigured) {
     if (loading) {
       return <Shell showNav={false}>{null}</Shell>
     }
 
-    if (!user) {
+    if (!user && getAnonScanCount() >= ANON_FREE_SCAN_LIMIT) {
       return (
         <Shell showNav={false}>
-          <Auth />
+          <Auth reason="You've used your 5 free scans — create an account to keep scanning and save what you've found." />
         </Shell>
       )
     }

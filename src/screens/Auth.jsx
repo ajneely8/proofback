@@ -9,9 +9,9 @@ const ERROR_MESSAGES = {
   'Token has expired or is invalid': "That code is wrong or has expired — check for a newer email, or resend it.",
 }
 
-export default function Auth() {
+export default function Auth({ reason }) {
   const { signIn, signUp, resendVerification, verifySignupCode } = useAuth()
-  const [mode, setMode] = useState('login') // login | signup | verify
+  const [mode, setMode] = useState(reason ? 'signup' : 'login') // login | signup | verify
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [code, setCode] = useState('')
@@ -121,6 +121,12 @@ export default function Auth() {
         <span className="brand-icon" />
         <span><span className="brand-word">Proof</span><span className="brand-word brand-word--accent">Back</span></span>
       </div>
+
+      {reason && (
+        <p className="field-hint field-hint--block" style={{ color: 'var(--accent-navy)', margin: '0 0 12px' }}>
+          {reason}
+        </p>
+      )}
 
       <h1>{mode === 'login' ? 'Log in' : 'Create an account'}</h1>
       <p className="page-header__sub">

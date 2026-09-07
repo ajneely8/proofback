@@ -22,7 +22,11 @@ export default async function handler(req, res) {
   }
 
   let userId = null
-  if (isAuthConfigured()) {
+  // A visitor with no session at all is allowed through anonymously (their
+  // free-scan limit is enforced client-side, see src/App.jsx) — only an
+  // Authorization header that was actually sent but didn't resolve to a
+  // real user (an expired/broken session) is rejected outright.
+  if (isAuthConfigured() && req.headers.authorization) {
     const user = await getAuthedUser(req.headers.authorization)
     if (!user) {
       res.status(401).json({ error: 'unauthorized' })

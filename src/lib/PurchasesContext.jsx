@@ -1,25 +1,23 @@
-import { createContext, useContext, useEffect, useState, useCallback } from 'react'
+import { createContext, useContext, useEffect, useRef, useState, useCallback } from 'react'
 import { supabase, isSupabaseConfigured } from './supabaseClient.js'
 import { useAuth } from './AuthContext.jsx'
-import { loadPurchases, savePurchases } from './storage.js'
+import { loadPurchases, savePurchases, clearLocalPurchases } from './storage.js'
 
 const PurchasesContext = createContext(null)
 
 export function PurchasesProvider({ children }) {
   const { user } = useAuth()
-  // Accounts are opt-in until Supabase is configured — until then this
-  // behaves exactly as it did before accounts existed, reading/writing
-  // local storage directly with no login required.
-  const [purchases, setPurchases] = useState(isSupabaseConfigured ? [] : loadPurchases)
-  const [loading, setLoading] = useState(isSupabaseConfigured)
+  // Local-storage mode covers two cases now, not just "Supabase isn't
+  // configured": a visitor who hasn't signed up yet (using their 5 free
+  // scans, see App.jsx) gets exactly the same no-login behavior a fully
+  // unconfigured deployment already had — same functions, same storage key.
+  const useLocal = !isSupabaseConfigured || !user
+  const [purchases, setPurchases] = useState(useLocal ? loadPurchases : [])
+  const [loading, setLoading] = useState(!useLocal)
+  const migratingRef = useRef(false)
 
   const refresh = useCallback(async () => {
-    if (!isSupabaseConfigured) return
-    if (!user) {
-      setPurchases([])
-      setLoading(false)
-      return
-    }
+    if (!isSupabaseConfigured || !user) return
     setLoading(true)
     const { data, error } = await supabase
       .from('purchases')
@@ -30,20 +28,45 @@ export function PurchasesProvider({ children }) {
     setLoading(false)
   }, [user])
 
+  // The moment an anonymous visitor (using local storage for their free
+  // scans) signs up or logs in, carry whatever they'd already scanned into
+  // the new account instead of it silently vanishing — best-effort: only
+  // clear the local copy once every row has actually been saved remotely,
+  // so a failed migration leaves the data recoverable rather than lost.
   useEffect(() => {
-    refresh()
-  }, [refresh])
+    if (!isSupabaseConfigured || !user || migratingRef.current) return
+    const local = loadPurchases()
+    if (!local.length) {
+      refresh()
+      return
+    }
+    migratingRef.current = true
+    ;(async () => {
+      let allOk = true
+      for (const purchase of local) {
+        const { error } = await supabase.from('purchases').insert({
+          id: purchase.id,
+          user_id: user.id,
+          data: purchase,
+          purchase_date: purchase.purchaseDate || null,
+        })
+        if (error) allOk = false
+      }
+      if (allOk) clearLocalPurchases()
+      await refresh()
+      migratingRef.current = false
+    })()
+  }, [user, refresh])
 
   useEffect(() => {
-    if (!isSupabaseConfigured) savePurchases(purchases)
-  }, [purchases])
+    if (useLocal) savePurchases(purchases)
+  }, [useLocal, purchases])
 
   async function addPurchase(purchase) {
-    if (!isSupabaseConfigured) {
+    if (useLocal) {
       setPurchases((prev) => [purchase, ...prev])
       return
     }
-    if (!user) return
     setPurchases((prev) => [purchase, ...prev])
     const { error } = await supabase.from('purchases').insert({
       id: purchase.id,
@@ -55,11 +78,10 @@ export function PurchasesProvider({ children }) {
   }
 
   async function updatePurchase(id, patch) {
-    if (!isSupabaseConfigured) {
+    if (useLocal) {
       setPurchases((prev) => prev.map((p) => (p.id === id ? { ...p, ...patch } : p)))
       return
     }
-    if (!user) return
     let updated = null
     setPurchases((prev) =>
       prev.map((p) => {
@@ -78,11 +100,10 @@ export function PurchasesProvider({ children }) {
   }
 
   async function deletePurchase(id) {
-    if (!isSupabaseConfigured) {
+    if (useLocal) {
       setPurchases((prev) => prev.filter((p) => p.id !== id))
       return
     }
-    if (!user) return
     const prevPurchases = purchases
     setPurchases((prev) => prev.filter((p) => p.id !== id))
     const { error } = await supabase.from('purchases').delete().eq('id', id).eq('user_id', user.id)
@@ -91,11 +112,10 @@ export function PurchasesProvider({ children }) {
 
   async function deletePurchases(ids) {
     const idSet = new Set(ids)
-    if (!isSupabaseConfigured) {
+    if (useLocal) {
       setPurchases((prev) => prev.filter((p) => !idSet.has(p.id)))
       return
     }
-    if (!user) return
     const prevPurchases = purchases
     setPurchases((prev) => prev.filter((p) => !idSet.has(p.id)))
     const { error } = await supabase.from('purchases').delete().in('id', ids).eq('user_id', user.id)

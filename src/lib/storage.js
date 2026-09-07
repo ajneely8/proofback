@@ -37,6 +37,42 @@ export function savePurchases(purchases) {
   }
 }
 
+// Called once a locally-stashed purchase (scanned before signing up) has
+// been successfully migrated into the new account — see
+// PurchasesContext.jsx. Never called on failure, so a partial migration
+// leaves the local copy intact rather than losing data.
+export function clearLocalPurchases() {
+  try {
+    localStorage.removeItem(STORAGE_KEY)
+  } catch {
+    // ignore
+  }
+}
+
+const ANON_SCAN_KEY = 'proofback.anon.scans.v1'
+
+// How many receipts a visitor can scan before an account is required — a
+// plain per-browser counter, same trust model as the rest of local-only
+// mode. Only a real successful scan increments it (see AddPurchase.jsx);
+// manual entry and failed/blurry attempts don't touch it.
+export const ANON_FREE_SCAN_LIMIT = 5
+
+export function getAnonScanCount() {
+  try {
+    return Number(localStorage.getItem(ANON_SCAN_KEY)) || 0
+  } catch {
+    return 0
+  }
+}
+
+export function incrementAnonScanCount() {
+  try {
+    localStorage.setItem(ANON_SCAN_KEY, String(getAnonScanCount() + 1))
+  } catch {
+    // ignore
+  }
+}
+
 export function hasOnboarded() {
   try {
     return localStorage.getItem(ONBOARDING_KEY) === '1'

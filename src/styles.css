@@ -268,6 +268,16 @@ a {
   font-weight: 500;
 }
 
+.scan-status-badge {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--accent-navy);
+  background: var(--accent-navy-bg);
+  padding: 5px 10px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
 .page-header__brand {
   display: flex;
   align-items: center;
