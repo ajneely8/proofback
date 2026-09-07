@@ -11,11 +11,6 @@ const TOGGLES = [
     detail: 'Alerts as a return window is about to close.',
   },
   {
-    key: 'priceDrops',
-    label: 'Price drops',
-    detail: 'Alerts when a tracked item is now cheaper than what you paid.',
-  },
-  {
     key: 'refundAlerts',
     label: 'Missing refunds',
     detail: "Alerts when a refund you're owed hasn't shown up.",

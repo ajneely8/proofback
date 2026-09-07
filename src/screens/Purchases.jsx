@@ -2,12 +2,12 @@ import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { usePurchases } from '../lib/PurchasesContext.jsx'
 import { useSettings } from '../lib/SettingsContext.jsx'
-import { formatDate, formatMoney, priceDrop, productLabel, refundMissing, returnIsOpen, getPurchaseStatuses } from '../lib/derive.js'
+import { formatDate, formatMoney, productLabel, refundMissing, returnIsOpen, getPurchaseStatuses } from '../lib/derive.js'
 import { IconSearch, IconList, IconCheck } from '../components/Icons.jsx'
 import Thumb from '../components/Thumb.jsx'
 import EmptyState from '../components/EmptyState.jsx'
 
-const FILTERS = ['All', 'Returns', 'Warranties', 'Refunds', 'Price Drops']
+const FILTERS = ['All', 'Returns', 'Warranties', 'Refunds']
 
 export default function Purchases() {
   const { purchases, deletePurchases } = usePurchases()
@@ -22,7 +22,6 @@ export default function Purchases() {
     if (filter === 'Returns') list = list.filter(returnIsOpen)
     if (filter === 'Warranties') list = list.filter((p) => !!p.warrantyExpires)
     if (filter === 'Refunds') list = list.filter(refundMissing)
-    if (filter === 'Price Drops') list = list.filter((p) => priceDrop(p) > 0)
 
     if (query.trim()) {
       const q = query.trim().toLowerCase()

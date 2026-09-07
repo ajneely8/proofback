@@ -56,7 +56,7 @@ export function MoneyCounter({ target = 87.43 }) {
 
 const FEATURES = [
   { Icon: IconClock, text: 'Return windows' },
-  { Icon: IconTarget, text: 'Price drops' },
+  { Icon: IconDoc, text: 'Order records' },
   { Icon: IconMail, text: 'Missing refunds' },
   { Icon: IconShield, text: 'Warranty coverage' },
 ]
@@ -81,9 +81,9 @@ const CAPABILITIES = [
     detail: 'Every purchase gets a countdown, so a window never closes without you knowing.',
   },
   {
-    Icon: IconTarget,
-    title: 'Price drops, caught for you',
-    detail: "If an item you bought gets cheaper, ProofBack flags it as money you're owed back.",
+    Icon: IconDoc,
+    title: 'Every order, kept on record',
+    detail: 'Receipt, serial number, order number — everything you need for a return or warranty claim, in one place.',
   },
   {
     Icon: IconMail,
@@ -189,7 +189,7 @@ export function ExtractChecklist() {
 
 const SAMPLE_ALERTS = [
   { Icon: IconClock, text: 'Return deadline in 3 days' },
-  { Icon: IconTarget, text: 'Price dropped $20' },
+  { Icon: IconDoc, text: 'Order record complete' },
   { Icon: IconShield, text: 'Warranty expires next month' },
   { Icon: IconMail, text: 'Refund not received yet' },
 ]

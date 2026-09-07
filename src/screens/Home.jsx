@@ -36,7 +36,7 @@ export default function Home() {
       <section className="summary">
         <div className="summary__label">Money you could still recover</div>
         <div className="summary__amount">{formatMoney(stats.recoverable)}</div>
-        <div className="summary__hint">Across returns, price adjustments, and missing refunds</div>
+        <div className="summary__hint">Across returns and missing refunds</div>
       </section>
 
       {stats.recovered > 0 && (

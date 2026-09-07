@@ -45,12 +45,6 @@ export function formatMoney(amount) {
   })
 }
 
-export function priceDrop(purchase) {
-  if (purchase.currentPrice == null) return 0
-  const diff = purchase.price - purchase.currentPrice
-  return diff > 0.009 ? Math.round(diff * 100) / 100 : 0
-}
-
 export function returnIsOpen(purchase) {
   const d = daysUntil(purchase.returnDeadline)
   return d !== null && d >= 0
@@ -61,7 +55,7 @@ export function refundMissing(purchase) {
 }
 
 // A purchase's return/refund state, as however many of these are true at
-// once — not a single exclusive status, since e.g. a price adjustment and a
+// once — not a single exclusive status, since e.g. a missing refund and a
 // closing return window can both apply to the same item at the same time.
 // "Eligible for exchange" isn't a separate signal ProofBack actually has
 // (no receipt states "exchange only"); it's inferred as available whenever
@@ -73,7 +67,6 @@ export function getPurchaseStatuses(purchase, settings = DEFAULT_SETTINGS) {
   const daysLeft = daysUntil(purchase.returnDeadline)
   const isOpen = daysLeft !== null && daysLeft >= 0
   const returnDone = purchase.returnStatus === 'completed'
-  const drop = priceDrop(purchase)
 
   if (!returnDone && purchase.returnDeadline) {
     if (isOpen && daysLeft > urgentWindowDays) {
@@ -94,10 +87,6 @@ export function getPurchaseStatuses(purchase, settings = DEFAULT_SETTINGS) {
   } else if (!returnDone) {
     // No return deadline at all — never claim one we don't actually have.
     statuses.push({ key: 'return_unconfirmed', label: 'Return policy needs confirmation', tone: 'neutral' })
-  }
-
-  if (drop > 0 && !purchase.priceAdjustment) {
-    statuses.push({ key: 'price_adjustment', label: 'Eligible for price adjustment', tone: 'good' })
   }
 
   if (purchase.returnStatus === 'started') {
@@ -196,17 +185,6 @@ export function getAlerts(purchases, settings = DEFAULT_SETTINGS) {
       }
     }
 
-    if (priceDrop(p) > 0 && !p.priceAdjustment && notifications.priceDrops) {
-      alerts.push({
-        id: `${p.id}-alert-price`,
-        purchase: p,
-        type: 'price_drop',
-        urgent: false,
-        daysLeft: null,
-        message: `You may still be eligible to return or price-adjust this ${formatMoney(p.price)} purchase.`,
-      })
-    }
-
     if (refundMissing(p) && notifications.refundAlerts) {
       alerts.push({
         id: `${p.id}-alert-refund`,
@@ -277,22 +255,13 @@ export function todayISO() {
 }
 
 // Money actually recovered, as confirmed by the user's own actions (marking
-// a price adjustment applied, a refund received, or a return completed) —
-// not the same as the "potential" amounts in getOpportunities, which are
-// just things ProofBack noticed and hasn't been told the outcome of.
+// a refund received or a return completed) — not the same as the
+// "potential" amounts in getOpportunities, which are just things ProofBack
+// noticed and hasn't been told the outcome of.
 export function getSavingsEvents(purchases) {
   const events = []
 
   purchases.forEach((p) => {
-    if (p.priceAdjustment) {
-      events.push({
-        id: `${p.id}-price-event`,
-        purchase: p,
-        date: p.priceAdjustment.claimedDate,
-        amount: p.priceAdjustment.amount,
-        label: 'Price adjustment applied',
-      })
-    }
     if (p.refund?.status === 'received' && p.refund.receivedDate) {
       events.push({
         id: `${p.id}-refund-event`,
@@ -322,16 +291,15 @@ export function getTotalSaved(purchases) {
 }
 
 // Discounts already applied at checkout — a different kind of savings than
-// getSavingsEvents (which is a return/refund/price-adjustment the user
-// confirmed after the fact): this already happened, right there on the
-// receipt, so it's counted the moment a purchase is saved rather than
-// waiting on any action.
+// getSavingsEvents (which is a return/refund the user confirmed after the
+// fact): this already happened, right there on the receipt, so it's counted
+// the moment a purchase is saved rather than waiting on any action.
 export function getTotalDiscountSaved(purchases) {
   const total = purchases.reduce((sum, p) => sum + (Number(p.itemDiscount) || 0), 0)
   return Math.round(total * 100) / 100
 }
 
-// Opportunities: return deadlines closing soon, price drops worth acting on, missing refunds.
+// Opportunities: return deadlines closing soon and missing refunds.
 // `settings.notifications` gates each category off when the user has turned that alert type off in Profile;
 // `settings.reminderWindowDays` controls how many days out a closing return deadline counts as one.
 export function getOpportunities(purchases, settings = DEFAULT_SETTINGS) {
@@ -340,20 +308,6 @@ export function getOpportunities(purchases, settings = DEFAULT_SETTINGS) {
   const opps = []
 
   purchases.forEach((p) => {
-    const drop = priceDrop(p)
-    if (drop > 0 && notifications.priceDrops) {
-      opps.push({
-        id: `${p.id}-price`,
-        type: 'price_adjustment',
-        amount: drop,
-        title: 'Potential price adjustment',
-        purchase: p,
-        detail: productLabel(p),
-        note: 'Current price is lower than your purchase price.',
-        action: 'Review',
-      })
-    }
-
     if (refundMissing(p) && notifications.refundAlerts) {
       opps.push({
         id: `${p.id}-refund`,
@@ -391,10 +345,10 @@ export function totalRecoverable(purchases, settings = DEFAULT_SETTINGS) {
   let total = 0
   opps.forEach((o) => {
     // Avoid double-counting the same purchase's full price across multiple opportunity types.
-    const key = o.type === 'price_adjustment' ? o.id : `${o.purchase.id}-value`
+    const key = `${o.purchase.id}-value`
     if (!seen.has(key)) {
       seen.add(key)
-      total += o.type === 'price_adjustment' ? o.amount : o.type === 'refund_missing' ? o.amount : 0
+      total += o.type === 'refund_missing' ? o.amount : 0
     }
   })
   return Math.round(total * 100) / 100
@@ -468,14 +422,13 @@ export function getNeedsAttention(purchases, settings = DEFAULT_SETTINGS) {
 
   purchases.forEach((p) => {
     const daysLeft = daysUntil(p.returnDeadline)
-    const drop = priceDrop(p)
     if (daysLeft !== null && daysLeft >= 0 && daysLeft <= reminderWindowDays && notifications.returnDeadlines) {
       items.push({
         id: `${p.id}-attn-return`,
         purchase: p,
         label: productLabel(p),
         primaryText: `Return deadline: ${formatDate(p.returnDeadline)}`,
-        secondaryText: drop > 0 ? `Potential savings: ${formatMoney(drop)}` : null,
+        secondaryText: null,
         urgent: daysLeft <= urgentWindowDays,
         daysLeft,
         windowDays: reminderWindowDays,

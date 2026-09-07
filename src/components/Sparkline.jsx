@@ -1,7 +1,7 @@
 // A cumulative-savings trend line over the confirmed savings events
-// (returns/refunds/price adjustments) — gives the hero number on Home
-// something to visually back up besides a static dollar figure. Renders
-// nothing below 2 points, since a single point can't show a trend.
+// (returns/refunds) — gives the hero number on Home something to visually
+// back up besides a static dollar figure. Renders nothing below 2 points,
+// since a single point can't show a trend.
 export default function Sparkline({ events, width = 120, height = 36 }) {
   if (!events || events.length < 2) return null
 

@@ -31,7 +31,7 @@ export default function History() {
           <div className="summary__label">Saved over time</div>
           <div className="summary__amount">{formatMoney(totalSaved)}</div>
           <div className="summary__hint">
-            From {events.length} confirmed return{events.length === 1 ? '' : 's'}, refund{events.length === 1 ? '' : 's'}, and price adjustment{events.length === 1 ? '' : 's'}
+            From {events.length} confirmed return{events.length === 1 ? '' : 's'} and refund{events.length === 1 ? '' : 's'}
           </div>
         </div>
         <Sparkline events={events} />
@@ -52,7 +52,7 @@ export default function History() {
           <EmptyState
             icon={IconClock}
             title="Nothing confirmed yet"
-            detail="Mark a return complete, a refund received, or a price adjustment applied on a purchase to start building your savings history."
+            detail="Mark a return complete or a refund received on a purchase to start building your savings history."
           />
         ) : (
           <div className="list">

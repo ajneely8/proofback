@@ -25,7 +25,6 @@ export const DEFAULT_SETTINGS = {
   connectedEmail: '',
   notifications: {
     returnDeadlines: true,
-    priceDrops: true,
     refundAlerts: true,
     warrantyAlerts: true,
   },

@@ -438,7 +438,6 @@ export async function scanReceipt(reqBody) {
         sku: raw.sku || null,
         quantity: raw.quantity && raw.quantity > 1 ? Number(raw.quantity) : 1,
         price: raw.price ? Number(raw.price) : '',
-        currentPrice: raw.price ? Number(raw.price) : '',
         discount: raw.discount ?? null,
         category,
         returnDeadline,
