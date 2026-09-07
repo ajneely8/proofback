@@ -533,7 +533,9 @@ export default function AddPurchase() {
       {stage === 'scan' && (
         <>
           <button className="scan-area" onClick={() => cameraInputRef.current?.click()}>
-            <IconCamera />
+            <span className="scan-area__icon">
+              <IconCamera />
+            </span>
             <span>Take a photo of your receipt</span>
           </button>
           <p className="scan-area__hint">Make sure the entire receipt is visible.</p>
