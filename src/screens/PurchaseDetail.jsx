@@ -839,14 +839,16 @@ export default function PurchaseDetail() {
         <section className="detail-card">
           <div className="detail-card__label">Return</div>
           <div className="detail-card__row">
-            <span>
-              Return deadline
-              {purchase.returnDeadlineSource === 'receipt' && ' (from receipt)'}
-              {purchase.returnDeadlineSource === 'store_policy' && ` (${purchase.store}'s typical policy)`}
-              {purchase.returnDeadlineSource === 'estimated' && ' (estimated — confirm with store)'}
-            </span>
+            <span>Return deadline</span>
             <strong>{formatDate(purchase.returnDeadline)}</strong>
           </div>
+          {purchase.returnDeadlineSource && (
+            <p className="detail-card__note">
+              {purchase.returnDeadlineSource === 'receipt' && 'From your receipt.'}
+              {purchase.returnDeadlineSource === 'store_policy' && `Based on ${purchase.store}'s typical policy.`}
+              {purchase.returnDeadlineSource === 'estimated' && 'Estimated — confirm with the store.'}
+            </p>
+          )}
           <div className="detail-card__row">
             <span>Days remaining</span>
             <strong className={daysLeft <= settings.urgentWindowDays ? 'text-warning' : ''}>
@@ -1245,11 +1247,7 @@ export default function PurchaseDetail() {
             <span>Received</span>
             <strong>{formatDate(refund.receivedDate)}</strong>
           </div>
-        ) : (
-          <button className="btn btn--secondary btn--block" onClick={openTrackRefund}>
-            Track Refund
-          </button>
-        )}
+        ) : null}
       </section>
 
       {duplicateFlag && (

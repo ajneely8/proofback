@@ -783,6 +783,18 @@ a {
   font-weight: 600;
 }
 
+/* A source/caveat note for the row directly above (e.g. "estimated —
+   confirm with store") — its own line instead of packed into the row's
+   label, since a long label there fights the value for space and wraps
+   unevenly against it (baseline-aligned flex items sitting at different
+   heights) rather than sitting cleanly underneath. */
+.detail-card__note {
+  margin: -4px 0 8px;
+  font-size: 12px;
+  color: var(--text-tertiary);
+  line-height: 1.4;
+}
+
 .text-warning {
   color: var(--accent-warn) !important;
 }
