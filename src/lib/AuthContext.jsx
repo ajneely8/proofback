@@ -37,6 +37,15 @@ export function AuthProvider({ children }) {
     return { error }
   }
 
+  // The 6-digit code Supabase's confirmation email includes alongside the
+  // link — verifying it confirms the account AND signs the user in with a
+  // real session in one step (onAuthStateChange above picks it up), so
+  // there's no separate "now go log in" step after this succeeds.
+  async function verifySignupCode(email, code) {
+    const { error } = await supabase.auth.verifyOtp({ email, token: code, type: 'signup' })
+    return { error }
+  }
+
   async function signOut() {
     await supabase.auth.signOut()
   }
@@ -51,6 +60,7 @@ export function AuthProvider({ children }) {
         signIn,
         signOut,
         resendVerification,
+        verifySignupCode,
       }}
     >
       {children}
