@@ -151,7 +151,7 @@ export default function Subscription() {
               <div className="pricing-card__current">
                 Current plan
                 {tier.key === 'free' && (
-                  <span className="field-hint" style={{ margin: '4px 0 0' }}>
+                  <span className="field-hint" style={{ margin: '4px 0 0', textAlign: 'center' }}>
                     {purchases.length} of 10 purchases used
                   </span>
                 )}

@@ -596,7 +596,7 @@ export default function PurchaseDetail() {
           ))}
         </ul>
         {protection.percent < 100 && (
-          <p className="field-hint" style={{ margin: '8px 0 0' }}>
+          <p className="field-hint field-hint--block" style={{ margin: '8px 0 0' }}>
             Add the missing details above (edit this purchase) to raise your score.
           </p>
         )}
@@ -664,7 +664,7 @@ export default function PurchaseDetail() {
         <section className="detail-card">
           <div className="detail-card__label">Notes</div>
           {purchase.notes && (
-            <p className="field-hint" style={{ color: 'var(--text-secondary)', margin: 0 }}>{purchase.notes}</p>
+            <p className="field-hint field-hint--block" style={{ color: 'var(--text-secondary)', margin: 0 }}>{purchase.notes}</p>
           )}
           {purchase.isBusinessExpense && (
             <div className="detail-card__row" style={{ marginTop: purchase.notes ? 10 : 0 }}>
@@ -754,7 +754,7 @@ export default function PurchaseDetail() {
               Mark Return Complete
             </button>
           ) : purchase.recoveryCase?.status === 'closed' ? (
-            <p className="field-hint" style={{ margin: 0 }}>
+            <p className="field-hint field-hint--block" style={{ margin: 0 }}>
               {purchase.recoveryCase.resolution === 'kept_item' ? 'Kept the item.' : 'Marked not relevant.'}
             </p>
           ) : (
@@ -811,7 +811,7 @@ export default function PurchaseDetail() {
                 </div>
               ) : (
                 <>
-                  <p className="field-hint" style={{ color: 'var(--text-secondary)' }}>
+                  <p className="field-hint field-hint--block" style={{ color: 'var(--text-secondary)' }}>
                     ProofBack doesn't submit claims on your behalf — copy this summary and send it to the
                     manufacturer or retailer yourself.
                   </p>
@@ -928,13 +928,13 @@ export default function PurchaseDetail() {
       {duplicateFlag && (
         <section className="detail-card">
           <div className="detail-card__label">Possible Duplicate Purchase</div>
-          <p className="field-hint" style={{ color: 'var(--text-secondary)', margin: '0 0 10px' }}>
+          <p className="field-hint field-hint--block" style={{ color: 'var(--text-secondary)', margin: '0 0 10px' }}>
             {duplicateFlag.eligibilityReason ||
               `Another purchase at ${purchase.store} for ${formatMoney(duplicateFlag.amount)} was logged around the
               same time — this may be a duplicate scan or an actual duplicate charge worth checking.`}
           </p>
           {purchase.recoveryCase?.type === 'duplicate_purchase' ? (
-            <p className="field-hint" style={{ margin: 0 }}>
+            <p className="field-hint field-hint--block" style={{ margin: 0 }}>
               {purchase.recoveryCase.status === 'closed'
                 ? 'Marked not relevant.'
                 : `Claim started — status: ${purchase.recoveryCase.status.replace('_', ' ')}.`}
@@ -955,7 +955,7 @@ export default function PurchaseDetail() {
       {merchantPolicy && (
         <section className="detail-card">
           <div className="detail-card__label">Merchant Policy — {purchase.store}</div>
-          <p className="field-hint" style={{ color: 'var(--text-secondary)', margin: '0 0 10px' }}>
+          <p className="field-hint field-hint--block" style={{ color: 'var(--text-secondary)', margin: '0 0 10px' }}>
             ProofBack's general understanding of this store's typical policy — not a confirmed live lookup; always
             verify with {purchase.store} directly.
           </p>
@@ -978,12 +978,12 @@ export default function PurchaseDetail() {
             <strong>{merchantPolicy.refundMethod}</strong>
           </div>
           {merchantPolicy.exclusions?.length > 0 && (
-            <p className="field-hint" style={{ margin: '6px 0 0' }}>
+            <p className="field-hint field-hint--block" style={{ margin: '6px 0 0' }}>
               Exclusions: {merchantPolicy.exclusions.join('; ')}
             </p>
           )}
           {merchantPolicy.warrantyInstructions && (
-            <p className="field-hint" style={{ margin: '6px 0 0', color: 'var(--text-secondary)' }}>
+            <p className="field-hint field-hint--block" style={{ margin: '6px 0 0', color: 'var(--text-secondary)' }}>
               Warranty: {merchantPolicy.warrantyInstructions}
             </p>
           )}
@@ -995,7 +995,7 @@ export default function PurchaseDetail() {
         {purchase.productPhotoUrl ? (
           <img src={purchase.productPhotoUrl} alt={productLabel(purchase)} className="product-photo" />
         ) : (
-          <p className="field-hint" style={{ color: 'var(--text-secondary)', margin: '0 0 10px' }}>
+          <p className="field-hint field-hint--block" style={{ color: 'var(--text-secondary)', margin: '0 0 10px' }}>
             No photo added yet — ProofBack can't look up a real product photo automatically, but you can add your own.
           </p>
         )}
@@ -1007,7 +1007,7 @@ export default function PurchaseDetail() {
 
       <section className="detail-card">
         <div className="detail-card__label">Supporting Documents</div>
-        <p className="field-hint" style={{ color: 'var(--text-secondary)', margin: '0 0 10px' }}>
+        <p className="field-hint field-hint--block" style={{ color: 'var(--text-secondary)', margin: '0 0 10px' }}>
           Anything beyond the original receipt — a repair estimate, an email, a shipping label.
         </p>
         {purchase.supportingDocs?.length > 0 && (

@@ -72,7 +72,7 @@ export default function Privacy() {
 
       <section className="detail-card">
         <div className="detail-card__label">Delete your data</div>
-        <p className="field-hint" style={{ color: 'var(--text-secondary)', margin: '0 0 12px' }}>
+        <p className="field-hint field-hint--block" style={{ color: 'var(--text-secondary)', margin: '0 0 12px' }}>
           Permanently removes every purchase, receipt photo, and note you've saved. Your account itself stays
           signed in — this only clears the purchase data.
         </p>

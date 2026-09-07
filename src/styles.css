@@ -1082,6 +1082,14 @@ a {
   text-align: right;
 }
 
+/* For a field-hint used as a plain descriptive paragraph rather than a
+   short note right-aligned beside a field/button — left-aligned and a
+   touch more line-height so it reads as body text, not a form hint. */
+.field-hint--block {
+  text-align: left;
+  line-height: 1.5;
+}
+
 .field-hint--good {
   color: var(--accent-green);
 }
@@ -2486,9 +2494,6 @@ a {
 }
 
 .case-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
   padding: 12px 0;
   border-bottom: 1px solid var(--border);
 }
@@ -2497,17 +2502,15 @@ a {
   border-bottom: none;
 }
 
-.case-row__main {
+.case-row__top {
   display: flex;
   align-items: center;
   gap: 12px;
-  flex: 1;
-  min-width: 0;
   color: inherit;
+  margin-bottom: 10px;
 }
 
 .case-row__action {
-  flex-shrink: 0;
   white-space: nowrap;
 }
 

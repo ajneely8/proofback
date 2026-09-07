@@ -56,7 +56,7 @@ export default function Home() {
         <div className="list">
           {cases.map((c) => (
             <div className="case-row" key={c.id}>
-              <Link to={`/purchases/${c.purchase.id}`} className="case-row__main">
+              <Link to={`/purchases/${c.purchase.id}`} className="case-row__top">
                 <Thumb purchase={c.purchase} />
                 <div className="list-row__main">
                   <div className="list-row__title">{productLabel(c.purchase)}</div>
@@ -68,7 +68,7 @@ export default function Home() {
                 </div>
               </Link>
               <button
-                className="btn btn--secondary btn--small case-row__action"
+                className="btn btn--secondary btn--small btn--block case-row__action"
                 onClick={() => navigate(`/purchases/${c.purchase.id}`)}
               >
                 {caseActionLabel(c)}
@@ -77,37 +77,6 @@ export default function Home() {
           ))}
         </div>
       )}
-
-      <section className="section">
-        <div className="section__title">Act Soon</div>
-
-        {actSoon.length === 0 ? (
-          <EmptyState
-            icon={IconCheck}
-            title="Nothing urgent"
-            detail="Return deadlines, warranty expirations, and overdue refunds will show up here as they approach."
-          />
-        ) : (
-          <div className="list">
-            {actSoon.map((item) => (
-              <Link to={`/purchases/${item.purchase.id}`} key={item.id} className="list-row">
-                <Thumb purchase={item.purchase} />
-                <div className="list-row__main">
-                  <div className="list-row__title">{item.label}</div>
-                  <div className={'list-row__line' + (item.tone === 'warn' ? ' is-urgent' : '')}>
-                    {item.daysLeft < 0
-                      ? `${Math.abs(item.daysLeft)} day${Math.abs(item.daysLeft) === 1 ? '' : 's'} overdue`
-                      : item.daysLeft === 0
-                        ? 'Today'
-                        : `${item.daysLeft} day${item.daysLeft === 1 ? '' : 's'} left`}
-                  </div>
-                </div>
-                <span className={`status-chip status-chip--${item.tone}`}>{formatDate(item.deadlineDate)}</span>
-              </Link>
-            ))}
-          </div>
-        )}
-      </section>
 
       <section className="section">
         <div className="section__title">Your Impact</div>
@@ -143,39 +112,35 @@ export default function Home() {
       </div>
 
       <section className="section">
-        <div className="section__title">Recently added</div>
-        <RecentlyAdded purchases={purchases} />
-      </section>
-    </div>
-  )
-}
+        <div className="section__title">Act Soon</div>
 
-function RecentlyAdded({ purchases }) {
-  const recent = [...purchases].sort((a, b) => (a.purchaseDate < b.purchaseDate ? 1 : -1)).slice(0, 5)
-  if (recent.length === 0) {
-    return (
-      <EmptyState
-        icon={IconCamera}
-        title="No purchases yet"
-        detail="Scan your first receipt to start building your protection record."
-      />
-    )
-  }
-  return (
-    <div className="list">
-      {recent.map((p) => (
-        <Link to={`/purchases/${p.id}`} key={p.id} className="list-row list-row--simple">
-          <Thumb purchase={p} />
-          <div className="list-row__main">
-            <div className="list-row__title">{productLabel(p)}</div>
-            <div className="list-row__line">{p.store}</div>
+        {actSoon.length === 0 ? (
+          <EmptyState
+            icon={IconCheck}
+            title="Nothing urgent"
+            detail="Return deadlines, warranty expirations, and overdue refunds will show up here as they approach."
+          />
+        ) : (
+          <div className="list">
+            {actSoon.map((item) => (
+              <Link to={`/purchases/${item.purchase.id}`} key={item.id} className="list-row">
+                <Thumb purchase={item.purchase} />
+                <div className="list-row__main">
+                  <div className="list-row__title">{item.label}</div>
+                  <div className={'list-row__line' + (item.tone === 'warn' ? ' is-urgent' : '')}>
+                    {item.daysLeft < 0
+                      ? `${Math.abs(item.daysLeft)} day${Math.abs(item.daysLeft) === 1 ? '' : 's'} overdue`
+                      : item.daysLeft === 0
+                        ? 'Today'
+                        : `${item.daysLeft} day${item.daysLeft === 1 ? '' : 's'} left`}
+                  </div>
+                </div>
+                <span className={`status-chip status-chip--${item.tone}`}>{formatDate(item.deadlineDate)}</span>
+              </Link>
+            ))}
           </div>
-          <div className="list-row__trailing">
-            <div className="list-row__price">{formatMoney(p.price)}</div>
-            <div className="list-row__line">{formatDate(p.purchaseDate)}</div>
-          </div>
-        </Link>
-      ))}
+        )}
+      </section>
     </div>
   )
 }
