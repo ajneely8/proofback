@@ -3,7 +3,7 @@ import { useNavigate, useLocation, Link } from 'react-router-dom'
 import { usePurchases } from '../lib/PurchasesContext.jsx'
 import { useAuth } from '../lib/AuthContext.jsx'
 import { useSettings } from '../lib/SettingsContext.jsx'
-import { FREE_PURCHASE_LIMIT } from '../data/mockData.js'
+import { FREE_PURCHASE_LIMIT, normalizePlan } from '../data/mockData.js'
 import { IconCamera, IconUpload, IconChevronLeft, IconCheck, IconBarcode } from '../components/Icons.jsx'
 import ProductImage from '../components/ProductImage.jsx'
 import BarcodeScanner, { isBarcodeScanSupported } from '../components/BarcodeScanner.jsx'
@@ -555,7 +555,7 @@ export default function AddPurchase() {
   // logged-in Free plan's purchase cap (mirrors the "X of 10 purchases
   // used" count already shown on the Subscription screen), or unlimited
   // for Pro/Family.
-  const plan = settings.plan || 'free'
+  const plan = normalizePlan(settings.plan)
   const scanStatusText = !session
     ? `${Math.max(0, ANON_FREE_SCAN_LIMIT - getAnonScanCount())} of ${ANON_FREE_SCAN_LIMIT} free scans left`
     : plan === 'free'

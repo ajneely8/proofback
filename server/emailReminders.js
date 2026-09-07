@@ -72,8 +72,12 @@ export async function sendReminderDigests() {
   if (usersError) return { sent: 0, error: usersError.message }
 
   const { data: settingsRows } = await admin.from('user_settings').select('user_id, data')
+  // 'premium' was an older tier name from before Stripe billing was wired
+  // up (see src/data/mockData.js's VALID_PLANS) — real subscriptions only
+  // ever write 'pro' or 'family' now, so checking for the old name here
+  // would silently exclude every real paying customer.
   const premiumUserIds = new Set(
-    (settingsRows || []).filter((r) => r.data?.plan === 'premium').map((r) => r.user_id)
+    (settingsRows || []).filter((r) => r.data?.plan === 'pro' || r.data?.plan === 'family').map((r) => r.user_id)
   )
   const settingsByUser = Object.fromEntries((settingsRows || []).map((r) => [r.user_id, r.data]))
 

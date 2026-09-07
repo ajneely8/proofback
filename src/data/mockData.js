@@ -35,9 +35,17 @@ export const DEFAULT_SETTINGS = {
   // 'system' follows the device's OS-level light/dark setting; 'light' and
   // 'dark' force it regardless of that setting.
   theme: 'system',
-  // 'free' or 'premium'. There's no real billing wired up yet — this is a
-  // manually-set flag (toggled in Profile) standing in for a subscription
-  // until Stripe (or similar) is actually connected. 'premium' lifts the
-  // monthly scan cap and is required for email reminders.
+  // One of VALID_PLANS below, set for real via Stripe Checkout
+  // (src/screens/profile/Subscription.jsx) once a subscription is active.
   plan: 'free',
+}
+
+// The only plan values Stripe/Subscription.jsx ever actually write. Any
+// other stored value (a leftover from an older tier scheme, a hand-edited
+// row, etc.) should be treated as 'free' rather than silently granting
+// paid-tier access — see normalizePlan below.
+export const VALID_PLANS = ['free', 'pro', 'family']
+
+export function normalizePlan(plan) {
+  return VALID_PLANS.includes(plan) ? plan : 'free'
 }

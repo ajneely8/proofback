@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom'
 import { useAuth } from '../lib/AuthContext.jsx'
 import { useSettings } from '../lib/SettingsContext.jsx'
 import { usePurchases } from '../lib/PurchasesContext.jsx'
+import { normalizePlan } from '../data/mockData.js'
 import {
   IconUser,
   IconBell,
@@ -35,7 +36,7 @@ export default function Profile() {
   const { user, signOut } = useAuth()
   const { settings } = useSettings()
   const { purchases } = usePurchases()
-  const plan = settings.plan || 'free'
+  const plan = normalizePlan(settings.plan)
 
   function handleSignOut() {
     if (!window.confirm('Sign out of ProofBack?')) return
@@ -61,7 +62,7 @@ export default function Profile() {
         </div>
         {plan === 'free' && (
           <div className="detail-card__row">
-            <span>Purchases used</span>
+            <span>Scans used</span>
             <strong>{purchases.length} of 10</strong>
           </div>
         )}

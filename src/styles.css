@@ -269,12 +269,9 @@ a {
 }
 
 .scan-status-badge {
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--accent-navy);
-  background: var(--accent-navy-bg);
-  padding: 5px 10px;
-  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
   white-space: nowrap;
 }
 

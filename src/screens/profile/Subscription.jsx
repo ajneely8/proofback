@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../lib/AuthContext.jsx'
 import { useSettings } from '../../lib/SettingsContext.jsx'
 import { usePurchases } from '../../lib/PurchasesContext.jsx'
+import { normalizePlan } from '../../data/mockData.js'
 import { IconChevronLeft, IconCheck } from '../../components/Icons.jsx'
 
 const UPGRADE_ERROR_MESSAGES = {
@@ -129,7 +130,7 @@ export default function Subscription() {
       </div>
 
       {TIERS.map((tier, index) => {
-        const isCurrent = (settings.plan || 'free') === tier.key
+        const isCurrent = normalizePlan(settings.plan) === tier.key
         return (
           <section
             className={'pricing-card' + (isCurrent ? ' is-current' : '')}
