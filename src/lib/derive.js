@@ -291,9 +291,29 @@ export function getRecoveryCases(purchases, settings = DEFAULT_SETTINGS) {
           (p.receiptImageUrls?.length || p.receiptImageUrl) ? 'Receipt' : null,
           p.orderNumber ? 'Order number' : null,
         ].filter(Boolean),
+        confidence: p.returnDeadlineSource === 'receipt' || p.returnDeadlineSource === 'store_policy' ? 'high' : 'estimated',
+        recommendedAction: 'Start the return with the merchant before the deadline.',
         submissionHistory: [],
         resolution: null,
       })
+
+      if (['Apparel', 'Electronics', 'Home'].includes(p.category)) {
+        cases.push({
+          id: `${p.id}-case-exchange`,
+          purchase: p,
+          type: 'exchange',
+          status: 'opportunity',
+          amount: 0,
+          eligibilityReason: 'Return window still open — most stores that accept a return will also exchange it',
+          deadline: p.returnDeadline,
+          requiredEvidence: ['Receipt'],
+          evidenceProvided: (p.receiptImageUrls?.length || p.receiptImageUrl) ? ['Receipt'] : [],
+          confidence: 'estimated',
+          recommendedAction: 'Ask the merchant about an exchange instead of a return, if you\'d rather swap it.',
+          submissionHistory: [],
+          resolution: null,
+        })
+      }
     }
 
     if (refundMissing(p) && notifications.refundAlerts) {
@@ -307,6 +327,28 @@ export function getRecoveryCases(purchases, settings = DEFAULT_SETTINGS) {
         deadline: p.refund?.expectedDate || null,
         requiredEvidence: ['Receipt'],
         evidenceProvided: (p.receiptImageUrls?.length || p.receiptImageUrl) ? ['Receipt'] : [],
+        confidence: p.refund?.expectedAmount != null ? 'high' : 'estimated',
+        recommendedAction: refundOverdue(p)
+          ? 'Follow up with the merchant — this refund is now overdue.'
+          : 'Keep an eye on this; follow up if it doesn\'t arrive by the expected date.',
+        submissionHistory: [],
+        resolution: null,
+      })
+    }
+
+    if (p.isBusinessExpense) {
+      cases.push({
+        id: `${p.id}-case-reimbursement`,
+        purchase: p,
+        type: 'business_expense_reimbursement',
+        status: 'opportunity',
+        amount: Number(p.price) || 0,
+        eligibilityReason: 'Marked as a business expense',
+        deadline: null,
+        requiredEvidence: ['Receipt'],
+        evidenceProvided: (p.receiptImageUrls?.length || p.receiptImageUrl) ? ['Receipt'] : [],
+        confidence: 'estimated',
+        recommendedAction: 'Submit this receipt through your employer or client\'s own reimbursement process.',
         submissionHistory: [],
         resolution: null,
       })
@@ -326,6 +368,8 @@ export function getRecoveryCases(purchases, settings = DEFAULT_SETTINGS) {
       deadline: null,
       requiredEvidence: ['Both receipts'],
       evidenceProvided: [],
+      confidence: 'estimated',
+      recommendedAction: 'Check your bank/card statement for an actual duplicate charge before disputing it.',
       submissionHistory: [],
       resolution: null,
     })

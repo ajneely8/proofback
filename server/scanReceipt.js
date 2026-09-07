@@ -214,6 +214,56 @@ const EXTRACT_SCHEMA = {
       type: 'string',
       description: 'If found is false, a short reason why (e.g. "blurry", "not a receipt").',
     },
+    documentType: {
+      type: 'string',
+      enum: [
+        'purchase_receipt',
+        'return_receipt',
+        'exchange_receipt',
+        'gift_receipt',
+        'benefit_receipt',
+        'invoice',
+        'order_confirmation',
+        'refund_confirmation',
+      ],
+      description:
+        'What kind of document this actually is. Most scans are a plain "purchase_receipt" — only pick another value when the document clearly states it (e.g. it prints "RETURN RECEIPT", "GIFT RECEIPT", "REFUND CONFIRMATION").',
+    },
+    pageBoundingBoxes: {
+      type: 'array',
+      description:
+        'One entry per input image, in the SAME ORDER the images were given to you — where the receipt/document itself sits within that photo, as fractions of the full image (0 = left/top edge, 1 = right/bottom edge), so the background/table/hands around it can be cropped out. Only report a box you are confident about; if a given image\'s receipt edges are not clearly visible, use the full frame ({x:0, y:0, width:1, height:1}) for that entry instead of guessing.',
+      items: {
+        type: 'object',
+        properties: {
+          x: { type: 'number', description: 'Left edge of the receipt, 0-1.' },
+          y: { type: 'number', description: 'Top edge of the receipt, 0-1.' },
+          width: { type: 'number', description: 'Width of the receipt, 0-1.' },
+          height: { type: 'number', description: 'Height of the receipt, 0-1.' },
+        },
+        required: ['x', 'y', 'width', 'height'],
+      },
+    },
+    imageQualityIssues: {
+      type: 'array',
+      description:
+        'One entry per input image, in the SAME ORDER given — a list of legibility problems with THAT image, if any (empty array if it looks fine). Only flag something that actually hinders reading the receipt, not minor cosmetic issues.',
+      items: {
+        type: 'object',
+        properties: {
+          issues: {
+            type: 'array',
+            items: { type: 'string', enum: ['blur', 'glare', 'shadow', 'cropped', 'low_contrast', 'wrong_orientation'] },
+          },
+        },
+      },
+    },
+    uncertainFields: {
+      type: 'array',
+      description:
+        'Receipt-level fields you extracted but aren\'t fully confident are correct (e.g. a smudged total, an ambiguous date) — as opposed to missingFields, which is for fields you couldn\'t read at all. Field names only, e.g. ["total", "purchaseDate"]. Omit or leave empty if everything you found is legible and clear.',
+      items: { type: 'string' },
+    },
     store: { type: 'string', description: 'Store or merchant name as printed on the receipt.' },
     storeAddress: {
       type: 'string',
@@ -351,6 +401,12 @@ const EXTRACT_SCHEMA = {
             description:
               'ONLY if the receipt explicitly names who provides the warranty (e.g. "Samsung", "Manufacturer", "Store Protection Plan"). Omit if not printed.',
           },
+          uncertainFields: {
+            type: 'array',
+            description:
+              'Field names on THIS item you extracted but aren\'t fully confident are correct (e.g. a smudged price). Omit or leave empty if everything is legible and clear.',
+            items: { type: 'string' },
+          },
         },
         required: ['product', 'price'],
       },
@@ -411,7 +467,7 @@ export async function scanReceipt(reqBody) {
                 (images.length > 1
                   ? `These ${images.length} photos are sections/pages of ONE SAME receipt, in order. Combine them into a single extraction — one store, one purchase date, one merged item list. If a line item appears in more than one photo (e.g. overlapping edges between shots), include it only once. `
                   : '') +
-                'Read this receipt and record its fields using the record_receipt tool. Only use words that are actually printed on the receipt — never invent a brand, model, or description that isn\'t there. If you are unsure of a value, omit that field entirely rather than guessing.',
+                'Read this receipt and record its fields using the record_receipt tool. Only use words that are actually printed on the receipt — never invent a brand, model, or description that isn\'t there. If you are unsure of a value, either omit that field entirely (if you truly can\'t tell) or record your best reading and list that field name in uncertainFields (if you read something but aren\'t fully confident it\'s right) — don\'t skip pageBoundingBoxes or imageQualityIssues, they matter even when the rest of the receipt is perfectly clear.',
             },
           ],
         },
@@ -461,6 +517,7 @@ export async function scanReceipt(reqBody) {
       const itemMissing = []
       if (!raw.product) itemMissing.push('product')
       if (!raw.price) itemMissing.push('price')
+      const itemUncertain = Array.isArray(raw.uncertainFields) ? raw.uncertainFields : []
 
       const category = raw.category && RETURN_WINDOW_DAYS[raw.category] ? raw.category : 'Other'
       const windowDays = storeWindowDaysResolved !== undefined ? storeWindowDaysResolved : RETURN_WINDOW_DAYS[category]
@@ -514,6 +571,7 @@ export async function scanReceipt(reqBody) {
         serialNumber: raw.serialNumber || null,
         orderNumber: raw.orderNumber || data.receiptNumber || null,
         missingFields: itemMissing,
+        uncertainFields: itemUncertain,
         logoUrl: logoUrlFor(raw.brand || data.store),
       }
     })
@@ -525,6 +583,7 @@ export async function scanReceipt(reqBody) {
         brand: data.store || '',
         storeAddress: data.storeAddress || null,
         receiptNumber: data.receiptNumber || null,
+        documentType: data.documentType || 'purchase_receipt',
         purchaseDate,
         purchaseTime,
         subtotal: data.subtotal ?? null,
@@ -537,6 +596,11 @@ export async function scanReceipt(reqBody) {
         paymentMethod: data.paymentMethod || null,
         refund: { status: 'not_applicable' },
         missingFields,
+        uncertainFields: Array.isArray(data.uncertainFields) ? data.uncertainFields : [],
+        pageBoundingBoxes: Array.isArray(data.pageBoundingBoxes) ? data.pageBoundingBoxes : [],
+        imageQualityIssues: Array.isArray(data.imageQualityIssues)
+          ? data.imageQualityIssues.map((entry) => (Array.isArray(entry?.issues) ? entry.issues : []))
+          : [],
         items,
       },
     }

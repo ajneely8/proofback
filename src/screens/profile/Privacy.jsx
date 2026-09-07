@@ -34,6 +34,28 @@ export default function Privacy() {
   const { purchases, deletePurchases } = usePurchases()
   const [status, setStatus] = useState(null)
 
+  function handleExport() {
+    const payload = {
+      exportedAt: new Date().toISOString(),
+      purchaseCount: purchases.length,
+      purchases,
+    }
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `proofback-export-${todayStamp()}.json`
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+    URL.revokeObjectURL(url)
+  }
+
+  function todayStamp() {
+    const d = new Date()
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  }
+
   function handleDeleteAll() {
     if (purchases.length === 0) return
     if (
@@ -69,6 +91,17 @@ export default function Privacy() {
           </div>
         </section>
       ))}
+
+      <section className="detail-card">
+        <div className="detail-card__label">Export your data</div>
+        <p className="field-hint field-hint--block" style={{ color: 'var(--text-secondary)', margin: '0 0 12px' }}>
+          Downloads everything in your account as one JSON file — every purchase, item, receipt/warranty/supporting
+          document image, return and refund record, recovery case, and warranty claim.
+        </p>
+        <button className="btn btn--secondary btn--block" onClick={handleExport} disabled={purchases.length === 0}>
+          Export My Data
+        </button>
+      </section>
 
       <section className="detail-card">
         <div className="detail-card__label">Delete your data</div>

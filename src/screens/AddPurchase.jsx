@@ -38,15 +38,53 @@ function compressImage(file, maxWidth, quality) {
 
 // What actually gets read by the model — big enough to keep receipt text
 // legible, small enough to stay well under the request size limit even
-// with several pages attached.
+// with several pages attached. Deliberately the UNCROPPED photo — full
+// context (including edges) helps the model read the receipt; cropping only
+// happens to the copy that gets saved/displayed, via cropAndCompress below.
 function compressForScan(file) {
   return compressImage(file, 1500, 0.82)
 }
 
-// A smaller copy kept on the saved purchase so it stays viewable later,
-// without ballooning localStorage.
-function compressForStorage(file) {
-  return compressImage(file, 700, 0.7)
+// Crops to just the receipt (per the model's own pageBoundingBoxes reading
+// of this same photo) before downscaling for storage — so what gets saved
+// and shown is the receipt itself, not the table/background/hands around
+// it. `box` is {x, y, width, height} as 0-1 fractions of the full image; a
+// missing/invalid box falls back to the full frame rather than failing.
+function cropAndCompress(file, box, maxWidth = 700, quality = 0.7) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => {
+      const img = new Image()
+      img.onload = () => {
+        const valid =
+          box &&
+          [box.x, box.y, box.width, box.height].every((n) => typeof n === 'number' && n >= 0 && n <= 1) &&
+          box.width > 0.05 &&
+          box.height > 0.05
+        const cx = valid ? box.x : 0
+        const cy = valid ? box.y : 0
+        const cw = valid ? box.width : 1
+        const ch = valid ? box.height : 1
+
+        const sx = cx * img.width
+        const sy = cy * img.height
+        const sw = cw * img.width
+        const sh = ch * img.height
+
+        const scale = Math.min(1, maxWidth / sw)
+        const canvas = document.createElement('canvas')
+        canvas.width = sw * scale
+        canvas.height = sh * scale
+        const ctx = canvas.getContext('2d')
+        ctx.drawImage(img, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height)
+        resolve(canvas.toDataURL('image/jpeg', quality))
+      }
+      img.onerror = reject
+      img.src = reader.result
+    }
+    reader.onerror = reject
+    reader.readAsDataURL(file)
+  })
 }
 
 function dataUrlToBase64(dataUrl) {
@@ -66,6 +104,7 @@ function todayISO() {
 function findDuplicateReceipt(extracted, purchases) {
   if (!extracted?.store || !extracted?.purchaseDate) return null
   const store = extracted.store.trim().toLowerCase()
+  const extractedProducts = new Set((extracted.items || []).map((it) => (it.product || '').trim().toLowerCase()))
   return (
     purchases.find((p) => {
       if (!p.store || p.store.trim().toLowerCase() !== store) return false
@@ -76,7 +115,12 @@ function findDuplicateReceipt(extracted, purchases) {
       if (extracted.total != null && p.total != null) {
         return Math.abs(Number(p.total) - Number(extracted.total)) < 0.01
       }
-      return false
+      // Weaker signals when there's no receipt number/total to compare —
+      // still store+date, but only counted a match alongside a matching
+      // payment method or at least one shared item name.
+      const paymentMatches = extracted.paymentMethod && p.paymentMethod && extracted.paymentMethod === p.paymentMethod
+      const itemMatches = p.product && extractedProducts.has(p.product.trim().toLowerCase())
+      return Boolean(paymentMatches || itemMatches)
     }) || null
   )
 }
@@ -88,6 +132,25 @@ const FIELD_LABELS = {
   product: 'Item name',
   price: 'Price',
   warrantyExpires: 'Warranty',
+}
+
+const DOCUMENT_TYPE_LABELS = {
+  return_receipt: 'a return receipt',
+  exchange_receipt: 'an exchange receipt',
+  gift_receipt: 'a gift receipt',
+  benefit_receipt: 'a benefit receipt',
+  invoice: 'an invoice',
+  order_confirmation: 'an order confirmation',
+  refund_confirmation: 'a refund confirmation',
+}
+
+const QUALITY_ISSUE_LABELS = {
+  blur: 'blurry',
+  glare: 'glare',
+  shadow: 'shadow',
+  cropped: 'cropped',
+  low_contrast: 'low contrast',
+  wrong_orientation: 'wrong orientation',
 }
 
 const FIELD_HINTS = {
@@ -133,6 +196,8 @@ export default function AddPurchase() {
   const [errorKey, setErrorKey] = useState(null)
   const [scanStep, setScanStep] = useState(0)
   const [barcodeTarget, setBarcodeTarget] = useState(null) // item index currently being scanned
+  const [retakeIndex, setRetakeIndex] = useState(null) // receipt page index currently being retaken
+  const retakeInputRef = useRef(null)
   const [viewerIndex, setViewerIndex] = useState(null) // receipt page index currently being viewed closely
   const [duplicateDismissed, setDuplicateDismissed] = useState(false)
   const [reviewChecked, setReviewChecked] = useState(false)
@@ -143,7 +208,8 @@ export default function AddPurchase() {
     category: 'Other',
     purchaseDate: todayISO(),
   })
-  const { addPurchase, purchases } = usePurchases()
+  const { addPurchase, updatePurchase, purchases } = usePurchases()
+  const [attachStatus, setAttachStatus] = useState(null)
   const { session } = useAuth()
   const navigate = useNavigate()
   const cameraInputRef = useRef(null)
@@ -153,6 +219,15 @@ export default function AddPurchase() {
     () => (extracted ? findDuplicateReceipt(extracted, purchases) : null),
     [extracted, purchases]
   )
+
+  function attachToExisting() {
+    if (!duplicate || !extracted) return
+    updatePurchase(duplicate.id, {
+      receiptImageUrls: [...(duplicate.receiptImageUrls || []), ...(extracted.receiptImageUrls || [])],
+    })
+    setAttachStatus('attached')
+    setTimeout(() => navigate(`/purchases/${duplicate.id}`), 900)
+  }
 
   useEffect(() => {
     if (stage !== 'scanning') return
@@ -183,15 +258,25 @@ export default function AddPurchase() {
     setStage('scan')
   }
 
-  async function submitScan() {
-    if (!photos.length) return
+  // Replaces just one page's photo and re-runs the scan on the full set —
+  // a changed page can change the extracted totals/items, so this can't
+  // just patch the one image without re-reading the receipt.
+  function retakePage(index, file) {
+    if (!file || index == null) return
+    const nextPhotos = photos.map((p, i) => (i === index ? { file, previewUrl: URL.createObjectURL(file) } : p))
+    setPhotos(nextPhotos)
+    submitScan(nextPhotos)
+  }
+
+  async function submitScan(photosOverride) {
+    const activePhotos = photosOverride || photos
+    if (!activePhotos.length) return
     setStage('scanning')
     try {
       const prepared = await Promise.all(
-        photos.map(async (p) => ({
+        activePhotos.map(async (p) => ({
           data: dataUrlToBase64(await compressForScan(p.file)),
           mediaType: 'image/jpeg',
-          receiptImageUrl: await compressForStorage(p.file),
         }))
       )
       const res = await fetch('/api/scan-receipt', {
@@ -208,7 +293,14 @@ export default function AddPurchase() {
         setStage('error')
         return
       }
-      setExtracted({ ...data, receiptImageUrls: prepared.map((p) => p.receiptImageUrl) })
+      // Cropped to just the receipt using the model's own reading of where
+      // it sits in each photo (falls back to the full frame per-page when
+      // no usable box came back for that page).
+      const receiptImageUrls = await Promise.all(
+        activePhotos.map((p, i) => cropAndCompress(p.file, data.pageBoundingBoxes?.[i]))
+      )
+      if (photosOverride) setPhotos(activePhotos)
+      setExtracted({ ...data, receiptImageUrls })
       setReviewChecked(false)
       setStage('review')
     } catch {
@@ -286,8 +378,13 @@ export default function AddPurchase() {
   }
 
   function sharedHint(field) {
-    if (!extracted.missingFields?.includes(field)) return null
-    return <p className="field-hint">{FIELD_HINTS[field]}</p>
+    if (extracted.missingFields?.includes(field)) {
+      return <p className="field-hint">{FIELD_HINTS[field]}</p>
+    }
+    if (extracted.uncertainFields?.includes(field)) {
+      return <p className="field-hint field-hint--uncertain">Double-check this — the receipt was hard to read here.</p>
+    }
+    return null
   }
 
   function handleBarcodeDetected(value) {
@@ -296,8 +393,13 @@ export default function AddPurchase() {
   }
 
   function itemHint(item, field) {
-    if (!item.missingFields?.includes(field)) return null
-    return <p className="field-hint">{FIELD_HINTS[field]}</p>
+    if (item.missingFields?.includes(field)) {
+      return <p className="field-hint">{FIELD_HINTS[field]}</p>
+    }
+    if (item.uncertainFields?.includes(field)) {
+      return <p className="field-hint field-hint--uncertain">Double-check this — the receipt was hard to read here.</p>
+    }
+    return null
   }
 
   function save() {
@@ -308,6 +410,7 @@ export default function AddPurchase() {
         brand,
         storeAddress: extracted.storeAddress,
         receiptNumber: extracted.receiptNumber,
+        documentType: extracted.documentType || 'purchase_receipt',
         product: normalizeProductName(item.product, brand),
         size: item.size || null,
         gender: item.gender || null,
@@ -359,7 +462,14 @@ export default function AddPurchase() {
 
   const needsReview =
     extracted?.missingFields?.length > 0 ||
-    extracted?.items?.some((item) => item.missingFields?.length > 0 || item.returnDeadlineSource === 'estimated')
+    extracted?.uncertainFields?.length > 0 ||
+    extracted?.imageQualityIssues?.some((issues) => issues.length > 0) ||
+    extracted?.items?.some(
+      (item) =>
+        item.missingFields?.length > 0 ||
+        item.uncertainFields?.length > 0 ||
+        item.returnDeadlineSource === 'estimated'
+    )
 
   const canSave =
     extracted?.items?.length > 0 &&
@@ -399,6 +509,17 @@ export default function AddPurchase() {
         hidden
         onChange={(e) => {
           addPhoto(e.target.files?.[0])
+          e.target.value = ''
+        }}
+      />
+      <input
+        ref={retakeInputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        hidden
+        onChange={(e) => {
+          retakePage(retakeIndex, e.target.files?.[0])
           e.target.value = ''
         }}
       />
@@ -548,18 +669,41 @@ export default function AddPurchase() {
             </div>
           )}
 
+          {extracted.documentType && extracted.documentType !== 'purchase_receipt' && (
+            <div className="missing-fields-note">
+              <strong>This looks like {DOCUMENT_TYPE_LABELS[extracted.documentType] || 'a different kind of document'}</strong>,
+              not a new purchase receipt — check Purchases for an existing record to update instead of saving this
+              as a brand-new one.
+            </div>
+          )}
+
+          {extracted.imageQualityIssues?.some((issues) => issues.length > 0) && (
+            <div className="missing-fields-note">
+              <strong>Some pages may be hard to read:</strong>{' '}
+              {extracted.imageQualityIssues
+                .map((issues, i) => (issues.length ? `Page ${i + 1} (${issues.map((iss) => QUALITY_ISSUE_LABELS[iss] || iss).join(', ')})` : null))
+                .filter(Boolean)
+                .join('; ')}
+              . Retake an affected page below if the details look wrong.
+            </div>
+          )}
+
           {duplicate && !duplicateDismissed && (
             <div className="duplicate-note">
               <strong>This looks like a receipt you already added</strong> — same store, date, and
-              {duplicate.receiptNumber && extracted.receiptNumber ? ' receipt number' : ' total'}.
+              {duplicate.receiptNumber && extracted.receiptNumber ? ' receipt number' : duplicate.total != null && extracted.total != null ? ' total' : ' items or payment method'}.
               <div className="duplicate-note__actions">
                 <Link to={`/purchases/${duplicate.id}`} className="link-action link-action--inline">
                   View existing purchase
                 </Link>
+                <button className="link-action link-action--inline" onClick={attachToExisting}>
+                  Attach to existing purchase
+                </button>
                 <button className="link-action link-action--inline" onClick={() => setDuplicateDismissed(true)}>
                   This is a different purchase
                 </button>
               </div>
+              {attachStatus === 'attached' && <p className="field-hint field-hint--good">Attached — opening it…</p>}
             </div>
           )}
 
@@ -567,14 +711,26 @@ export default function AddPurchase() {
             <div className="receipt-photo receipt-photo--review">
               <div className="page-strip">
                 {extracted.receiptImageUrls.map((url, i) => (
-                  <button
-                    key={i}
-                    className="page-strip__photo-btn"
-                    onClick={() => setViewerIndex(i)}
-                    aria-label={`View receipt page ${i + 1} closely`}
-                  >
-                    <img src={url} alt={`Receipt page ${i + 1}`} className="page-strip__photo" />
-                  </button>
+                  <div key={i} className="page-strip__item">
+                    <button
+                      className="page-strip__photo-btn"
+                      onClick={() => setViewerIndex(i)}
+                      aria-label={`View receipt page ${i + 1} closely`}
+                    >
+                      <img src={url} alt={`Receipt page ${i + 1}`} className="page-strip__photo" />
+                    </button>
+                    {extracted.imageQualityIssues?.[i]?.length > 0 && (
+                      <button
+                        className="link-action link-action--inline"
+                        onClick={() => {
+                          setRetakeIndex(i)
+                          retakeInputRef.current?.click()
+                        }}
+                      >
+                        Retake this page
+                      </button>
+                    )}
+                  </div>
                 ))}
               </div>
               <p className="receipt-photo__caption">Your scanned receipt — tap a page to view it closely.</p>
@@ -838,7 +994,7 @@ export default function AddPurchase() {
                 onChange={(e) => setReviewChecked(e.target.checked)}
               />
               <span>
-                Some fields are missing or estimated (highlighted above) — I've reviewed and corrected what I can.
+                Some fields are missing, uncertain, or estimated (highlighted above) — I've reviewed and corrected what I can.
               </span>
             </label>
           )}

@@ -20,7 +20,11 @@ export default function Home() {
   const { purchases } = usePurchases()
   const { settings } = useSettings()
 
-  const cases = getRecoveryCases(purchases, settings).filter((c) => c.status !== 'closed')
+  // Recoverable Now is specifically about money — exchange opportunities
+  // (amount always $0, since nothing's being recovered) belong in the
+  // eligibility engine generally but would look like a broken $0.00 row
+  // here, so they're left out of this particular list.
+  const cases = getRecoveryCases(purchases, settings).filter((c) => c.status !== 'closed' && c.type !== 'exchange')
   const recoverableTotal = getRecoverableTotal(purchases, settings)
   const impact = getYourImpact(purchases)
   const activeWarranties = purchases.filter((p) => getWarrantyState(p, settings) === 'active').length

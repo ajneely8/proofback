@@ -23,6 +23,16 @@ import { sharePurchase } from '../lib/share.js'
 
 const CLAIM_TYPE_LABELS = { return: 'Return', warranty: 'Warranty', chargeback: 'Chargeback', insurance: 'Insurance claim' }
 
+const DOCUMENT_TYPE_DISPLAY = {
+  return_receipt: 'Return receipt',
+  exchange_receipt: 'Exchange receipt',
+  gift_receipt: 'Gift receipt',
+  benefit_receipt: 'Benefit receipt',
+  invoice: 'Invoice',
+  order_confirmation: 'Order confirmation',
+  refund_confirmation: 'Refund confirmation',
+}
+
 const WARRANTY_CLAIM_LABELS = {
   draft: 'Draft',
   evidence_ready: 'Evidence Ready',
@@ -643,6 +653,9 @@ export default function PurchaseDetail() {
         </div>
         {purchase.storeAddress && <div className="detail-hero__sub">{purchase.storeAddress}</div>}
         {purchase.receiptNumber && <div className="detail-hero__sub">Receipt #{purchase.receiptNumber}</div>}
+        {purchase.documentType && purchase.documentType !== 'purchase_receipt' && (
+          <div className="detail-hero__sub">Document type: {DOCUMENT_TYPE_DISPLAY[purchase.documentType] || purchase.documentType}</div>
+        )}
         <div className="detail-hero__actions">
           <button className="link-action link-action--inline" onClick={startEditing}>
             Edit Purchase
