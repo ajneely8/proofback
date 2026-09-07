@@ -403,6 +403,11 @@ export default function AddPurchase() {
   }
 
   function save() {
+    // One id per save — stamped on every item from this receipt/entry so
+    // they can always be grouped back together later ("combine receipts
+    // from the same place"), regardless of whether the receipt printed a
+    // receipt number.
+    const receiptGroupId = `grp-${Date.now()}`
     extracted.items.forEach((item, i) => {
       const brand = normalizeBrandName(item.brand || extracted.store)
       addPurchase({
@@ -410,6 +415,7 @@ export default function AddPurchase() {
         brand,
         storeAddress: extracted.storeAddress,
         receiptNumber: extracted.receiptNumber,
+        receiptGroupId,
         documentType: extracted.documentType || 'purchase_receipt',
         product: normalizeProductName(item.product, brand),
         size: item.size || null,

@@ -696,6 +696,82 @@ export function totalRecoverable(purchases, settings = DEFAULT_SETTINGS) {
   return Math.round(total * 100) / 100
 }
 
+// Items saved from the same scan (or the same manual entry) share a
+// `receiptGroupId` stamped at save time — that's the real signal that they
+// came from "the same place" in the sense the user means (one transaction),
+// as opposed to two separate visits to the same store. Purchases saved
+// before this existed don't have it, so fall back to the next-best signal
+// that's actually specific to one transaction (a receipt number, or the
+// exact set of receipt photos) rather than just store+date, which two
+// unrelated same-day purchases could share. With neither signal, a purchase
+// never gets merged with anything — better to show it on its own than to
+// wrongly combine two unrelated purchases.
+export function getReceiptGroupKey(p) {
+  if (p.receiptGroupId) return p.receiptGroupId
+  if (p.receiptNumber) return `legacy:${p.store || ''}|${p.purchaseDate || ''}|num:${p.receiptNumber}`
+  if (p.receiptImageUrls?.length) return `legacy:${p.store || ''}|${p.purchaseDate || ''}|imgs:${p.receiptImageUrls.join(',')}`
+  return `single:${p.id}`
+}
+
+// Rolls a flat purchase list up into one row per receipt/transaction —
+// the "combine receipts from the same place" grouping, usable anywhere a
+// screen lists purchases. Groups of one are still returned (so callers
+// don't need a separate ungrouped path), just with itemCount 1.
+export function groupByReceipt(purchases) {
+  const byKey = new Map()
+  purchases.forEach((p) => {
+    const key = getReceiptGroupKey(p)
+    if (!byKey.has(key)) {
+      byKey.set(key, {
+        key,
+        store: p.store,
+        purchaseDate: p.purchaseDate,
+        receiptImageUrls: p.receiptImageUrls || [],
+        purchases: [],
+      })
+    }
+    byKey.get(key).purchases.push(p)
+  })
+  return [...byKey.values()]
+    .map((g) => ({
+      ...g,
+      itemCount: g.purchases.length,
+      totalPrice: Math.round(g.purchases.reduce((sum, p) => sum + (Number(p.price) || 0), 0) * 100) / 100,
+    }))
+    .sort((a, b) => (a.purchaseDate < b.purchaseDate ? 1 : -1))
+}
+
+// Same idea as groupByReceipt, but for recovery cases (Home's list) rather
+// than raw purchases — cases are already one-per-purchase, so this merges
+// the ones whose purchases belong to the same receipt into a single
+// combined row, summing amounts and keeping the earliest deadline (the one
+// that actually governs when action is needed).
+export function groupCasesByReceipt(cases) {
+  const byKey = new Map()
+  cases.forEach((c) => {
+    const key = getReceiptGroupKey(c.purchase)
+    if (!byKey.has(key)) {
+      byKey.set(key, { key, store: c.purchase.store, purchaseDate: c.purchase.purchaseDate, cases: [] })
+    }
+    byKey.get(key).cases.push(c)
+  })
+  return [...byKey.values()].map((g) => {
+    const deadlines = g.cases.map((c) => c.deadline).filter(Boolean).sort()
+    // itemCount is unique purchases, not case count — a duplicate_purchase
+    // case references two purchases without itself being a distinct item,
+    // so counting cases directly would overstate how many things are on
+    // the receipt.
+    const itemCount = new Set(g.cases.map((c) => c.purchase.id)).size
+    return {
+      ...g,
+      itemCount,
+      opportunityCount: g.cases.length,
+      totalAmount: Math.round(g.cases.reduce((sum, c) => sum + (Number(c.amount) || 0), 0) * 100) / 100,
+      deadline: deadlines[0] || null,
+    }
+  })
+}
+
 // Shoes and clothing are ambiguous without a size and gender/fit ("Nike
 // P-6000" alone doesn't say which), so both are appended wherever a
 // product's name is shown — not just on its own detail page — whenever the

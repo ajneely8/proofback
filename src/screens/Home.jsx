@@ -6,6 +6,7 @@ import {
   getRecoverableTotal,
   getYourImpact,
   getWarrantyState,
+  groupCasesByReceipt,
   caseActionLabel,
   formatMoney,
   formatDate,
@@ -25,6 +26,10 @@ export default function Home() {
   // eligibility engine generally but would look like a broken $0.00 row
   // here, so they're left out of this particular list.
   const cases = getRecoveryCases(purchases, settings).filter((c) => c.status !== 'closed' && c.type !== 'exchange')
+  // Multiple line items scanned off the same receipt (e.g. a 9-item fast
+  // food order) show up here as one combined row rather than 9 near-
+  // identical ones — same receipt-grouping logic used across the app.
+  const caseGroups = groupCasesByReceipt(cases)
   const recoverableTotal = getRecoverableTotal(purchases, settings)
   const impact = getYourImpact(purchases)
   const activeWarranties = purchases.filter((p) => getWarrantyState(p, settings) === 'active').length
@@ -105,27 +110,49 @@ export default function Home() {
         />
       ) : (
         <div className="list">
-          {cases.map((c) => (
-            <div className="case-row" key={c.id}>
-              <Link to={`/purchases/${c.purchase.id}`} className="case-row__top">
-                <Thumb purchase={c.purchase} />
-                <div className="list-row__main">
-                  <div className="list-row__title">{productLabel(c.purchase)}</div>
-                  <div className="list-row__line">{c.eligibilityReason}</div>
-                </div>
-                <div className="list-row__trailing">
-                  <div className="list-row__price">{formatMoney(c.amount)}</div>
-                  {c.deadline && <div className="list-row__line">{formatDate(c.deadline)}</div>}
-                </div>
-              </Link>
-              <button
-                className="btn btn--secondary btn--small btn--block case-row__action"
-                onClick={() => navigate(`/purchases/${c.purchase.id}`)}
-              >
-                {caseActionLabel(c)}
-              </button>
-            </div>
-          ))}
+          {caseGroups.map((g) =>
+            g.itemCount === 1 ? (
+              <div className="case-row" key={g.key}>
+                <Link to={`/purchases/${g.cases[0].purchase.id}`} className="case-row__top">
+                  <Thumb purchase={g.cases[0].purchase} />
+                  <div className="list-row__main">
+                    <div className="list-row__title">{productLabel(g.cases[0].purchase)}</div>
+                    <div className="list-row__line">{g.cases[0].eligibilityReason}</div>
+                  </div>
+                  <div className="list-row__trailing">
+                    <div className="list-row__price">{formatMoney(g.cases[0].amount)}</div>
+                    {g.cases[0].deadline && <div className="list-row__line">{formatDate(g.cases[0].deadline)}</div>}
+                  </div>
+                </Link>
+                <button
+                  className="btn btn--secondary btn--small btn--block case-row__action"
+                  onClick={() => navigate(`/purchases/${g.cases[0].purchase.id}`)}
+                >
+                  {caseActionLabel(g.cases[0])}
+                </button>
+              </div>
+            ) : (
+              <div className="case-row" key={g.key}>
+                <Link to={`/receipt/${encodeURIComponent(g.key)}`} className="case-row__top">
+                  <Thumb purchase={g.cases[0].purchase} />
+                  <div className="list-row__main">
+                    <div className="list-row__title">{g.store} — {g.itemCount} items</div>
+                    <div className="list-row__line">{g.opportunityCount} recovery opportunit{g.opportunityCount === 1 ? 'y' : 'ies'}</div>
+                  </div>
+                  <div className="list-row__trailing">
+                    <div className="list-row__price">{formatMoney(g.totalAmount)}</div>
+                    {g.deadline && <div className="list-row__line">{formatDate(g.deadline)}</div>}
+                  </div>
+                </Link>
+                <button
+                  className="btn btn--secondary btn--small btn--block case-row__action"
+                  onClick={() => navigate(`/receipt/${encodeURIComponent(g.key)}`)}
+                >
+                  View Items
+                </button>
+              </div>
+            )
+          )}
         </div>
       )}
     </div>

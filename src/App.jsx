@@ -16,6 +16,7 @@ import Purchases from './screens/Purchases.jsx'
 import Insights from './screens/Insights.jsx'
 import Watchlist from './screens/Watchlist.jsx'
 import PurchaseDetail from './screens/PurchaseDetail.jsx'
+import ReceiptGroup from './screens/ReceiptGroup.jsx'
 import EvidencePackage from './screens/EvidencePackage.jsx'
 import AddPurchase from './screens/AddPurchase.jsx'
 import Alerts from './screens/Alerts.jsx'
@@ -84,6 +85,7 @@ export default function App() {
               <Route path="/insights" element={<Insights />} />
               <Route path="/watchlist" element={<Watchlist />} />
               <Route path="/purchases/:id" element={<PurchaseDetail />} />
+              <Route path="/receipt/:groupKey" element={<ReceiptGroup />} />
               <Route path="/purchases/:id/evidence" element={<EvidencePackage />} />
               <Route path="/add" element={<AddPurchase />} />
               <Route path="/alerts" element={<Alerts />} />

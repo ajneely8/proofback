@@ -11,6 +11,7 @@ import {
   getPurchaseStatuses,
   getRecoveryCases,
   getWarrantyState,
+  groupByReceipt,
 } from '../lib/derive.js'
 import { IconSearch, IconList, IconCheck } from '../components/Icons.jsx'
 import Thumb from '../components/Thumb.jsx'
@@ -89,6 +90,15 @@ export default function Purchases() {
   }, [purchases, filter, query, settings])
 
   const totalSpent = purchases.reduce((sum, p) => sum + p.price, 0)
+
+  // Combine same-receipt items into one row, but only on the plain,
+  // unfiltered/unsearched list — every other filter (warranty states,
+  // "Returns", a search term) is inherently about which individual items
+  // match, and grouping would hide items that don't all share the same
+  // answer. Selection mode also stays per-item since bulk delete acts on
+  // individual purchase ids.
+  const shouldGroup = filter === 'All' && !query.trim() && !selectMode
+  const groups = shouldGroup ? groupByReceipt(filtered) : null
 
   function toggleSelectMode() {
     setSelectMode((on) => !on)
@@ -170,40 +180,67 @@ export default function Purchases() {
             detail="Try a different filter or search term."
           />
         )}
-        {filtered.map((p) =>
-          selectMode ? (
-            <button
-              key={p.id}
-              className={'list-row list-row--simple' + (selected.has(p.id) ? ' is-selected' : '')}
-              onClick={() => toggleSelected(p.id)}
-            >
-              <div className={'select-check' + (selected.has(p.id) ? ' is-checked' : '')}>
-                {selected.has(p.id) && <IconCheck width={12} height={12} />}
-              </div>
-              <Thumb purchase={p} />
-              <div className="list-row__main">
-                <div className="list-row__title">{productLabel(p)}</div>
-                <div className="list-row__line">{p.store}</div>
-              </div>
-              <div className="list-row__trailing">
-                <div className="list-row__price">{formatMoney(p.price)}</div>
-                <div className="list-row__line">{formatDate(p.purchaseDate)}</div>
-              </div>
-            </button>
-          ) : (
-            <Link to={`/purchases/${p.id}`} key={p.id} className="list-row list-row--simple">
-              <Thumb purchase={p} />
-              <div className="list-row__main">
-                <div className="list-row__title">{productLabel(p)}</div>
-                <div className="list-row__line">{p.store}</div>
-              </div>
-              <div className="list-row__trailing">
-                <div className="list-row__price">{formatMoney(p.price)}</div>
-                <div className="list-row__line">{formatDate(p.purchaseDate)}</div>
-              </div>
-            </Link>
-          )
-        )}
+        {shouldGroup
+          ? groups.map((g) =>
+              g.itemCount === 1 ? (
+                <Link to={`/purchases/${g.purchases[0].id}`} key={g.key} className="list-row list-row--simple">
+                  <Thumb purchase={g.purchases[0]} />
+                  <div className="list-row__main">
+                    <div className="list-row__title">{productLabel(g.purchases[0])}</div>
+                    <div className="list-row__line">{g.purchases[0].store}</div>
+                  </div>
+                  <div className="list-row__trailing">
+                    <div className="list-row__price">{formatMoney(g.purchases[0].price)}</div>
+                    <div className="list-row__line">{formatDate(g.purchases[0].purchaseDate)}</div>
+                  </div>
+                </Link>
+              ) : (
+                <Link to={`/receipt/${encodeURIComponent(g.key)}`} key={g.key} className="list-row list-row--simple">
+                  <Thumb purchase={g.purchases[0]} />
+                  <div className="list-row__main">
+                    <div className="list-row__title">{g.store} — {g.itemCount} items</div>
+                    <div className="list-row__line">{formatDate(g.purchaseDate)}</div>
+                  </div>
+                  <div className="list-row__trailing">
+                    <div className="list-row__price">{formatMoney(g.totalPrice)}</div>
+                  </div>
+                </Link>
+              )
+            )
+          : filtered.map((p) =>
+              selectMode ? (
+                <button
+                  key={p.id}
+                  className={'list-row list-row--simple' + (selected.has(p.id) ? ' is-selected' : '')}
+                  onClick={() => toggleSelected(p.id)}
+                >
+                  <div className={'select-check' + (selected.has(p.id) ? ' is-checked' : '')}>
+                    {selected.has(p.id) && <IconCheck width={12} height={12} />}
+                  </div>
+                  <Thumb purchase={p} />
+                  <div className="list-row__main">
+                    <div className="list-row__title">{productLabel(p)}</div>
+                    <div className="list-row__line">{p.store}</div>
+                  </div>
+                  <div className="list-row__trailing">
+                    <div className="list-row__price">{formatMoney(p.price)}</div>
+                    <div className="list-row__line">{formatDate(p.purchaseDate)}</div>
+                  </div>
+                </button>
+              ) : (
+                <Link to={`/purchases/${p.id}`} key={p.id} className="list-row list-row--simple">
+                  <Thumb purchase={p} />
+                  <div className="list-row__main">
+                    <div className="list-row__title">{productLabel(p)}</div>
+                    <div className="list-row__line">{p.store}</div>
+                  </div>
+                  <div className="list-row__trailing">
+                    <div className="list-row__price">{formatMoney(p.price)}</div>
+                    <div className="list-row__line">{formatDate(p.purchaseDate)}</div>
+                  </div>
+                </Link>
+              )
+            )}
       </div>
 
       {selectMode && selected.size > 0 && (
