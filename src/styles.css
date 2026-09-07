@@ -250,13 +250,16 @@ a {
 
 .page-header__actions {
   display: flex;
-  gap: 16px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px 14px;
 }
 
 .page-header__action {
   font-size: 13px;
   font-weight: 600;
   color: var(--accent-navy);
+  white-space: nowrap;
 }
 
 .page-header__eyebrow {
@@ -721,32 +724,6 @@ a {
 
 .status-dot--needs_attention {
   background: var(--accent-warn);
-}
-
-.status-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 12px;
-  font-weight: 700;
-  padding: 4px 10px;
-  border-radius: 999px;
-  margin-top: 8px;
-}
-
-.status-pill--protected {
-  color: var(--accent-green);
-  background: var(--accent-green-bg);
-}
-
-.status-pill--incomplete {
-  color: var(--accent-amber);
-  background: var(--accent-amber-bg);
-}
-
-.status-pill--needs_attention {
-  color: var(--accent-warn);
-  background: var(--accent-warn-bg);
 }
 
 /* ---------- Digital Receipt Inbox ---------- */

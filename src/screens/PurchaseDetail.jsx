@@ -11,7 +11,6 @@ import {
   productLabel,
   getPurchaseStatuses,
   getProofReadiness,
-  getReceiptHealth,
   getWarrantyState,
   refundOverdue,
   getDuplicatePurchaseFlags,
@@ -112,7 +111,6 @@ export default function PurchaseDetail() {
   }
 
   const daysLeft = daysUntil(purchase.returnDeadline)
-  const health = getReceiptHealth(purchase, settings)
   const statuses = getPurchaseStatuses(purchase, settings)
   const readiness = getProofReadiness(purchase)
   const protection = readiness.overall
@@ -674,11 +672,6 @@ export default function PurchaseDetail() {
       <div className="detail-hero">
         <div className="detail-hero__title">{productLabel(purchase)}</div>
         <div className="detail-hero__price">{formatMoney(purchase.price)}</div>
-        <span className={`status-pill status-pill--${health.status}`}>
-          {health.status === 'protected' ? 'Protected' : health.status === 'incomplete' ? 'Incomplete' : 'Needs Attention'}
-          {' — '}
-          {health.message}
-        </span>
         {statuses.length > 0 && (
           <div className="status-chips">
             {statuses.map((s) => (
