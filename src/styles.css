@@ -949,6 +949,7 @@ a {
   text-transform: uppercase;
   letter-spacing: 0.03em;
   color: var(--accent-green);
+  margin-bottom: 2px;
 }
 
 .price-finder-thumb__fallback {
@@ -963,6 +964,32 @@ a {
 }
 
 /* ---------- Price Finder retailer-result cards (horizontal scroll) ---------- */
+
+.price-finder-store-group {
+  margin-bottom: 18px;
+}
+
+.price-finder-store-group:last-child {
+  margin-bottom: 0;
+}
+
+.price-finder-store-group__header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+}
+
+.price-finder-store-group__logo {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  object-fit: contain;
+  flex-shrink: 0;
+}
 
 .price-finder-carousel {
   display: flex;

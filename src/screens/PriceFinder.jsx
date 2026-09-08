@@ -56,11 +56,7 @@ function PriceFinderCard({ match, isLowest, onSelect }) {
         <span className="price-finder-card__price">{formatMoney(match.price)}</span>
         {hasDiscount && <span className="price-finder-card__old-price">{formatMoney(match.oldPrice)}</span>}
       </div>
-      <div className="price-finder-card__store">
-        <StoreLogo match={match} className="price-finder-card__store-logo" />
-        <span>{match.store}</span>
-        {isLowest && <span className="price-finder-row__tag"> · Lowest</span>}
-      </div>
+      {isLowest && <div className="price-finder-row__tag">Lowest overall</div>}
       {typeof match.rating === 'number' && (
         <div className="price-finder-card__rating">
           ★ {match.rating}
@@ -173,6 +169,19 @@ export default function PriceFinder() {
   const lowest = liveMatches[0] // already sorted lowest-first server-side
   const highest = liveMatches[liveMatches.length - 1]
 
+  // Grouped by store — its own section per retailer, cheapest store's
+  // section first — instead of one flat list mixing every store together.
+  const groupedByStore = useMemo(() => {
+    const byStore = new Map()
+    for (const m of liveMatches) {
+      if (!byStore.has(m.store)) byStore.set(m.store, [])
+      byStore.get(m.store).push(m)
+    }
+    return [...byStore.entries()]
+      .map(([store, matches]) => ({ store, matches: [...matches].sort((a, b) => a.price - b.price) }))
+      .sort((a, b) => a.matches[0].price - b.matches[0].price)
+  }, [liveMatches])
+
   return (
     <div className="screen">
       <button className="back-link" onClick={() => navigate(-1)}>
@@ -283,11 +292,19 @@ export default function PriceFinder() {
                   savings: <strong className="text-accent">{formatMoney(highest.price - lowest.price)}</strong>
                 </p>
               )}
-              <div className="price-finder-carousel">
-                {liveMatches.map((m, i) => (
-                  <PriceFinderCard key={i} match={m} isLowest={i === 0} onSelect={() => setSelected(m)} />
-                ))}
-              </div>
+              {groupedByStore.map(({ store, matches }) => (
+                <div key={store} className="price-finder-store-group">
+                  <div className="price-finder-store-group__header">
+                    <StoreLogo match={matches[0]} className="price-finder-store-group__logo" />
+                    <span>{store}</span>
+                  </div>
+                  <div className="price-finder-carousel">
+                    {matches.map((m, i) => (
+                      <PriceFinderCard key={i} match={m} isLowest={m === lowest} onSelect={() => setSelected(m)} />
+                    ))}
+                  </div>
+                </div>
+              ))}
               <p className="field-hint field-hint--block" style={{ margin: '10px 0 0' }}>
                 Checked {formatDate(live.checkedAt?.slice(0, 10))}. Prices change frequently — tap a product for
                 details, or confirm on the store's site before buying.
