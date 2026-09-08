@@ -187,24 +187,27 @@ function escapeRegExp(s) {
 
 // A live test for "Dyson V15 vacuum" returned a Chewy listing for the
 // "Dyson Gen5detect Cordless Vacuum" — a real, in-stock, new-condition
-// listing, just for a different model than what was searched. Google
-// Shopping's own relevance ranking doesn't guarantee every result actually
-// names the product searched for, so this re-checks it directly: every
-// significant word from the query (brand, model number, etc.) has to
-// appear in the result's own title, whole-word, before it's trusted as the
-// same product — the same word-boundary-safe approach used elsewhere in
-// this app's own search (see searchPurchasesForPriceFinder in derive.js),
-// so a short model number like "V15" can't accidentally match a stray
-// substring, and a real difference in model can't slip through as if it
-// were comparable.
+// listing, just for a different model than what was searched. The fix
+// (originally requiring every query word to appear in the title) turned
+// out too strict the other way: a plain category search like "shoes"
+// returns real listings titled with the specific shoe name ("Nike Men's
+// Air VaporMax Plus"), which never repeats the generic word "shoes" at
+// all — so EVERY result got filtered out for a perfectly normal search.
+// The actual discriminating signal in the Dyson case was the model number
+// ("V15"), not the category word ("vacuum") — so only tokens that look
+// like a model/version identifier (containing a digit) are required to
+// literally appear in the title; a query with no such token (a bare
+// category search, or just a brand name) is trusted as-is, same as
+// Google Shopping's own relevance ranking already handles it.
 function titleMatchesQuery(title, query) {
   const tokens = query
     .toLowerCase()
     .split(/\s+/)
     .filter((w) => w.length > 1 && !QUERY_STOPWORDS.has(w))
-  if (!tokens.length) return true
+  const modelTokens = tokens.filter((w) => /\d/.test(w))
+  if (!modelTokens.length) return true
   const hay = (title || '').toLowerCase()
-  return tokens.every((w) => new RegExp(`\\b${escapeRegExp(w)}\\b`).test(hay))
+  return modelTokens.every((w) => new RegExp(`\\b${escapeRegExp(w)}\\b`).test(hay))
 }
 
 /**
