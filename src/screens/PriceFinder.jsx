@@ -5,6 +5,7 @@ import { useAuth } from '../lib/AuthContext.jsx'
 import { searchPurchasesForPriceFinder, formatMoney, formatDate, productLabel } from '../lib/derive.js'
 import { loadRecentSearches, addRecentSearch, removeRecentSearch, clearRecentSearches } from '../lib/priceFinderHistory.js'
 import { logoCandidatesFor } from '../lib/logo.js'
+import { PRICE_FINDER_SUGGESTIONS } from '../data/priceFinderSuggestions.js'
 import { IconChevronLeft, IconSearch } from '../components/Icons.jsx'
 import Thumb from '../components/Thumb.jsx'
 
@@ -82,31 +83,36 @@ export default function PriceFinder() {
   const [selected, setSelected] = useState(null) // the tapped match, or null
   const [suggestionsOpen, setSuggestionsOpen] = useState(false)
 
-  // Search-as-you-type help, built entirely from the user's own real data
-  // (no extra API call per keystroke, which would burn through SerpApi's
-  // free-tier quota fast) — past searches first, then products they've
-  // actually bought, so finishing a query someone's already typed the start
-  // of is usually just a tap away.
+  // Search-as-you-type help. Past searches and products the user's
+  // actually bought come first (most relevant to them specifically), then
+  // a static list of real brand/product names fills in the rest — a live
+  // suggestion API (e.g. SerpApi's Google Autocomplete) would cost one
+  // request per keystroke against the same 250-search/month quota the
+  // price search itself uses, so this covers "things people search for in
+  // general" for free instead. Within each source, a suggestion starting
+  // with what's typed ranks above one that just contains it somewhere,
+  // same way real search-suggestion UIs prioritize.
   const suggestions = useMemo(() => {
     const q = query.trim().toLowerCase()
     if (!q) return []
     const seen = new Set()
-    const fromRecent = []
-    for (const r of recent) {
-      const key = r.query.toLowerCase()
-      if (key === q || seen.has(key) || !key.includes(q)) continue
-      seen.add(key)
-      fromRecent.push(r.query)
+
+    function collect(candidates) {
+      const starts = []
+      const contains = []
+      for (const text of candidates) {
+        const key = text.toLowerCase()
+        if (key === q || seen.has(key) || !key.includes(q)) continue
+        seen.add(key)
+        ;(key.startsWith(q) ? starts : contains).push(text)
+      }
+      return [...starts, ...contains]
     }
-    const fromPurchases = []
-    for (const p of purchases) {
-      const label = productLabel(p)
-      const key = label.toLowerCase()
-      if (key === q || seen.has(key) || !key.includes(q)) continue
-      seen.add(key)
-      fromPurchases.push(label)
-    }
-    return [...fromRecent, ...fromPurchases].slice(0, 6)
+
+    const fromRecent = collect(recent.map((r) => r.query))
+    const fromPurchases = collect(purchases.map(productLabel))
+    const fromStatic = collect(PRICE_FINDER_SUGGESTIONS)
+    return [...fromRecent, ...fromPurchases, ...fromStatic].slice(0, 8)
   }, [query, recent, purchases])
 
   async function runLiveSearch(q) {
