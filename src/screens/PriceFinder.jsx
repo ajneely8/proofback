@@ -202,6 +202,9 @@ export default function PriceFinder() {
           )}
 
           <div className="section__title">Retailer Prices</div>
+          <p className="field-hint field-hint--block" style={{ margin: '0 0 10px' }}>
+            Showing major retailers ProofBack could verify — not every store carrying this product.
+          </p>
           {liveLoading ? (
             <p className="field-hint field-hint--block">Checking major retailers…</p>
           ) : live?.status === 'results' ? (
