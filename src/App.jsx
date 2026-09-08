@@ -12,7 +12,6 @@ import ThemeEffect from './components/ThemeEffect.jsx'
 import Onboarding from './screens/Onboarding.jsx'
 import Auth from './screens/Auth.jsx'
 import Home from './screens/Home.jsx'
-import Purchases from './screens/Purchases.jsx'
 import Insights from './screens/Insights.jsx'
 import PriceWatch from './screens/PriceWatch.jsx'
 import PriceWatchDetail from './screens/PriceWatchDetail.jsx'
@@ -111,7 +110,10 @@ export default function App() {
           <Shell>
             <Routes>
               <Route path="/" element={<Home />} />
-              <Route path="/purchases" element={<Purchases />} />
+              {/* Purchases is now merged into Home (see Home.jsx) — kept as
+                  its own route so existing links like /purchases?filter=Active
+                  still work, but it renders the same combined screen. */}
+              <Route path="/purchases" element={<Home />} />
               <Route path="/insights" element={<Insights />} />
               <Route path="/price-watch" element={<PriceWatch />} />
               <Route path="/price-watch/:id" element={<PriceWatchDetail />} />

@@ -1,9 +1,9 @@
-import { NavLink } from 'react-router-dom'
-import { IconHome, IconList, IconCamera, IconBell, IconUser } from './Icons.jsx'
+import { NavLink, useLocation } from 'react-router-dom'
+import { IconHome, IconCamera, IconSearch, IconBell, IconUser } from './Icons.jsx'
 
 const leftTabs = [
-  { to: '/', label: 'Home', Icon: IconHome, end: true },
-  { to: '/purchases', label: 'Purchases', Icon: IconList },
+  { to: '/add', label: 'Scan Receipt', Icon: IconCamera },
+  { to: '/price-finder', label: 'Price Finder', Icon: IconSearch },
 ]
 
 const rightTabs = [
@@ -21,17 +21,22 @@ function Tab({ to, label, Icon, end }) {
 }
 
 export default function BottomNav() {
+  const { pathname } = useLocation()
+  // The center slot used to duplicate the left "Scan Receipt" tab — now
+  // that scanning has its own tab, this takes over as the way back to the
+  // dashboard + full purchase list (merged into Home.jsx, see that file).
+  // "/purchases" renders the same merged component (kept as a route so
+  // existing /purchases?filter=... links still work), so it counts as
+  // "home" here too — a plain NavLink `end` match would only catch "/".
+  const isHomeActive = pathname === '/' || pathname === '/purchases'
+
   return (
     <nav className="bottom-nav">
       {leftTabs.map((tab) => (
         <Tab key={tab.to} {...tab} />
       ))}
-      <NavLink
-        to="/add"
-        className={({ isActive }) => 'bottom-nav__scan' + (isActive ? ' is-active' : '')}
-        aria-label="Scan Receipt"
-      >
-        <IconCamera width={24} height={24} />
+      <NavLink to="/" className={'bottom-nav__scan' + (isHomeActive ? ' is-active' : '')} aria-label="Home">
+        <IconHome width={24} height={24} />
       </NavLink>
       {rightTabs.map((tab) => (
         <Tab key={tab.to} {...tab} />
