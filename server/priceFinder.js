@@ -55,6 +55,8 @@ const RETAILER_ALLOWLIST = {
   walgreens: 'Walgreens',
   cvs: 'CVS',
   'rite aid': 'Rite Aid',
+  heb: 'H-E-B',
+  'h-e-b': 'H-E-B',
   // Home improvement / home goods
   'home depot': 'Home Depot',
   'the home depot': 'Home Depot',
