@@ -257,7 +257,15 @@ function titleMatchesQuery(title, query) {
   const modelTokens = tokens.filter((w) => /\d/.test(w))
   if (!modelTokens.length) return true
   const hay = (title || '').toLowerCase()
-  return modelTokens.every((w) => new RegExp(`\\b${escapeRegExp(w)}\\b`).test(hay))
+  return modelTokens.every((w) => {
+    if (new RegExp(`\\b${escapeRegExp(w)}\\b`).test(hay)) return true
+    // A colloquial sneaker plural like "5s" (as in "Jordan 5s") never
+    // appears literally in a real listing's title — they say "Air Jordan
+    // 5 Retro" — so a trailing lone "s" after a number also matches the
+    // bare number.
+    const bare = w.match(/^(\d+(?:\.\d+)?)s$/)
+    return !!bare && new RegExp(`\\b${escapeRegExp(bare[1])}\\b`).test(hay)
+  })
 }
 
 /**
