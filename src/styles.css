@@ -937,6 +937,115 @@ a {
   padding: 2px;
 }
 
+.price-finder-sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  background: rgba(10, 10, 10, 0.4);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.price-finder-sheet {
+  position: relative;
+  width: 100%;
+  max-width: 480px;
+  max-height: 88vh;
+  overflow-y: auto;
+  background: var(--bg-app);
+  border-radius: 20px 20px 0 0;
+  padding: 24px 20px 20px;
+  animation: sheet-up 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes sheet-up {
+  from {
+    transform: translateY(24px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.price-finder-sheet__close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--bg-subtle);
+  border: none;
+  font-size: 18px;
+  line-height: 1;
+  color: var(--text-secondary);
+}
+
+.price-finder-sheet__image {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 180px;
+  margin-bottom: 14px;
+  background: var(--bg-subtle);
+  border-radius: var(--radius-md);
+}
+
+.price-finder-sheet__image img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+.price-finder-sheet__store {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+}
+
+.price-finder-sheet__store-logo {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  object-fit: contain;
+}
+
+.price-finder-sheet__title {
+  font-size: 17px;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.price-finder-sheet__price-row {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.price-finder-sheet__price {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--accent-green);
+}
+
+.price-finder-sheet__old-price {
+  font-size: 15px;
+  color: var(--text-tertiary);
+  text-decoration: line-through;
+}
+
+.price-finder-sheet .btn--block {
+  margin-top: 16px;
+}
+
 /* ---------- Digital Receipt Inbox ---------- */
 
 .inbox-counts {

@@ -14,16 +14,26 @@ const LIVE_ERROR_MESSAGES = {
   no_verified_results: "Unable to verify current prices for this product at major retailers.",
 }
 
-// Product photo (real, from the search result) with the retailer's own icon
-// badged in the corner — falls back to a guessed store logo, then an
-// initial, exactly like Thumb.jsx does for a saved purchase's store.
-function PriceFinderThumb({ match }) {
-  const [photoOk, setPhotoOk] = useState(true)
-  const logoCandidates = useMemo(() => {
+// The retailer's own icon for this result, falling back to a guessed store
+// logo, same as purchaseLogoCandidates does for a saved purchase's store —
+// used both as the corner badge on a product photo and standalone in the
+// detail sheet.
+function StoreLogo({ match, className }) {
+  const candidates = useMemo(() => {
     const guessed = logoCandidatesFor(match.store)
     return match.sourceIcon && !guessed.includes(match.sourceIcon) ? [match.sourceIcon, ...guessed] : guessed
   }, [match.store, match.sourceIcon])
-  const [logoIndex, setLogoIndex] = useState(0)
+  const [index, setIndex] = useState(0)
+
+  if (index >= candidates.length) return null
+  return <img className={className} src={candidates[index]} alt="" onError={() => setIndex((i) => i + 1)} />
+}
+
+// Product photo (real, from the search result) with the retailer's own icon
+// badged in the corner — falls back to an initial, exactly like Thumb.jsx
+// does for a saved purchase's store.
+function PriceFinderThumb({ match }) {
+  const [photoOk, setPhotoOk] = useState(true)
 
   return (
     <div className="price-finder-thumb">
@@ -34,14 +44,7 @@ function PriceFinderThumb({ match }) {
           <span className="price-finder-thumb__fallback">{(match.store || '?').charAt(0)}</span>
         )}
       </div>
-      {logoIndex < logoCandidates.length && (
-        <img
-          className="price-finder-thumb__logo"
-          src={logoCandidates[logoIndex]}
-          alt=""
-          onError={() => setLogoIndex((i) => i + 1)}
-        />
-      )}
+      <StoreLogo match={match} className="price-finder-thumb__logo" />
     </div>
   )
 }
@@ -55,6 +58,7 @@ export default function PriceFinder() {
   const [ownedResults, setOwnedResults] = useState(null) // null = no search run yet this visit
   const [live, setLive] = useState(null) // { status, matches, checkedAt } | null
   const [liveLoading, setLiveLoading] = useState(false)
+  const [selected, setSelected] = useState(null) // the tapped match, or null
 
   async function runLiveSearch(q) {
     setLiveLoading(true)
@@ -189,12 +193,11 @@ export default function PriceFinder() {
               )}
               <div className="list">
                 {liveMatches.map((m, i) => (
-                  <a
+                  <button
                     key={i}
+                    type="button"
                     className={'list-row price-finder-list-row' + (i === 0 ? ' price-finder-list-row--lowest' : '')}
-                    href={m.link || undefined}
-                    target="_blank"
-                    rel="noopener noreferrer"
+                    onClick={() => setSelected(m)}
                   >
                     <PriceFinderThumb match={m} />
                     <div className="list-row__main">
@@ -207,12 +210,12 @@ export default function PriceFinder() {
                     <div className="list-row__trailing">
                       <div className="list-row__price">{formatMoney(m.price)}</div>
                     </div>
-                  </a>
+                  </button>
                 ))}
               </div>
               <p className="field-hint field-hint--block" style={{ margin: '10px 0 0' }}>
-                Checked {formatDate(live.checkedAt?.slice(0, 10))}. Prices change frequently — tap a store to verify
-                before buying.
+                Checked {formatDate(live.checkedAt?.slice(0, 10))}. Prices change frequently — tap a product for
+                details, or confirm on the store's site before buying.
               </p>
             </>
           ) : (
@@ -242,6 +245,58 @@ export default function PriceFinder() {
             ))}
           </div>
         </section>
+      )}
+
+      {selected && (
+        <div className="price-finder-sheet-backdrop" onClick={() => setSelected(null)}>
+          <div className="price-finder-sheet" onClick={(e) => e.stopPropagation()}>
+            <button className="price-finder-sheet__close" onClick={() => setSelected(null)} aria-label="Close">
+              ×
+            </button>
+            <div className="price-finder-sheet__image">
+              {selected.thumbnail ? (
+                <img src={selected.thumbnail} alt="" />
+              ) : (
+                <span className="price-finder-thumb__fallback">{(selected.store || '?').charAt(0)}</span>
+              )}
+            </div>
+            <div className="price-finder-sheet__store">
+              <StoreLogo match={selected} className="price-finder-sheet__store-logo" />
+              <span>{selected.store}</span>
+            </div>
+            <div className="price-finder-sheet__title">{selected.title}</div>
+            <div className="price-finder-sheet__price-row">
+              <span className="price-finder-sheet__price">{formatMoney(selected.price)}</span>
+              {selected.oldPrice && selected.oldPrice > selected.price && (
+                <span className="price-finder-sheet__old-price">{formatMoney(selected.oldPrice)}</span>
+              )}
+            </div>
+            {typeof selected.rating === 'number' && (
+              <div className="detail-card__row">
+                <span>Rating</span>
+                <strong>
+                  {selected.rating} / 5{selected.reviews ? ` (${selected.reviews.toLocaleString()} reviews)` : ''}
+                </strong>
+              </div>
+            )}
+            {selected.delivery && (
+              <div className="detail-card__row">
+                <span>Delivery</span>
+                <strong>{selected.delivery}</strong>
+              </div>
+            )}
+            <div className="detail-card__row">
+              <span>Availability</span>
+              <strong>Not verified — check the store</strong>
+            </div>
+            {selected.snippet && <p className="field-hint field-hint--block">{selected.snippet}</p>}
+            {selected.link && (
+              <a className="btn btn--primary btn--block" href={selected.link} target="_blank" rel="noopener noreferrer">
+                View at {selected.store}
+              </a>
+            )}
+          </div>
+        </div>
       )}
     </div>
   )

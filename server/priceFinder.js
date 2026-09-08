@@ -90,13 +90,18 @@ export async function searchProductPrices(query) {
         store: RETAILER_ALLOWLIST[r.source.trim().toLowerCase()],
         title: r.title,
         price: r.extracted_price,
+        oldPrice: typeof r.extracted_old_price === 'number' ? r.extracted_old_price : null,
         link: r.product_link || null,
         rating: typeof r.rating === 'number' ? r.rating : null,
         reviews: typeof r.reviews === 'number' ? r.reviews : null,
         thumbnail: r.thumbnail || null,
         sourceIcon: r.source_icon || null,
+        delivery: r.delivery || null,
+        snippet: r.snippet || null,
         // SerpApi's shopping results don't reliably carry an explicit
-        // in-stock flag — omit the claim entirely rather than assume.
+        // in-stock flag or quantity — no retailer publishes exact stock
+        // counts through Google Shopping (or anywhere else scrapeable), so
+        // this is never shown rather than guessed or invented.
       }))
       .sort((a, b) => a.price - b.price)
       .slice(0, MAX_MATCHES)
