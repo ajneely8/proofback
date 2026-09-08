@@ -199,6 +199,12 @@ export default function PriceFinder() {
     setRecent(loadRecentSearches())
     const matches = searchPurchasesForPriceFinder(q, purchases)
     setOwnedResults(matches)
+    // A new search always starts cheapest-first — without this, toggling
+    // "Highest price" once would leave every later search looking
+    // unsorted (it'd silently carry the old sort/filter into results the
+    // user hasn't seen yet).
+    setSortOrder('asc')
+    setFreeShippingOnly(false)
     runLiveSearch(q)
   }
 
