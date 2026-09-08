@@ -27,23 +27,46 @@ function StoreLogo({ match, className }) {
   return <img className={className} src={candidates[index]} alt="" onError={() => setIndex((i) => i + 1)} />
 }
 
-// Product photo (real, from the search result) with the retailer's own icon
-// badged in the corner — falls back to an initial, exactly like Thumb.jsx
-// does for a saved purchase's store.
-function PriceFinderThumb({ match }) {
+// A single retailer result, styled like a Google Shopping result card:
+// product photo up top (with a "Sale" badge when there's a real discount),
+// title, price with the old price struck through, store, and rating —
+// scrolls horizontally alongside the other matches instead of stacking in
+// a vertical list.
+function PriceFinderCard({ match, isLowest, onSelect }) {
   const [photoOk, setPhotoOk] = useState(true)
+  const hasDiscount = match.oldPrice && match.oldPrice > match.price
 
   return (
-    <div className="price-finder-thumb">
-      <div className="thumb thumb--md">
+    <button
+      type="button"
+      className={'price-finder-card' + (isLowest ? ' price-finder-card--lowest' : '')}
+      onClick={onSelect}
+    >
+      <div className="price-finder-card__image">
+        {hasDiscount && <span className="price-finder-card__badge">Sale</span>}
         {photoOk && match.thumbnail ? (
           <img src={match.thumbnail} alt="" onError={() => setPhotoOk(false)} />
         ) : (
           <span className="price-finder-thumb__fallback">{(match.store || '?').charAt(0)}</span>
         )}
       </div>
-      <StoreLogo match={match} className="price-finder-thumb__logo" />
-    </div>
+      <div className="price-finder-card__title">{match.title}</div>
+      <div className="price-finder-card__price-row">
+        <span className="price-finder-card__price">{formatMoney(match.price)}</span>
+        {hasDiscount && <span className="price-finder-card__old-price">{formatMoney(match.oldPrice)}</span>}
+      </div>
+      <div className="price-finder-card__store">
+        <StoreLogo match={match} className="price-finder-card__store-logo" />
+        <span>{match.store}</span>
+        {isLowest && <span className="price-finder-row__tag"> · Lowest</span>}
+      </div>
+      {typeof match.rating === 'number' && (
+        <div className="price-finder-card__rating">
+          ★ {match.rating}
+          {match.reviews ? ` (${match.reviews.toLocaleString()})` : ''}
+        </div>
+      )}
+    </button>
   )
 }
 
@@ -189,26 +212,9 @@ export default function PriceFinder() {
                   savings: <strong className="text-accent">{formatMoney(highest.price - lowest.price)}</strong>
                 </p>
               )}
-              <div className="list">
+              <div className="price-finder-carousel">
                 {liveMatches.map((m, i) => (
-                  <button
-                    key={i}
-                    type="button"
-                    className={'list-row price-finder-list-row' + (i === 0 ? ' price-finder-list-row--lowest' : '')}
-                    onClick={() => setSelected(m)}
-                  >
-                    <PriceFinderThumb match={m} />
-                    <div className="list-row__main">
-                      <div className="list-row__title">{m.title}</div>
-                      <div className="list-row__line">
-                        {m.store}
-                        {i === 0 && <span className="price-finder-row__tag"> · Lowest</span>}
-                      </div>
-                    </div>
-                    <div className="list-row__trailing">
-                      <div className="list-row__price">{formatMoney(m.price)}</div>
-                    </div>
-                  </button>
+                  <PriceFinderCard key={i} match={m} isLowest={i === 0} onSelect={() => setSelected(m)} />
                 ))}
               </div>
               <p className="field-hint field-hint--block" style={{ margin: '10px 0 0' }}>
