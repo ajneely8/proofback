@@ -987,140 +987,99 @@ a {
   color: var(--text-tertiary);
 }
 
-/* ---------- Price Finder retailer-result cards (horizontal scroll) ---------- */
+/* ---------- Price Finder: cheapest/most-expensive summary hero ---------- */
 
-.price-finder-store-group {
-  margin-bottom: 18px;
-}
-
-.price-finder-store-group:last-child {
-  margin-bottom: 0;
-}
-
-.price-finder-store-group__header {
+.price-finder-summary {
   display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--text-primary);
-  margin-bottom: 8px;
+  gap: 10px;
+  margin-bottom: 14px;
 }
 
-.price-finder-store-group__logo {
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  object-fit: contain;
-  flex-shrink: 0;
-}
-
-.price-finder-carousel {
-  display: flex;
-  gap: 12px;
-  overflow-x: auto;
-  padding: 2px 2px 8px;
-  margin: 0 -2px;
-}
-
-.price-finder-card {
-  flex-shrink: 0;
-  width: 150px;
-  text-align: left;
-  background: var(--bg-app);
+.price-finder-summary__block {
+  flex: 1;
+  min-width: 0;
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
-  padding: 10px;
-  cursor: pointer;
+  padding: 12px;
+  background: var(--bg-app);
 }
 
-.price-finder-card--lowest {
+.price-finder-summary__block--cheapest {
   border-color: var(--accent-green);
+  background: var(--accent-green-bg);
 }
 
-.price-finder-card__image {
-  position: relative;
-  height: 120px;
-  margin-bottom: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--bg-subtle);
-  border-radius: var(--radius-sm);
-  overflow: hidden;
-}
-
-.price-finder-card__image img {
-  max-width: 100%;
-  max-height: 100%;
-  object-fit: contain;
-}
-
-.price-finder-card__badge {
-  position: absolute;
-  top: 6px;
-  left: 6px;
-  background: var(--text-primary);
-  color: var(--bg-app);
-  font-size: 10px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-  padding: 3px 6px;
-  border-radius: 4px;
-}
-
-.price-finder-card__title {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--text-primary);
-  margin-bottom: 4px;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-  min-height: 30px;
-}
-
-.price-finder-card__price-row {
-  display: flex;
-  align-items: baseline;
-  gap: 6px;
-  margin-bottom: 4px;
-}
-
-.price-finder-card__price {
-  font-size: 15px;
-  font-weight: 700;
+.price-finder-summary__block--savings .price-finder-summary__amount {
   color: var(--accent-green);
 }
 
-.price-finder-card__old-price {
+.price-finder-summary__label {
   font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
   color: var(--text-tertiary);
-  text-decoration: line-through;
+  margin-bottom: 4px;
 }
 
-.price-finder-card__store {
-  display: flex;
-  align-items: center;
-  gap: 5px;
+.price-finder-summary__amount {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.2;
+}
+
+.price-finder-summary__block--cheapest .price-finder-summary__amount {
+  color: var(--accent-green);
+}
+
+.price-finder-summary__store {
   font-size: 12px;
   color: var(--text-secondary);
+  margin-top: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.price-finder-controls {
+  margin-bottom: 12px;
+}
+
+/* ---------- Price Finder: ranked comparison list ---------- */
+
+.price-finder-rank-row__num {
+  flex-shrink: 0;
+  width: 20px;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-tertiary);
+  align-self: center;
+}
+
+/* .list-row__price is green everywhere else in the app (money = green is
+   the house rule), but the spec for this screen wants green reserved for
+   the cheapest price only — every other row's price is explicitly brought
+   back to the normal text color, then the cheapest one restores green. */
+.price-finder-rank-row .list-row__price {
+  color: var(--text-primary);
+}
+
+.price-finder-price--cheapest {
+  color: var(--accent-green) !important;
+}
+
+.price-finder-rank-row__old-price {
+  font-size: 12px;
+  color: var(--text-tertiary);
+  text-decoration: line-through;
   margin-bottom: 2px;
 }
 
-.price-finder-card__store-logo {
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  object-fit: contain;
-  flex-shrink: 0;
-}
-
-.price-finder-card__rating {
-  font-size: 11px;
+.price-finder-membership-note {
   color: var(--text-tertiary);
+  font-style: italic;
 }
 
 .price-finder-sheet-backdrop {

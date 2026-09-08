@@ -28,41 +28,42 @@ function StoreLogo({ match, className }) {
   return <img className={className} src={candidates[index]} alt="" onError={() => setIndex((i) => i + 1)} />
 }
 
-// A single retailer result, styled like a Google Shopping result card:
-// product photo up top (with a "Sale" badge when there's a real discount),
-// title, price with the old price struck through, store, and rating —
-// scrolls horizontally alongside the other matches instead of stacking in
-// a vertical list.
-function PriceFinderCard({ match, isLowest, onSelect }) {
+// One row in the ranked price-comparison list: a compact product thumb,
+// store name + item title, and the price with either a "CHEAPEST" tag (the
+// verified lowest) or a "+$X.XX" difference from it — the layout the spec
+// asks for, not a store-grouped card carousel.
+function PriceFinderRankRow({ match, rank, isLowest, diffFromLowest, onSelect }) {
   const [photoOk, setPhotoOk] = useState(true)
   const hasDiscount = match.oldPrice && match.oldPrice > match.price
 
   return (
-    <button
-      type="button"
-      className={'price-finder-card' + (isLowest ? ' price-finder-card--lowest' : '')}
-      onClick={onSelect}
-    >
-      <div className="price-finder-card__image">
-        {hasDiscount && <span className="price-finder-card__badge">Sale</span>}
+    <button type="button" className="list-row price-finder-rank-row" onClick={onSelect}>
+      <div className="price-finder-rank-row__num">{rank}</div>
+      <div className="thumb thumb--md">
         {photoOk && match.thumbnail ? (
           <img src={match.thumbnail} alt="" onError={() => setPhotoOk(false)} />
         ) : (
           <span className="price-finder-thumb__fallback">{(match.store || '?').charAt(0)}</span>
         )}
       </div>
-      <div className="price-finder-card__title">{match.title}</div>
-      <div className="price-finder-card__price-row">
-        <span className="price-finder-card__price">{formatMoney(match.price)}</span>
-        {hasDiscount && <span className="price-finder-card__old-price">{formatMoney(match.oldPrice)}</span>}
+      <div className="list-row__main">
+        <div className="list-row__title">{match.store}</div>
+        <div className="list-row__line">{match.title}</div>
+        {match.membershipRequired && (
+          <div className="list-row__line price-finder-membership-note">Membership price</div>
+        )}
       </div>
-      {isLowest && <div className="price-finder-row__tag">Lowest overall</div>}
-      {typeof match.rating === 'number' && (
-        <div className="price-finder-card__rating">
-          ★ {match.rating}
-          {match.reviews ? ` (${match.reviews.toLocaleString()})` : ''}
+      <div className="list-row__trailing">
+        <div className={'list-row__price' + (isLowest ? ' price-finder-price--cheapest' : '')}>
+          {formatMoney(match.price)}
         </div>
-      )}
+        {hasDiscount && <div className="price-finder-rank-row__old-price">{formatMoney(match.oldPrice)}</div>}
+        {isLowest ? (
+          <div className="price-finder-row__tag">Cheapest</div>
+        ) : (
+          <div className="list-row__line">+{formatMoney(diffFromLowest)}</div>
+        )}
+      </div>
     </button>
   )
 }
@@ -83,6 +84,8 @@ export default function PriceFinder() {
   const [gender, setGender] = useState('')
   const [size, setSize] = useState('')
   const [color, setColor] = useState('')
+  const [sortOrder, setSortOrder] = useState('asc') // 'asc' = lowest price first (the default), 'desc' = highest first
+  const [freeShippingOnly, setFreeShippingOnly] = useState(false)
 
   // selected.link is a Google search-results redirect, not the merchant's
   // own product page — the real one costs a separate SerpApi request (see
@@ -226,18 +229,13 @@ export default function PriceFinder() {
   const lowest = liveMatches[0] // already sorted lowest-first server-side
   const highest = liveMatches[liveMatches.length - 1]
 
-  // Grouped by store — its own section per retailer, cheapest store's
-  // section first — instead of one flat list mixing every store together.
-  const groupedByStore = useMemo(() => {
-    const byStore = new Map()
-    for (const m of liveMatches) {
-      if (!byStore.has(m.store)) byStore.set(m.store, [])
-      byStore.get(m.store).push(m)
-    }
-    return [...byStore.entries()]
-      .map(([store, matches]) => ({ store, matches: [...matches].sort((a, b) => a.price - b.price) }))
-      .sort((a, b) => a.matches[0].price - b.matches[0].price)
-  }, [liveMatches])
+  // Display order only — "cheapest"/the $ difference badges always compare
+  // against `lowest` above, regardless of which way the list is sorted.
+  const rankedMatches = useMemo(() => {
+    const arr = [...liveMatches]
+    if (sortOrder === 'desc') arr.reverse()
+    return freeShippingOnly ? arr.filter((m) => m.delivery && /free/i.test(m.delivery)) : arr
+  }, [liveMatches, sortOrder, freeShippingOnly])
 
   return (
     <div className="screen">
@@ -394,36 +392,76 @@ export default function PriceFinder() {
             </>
           )}
 
-          <div className="section__title">Retailer Prices</div>
+          <div className="section__title">Price Comparison</div>
           <p className="field-hint field-hint--block" style={{ margin: '0 0 10px' }}>
-            Showing major retailers ProofBack could verify — not every store carrying this product.
+            Only major, verified retailers — not marketplace resellers, auction sites, or small/unverified stores.
           </p>
           {liveLoading ? (
             <p className="field-hint field-hint--block">Checking major retailers…</p>
           ) : live?.status === 'results' ? (
             <>
-              {highest && lowest && highest.price > lowest.price && (
-                <p className="field-hint field-hint--block" style={{ margin: '0 0 10px' }}>
-                  Highest price: {formatMoney(highest.price)} · Lowest price: {formatMoney(lowest.price)} · Potential
-                  savings: <strong className="text-accent">{formatMoney(highest.price - lowest.price)}</strong>
-                </p>
-              )}
-              {groupedByStore.map(({ store, matches }) => (
-                <div key={store} className="price-finder-store-group">
-                  <div className="price-finder-store-group__header">
-                    <StoreLogo match={matches[0]} className="price-finder-store-group__logo" />
-                    <span>{store}</span>
-                  </div>
-                  <div className="price-finder-carousel">
-                    {matches.map((m, i) => (
-                      <PriceFinderCard key={i} match={m} isLowest={m === lowest} onSelect={() => setSelected(m)} />
-                    ))}
-                  </div>
+              <div className="price-finder-summary">
+                <div className="price-finder-summary__block price-finder-summary__block--cheapest">
+                  <div className="price-finder-summary__label">Cheapest</div>
+                  <div className="price-finder-summary__amount">{formatMoney(lowest.price)}</div>
+                  <div className="price-finder-summary__store">{lowest.store}</div>
                 </div>
-              ))}
+                {highest && highest.price > lowest.price && (
+                  <>
+                    <div className="price-finder-summary__block">
+                      <div className="price-finder-summary__label">Most expensive</div>
+                      <div className="price-finder-summary__amount">{formatMoney(highest.price)}</div>
+                      <div className="price-finder-summary__store">{highest.store}</div>
+                    </div>
+                    <div className="price-finder-summary__block price-finder-summary__block--savings">
+                      <div className="price-finder-summary__label">Potential savings</div>
+                      <div className="price-finder-summary__amount">{formatMoney(highest.price - lowest.price)}</div>
+                    </div>
+                  </>
+                )}
+              </div>
+
+              <div className="price-finder-controls">
+                <div className="chip-row" style={{ marginBottom: 0 }}>
+                  <button className={'chip' + (sortOrder === 'asc' ? ' is-active' : '')} onClick={() => setSortOrder('asc')}>
+                    Lowest price
+                  </button>
+                  <button className={'chip' + (sortOrder === 'desc' ? ' is-active' : '')} onClick={() => setSortOrder('desc')}>
+                    Highest price
+                  </button>
+                  <button
+                    className={'chip' + (freeShippingOnly ? ' is-active' : '')}
+                    onClick={() => setFreeShippingOnly((v) => !v)}
+                  >
+                    Free shipping
+                  </button>
+                </div>
+              </div>
+
+              <div className="list">
+                {rankedMatches.map((m, i) => (
+                  <PriceFinderRankRow
+                    key={i}
+                    match={m}
+                    rank={i + 1}
+                    isLowest={m === lowest}
+                    diffFromLowest={m.price - lowest.price}
+                    onSelect={() => setSelected(m)}
+                  />
+                ))}
+              </div>
+              {rankedMatches.length === 0 && (
+                <p className="field-hint field-hint--block">No results have free shipping listed.</p>
+              )}
+
               <p className="field-hint field-hint--block" style={{ margin: '10px 0 0' }}>
-                Checked {formatDate(live.checkedAt?.slice(0, 10))}. Prices change frequently — tap a product for
-                details, or confirm on the store's site before buying.
+                Price checked {new Date(live.checkedAt).toLocaleString('en-US', {
+                  month: 'short',
+                  day: 'numeric',
+                  hour: 'numeric',
+                  minute: '2-digit',
+                })}. Prices change frequently — tap a product for details, or confirm on the store's site before
+                buying.
               </p>
             </>
           ) : (
@@ -489,14 +527,37 @@ export default function PriceFinder() {
             )}
             {selected.delivery && (
               <div className="detail-card__row">
-                <span>Delivery</span>
+                <span>Shipping</span>
                 <strong>{selected.delivery}</strong>
               </div>
             )}
             <div className="detail-card__row">
+              <span>Pickup</span>
+              <strong>Not verified — check the store</strong>
+            </div>
+            <div className="detail-card__row">
               <span>Availability</span>
               <strong>Not verified — check the store</strong>
             </div>
+            {selected.membershipRequired && (
+              <div className="detail-card__row">
+                <span>Price requires</span>
+                <strong>{selected.store} membership</strong>
+              </div>
+            )}
+            {live?.checkedAt && (
+              <div className="detail-card__row">
+                <span>Price checked</span>
+                <strong>
+                  {new Date(live.checkedAt).toLocaleString('en-US', {
+                    month: 'short',
+                    day: 'numeric',
+                    hour: 'numeric',
+                    minute: '2-digit',
+                  })}
+                </strong>
+              </div>
+            )}
             {selected.snippet && <p className="field-hint field-hint--block">{selected.snippet}</p>}
             {(realLink || selected.link) && (
               <a

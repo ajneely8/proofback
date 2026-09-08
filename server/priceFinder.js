@@ -45,6 +45,8 @@ const RETAILER_DISPLAY_NAMES = {
   "macy's": "Macy's",
   nordstrom: 'Nordstrom',
   'nordstrom rack': 'Nordstrom Rack',
+  jcpenney: 'JCPenney',
+  'jc penney': 'JCPenney',
   qvc: 'QVC',
   hsn: 'HSN',
   gap: 'Gap',
@@ -85,6 +87,12 @@ const RETAILER_DISPLAY_NAMES = {
   'williams sonoma': 'Williams-Sonoma',
   'ace hardware': 'Ace Hardware',
   menards: 'Menards',
+  // Auto parts
+  autozone: 'AutoZone',
+  "o'reilly auto parts": "O'Reilly Auto Parts",
+  'oreilly auto parts': "O'Reilly Auto Parts",
+  "o'reilly": "O'Reilly Auto Parts",
+  'advance auto parts': 'Advance Auto Parts',
   // Electronics
   newegg: 'Newegg',
   'newegg.com': 'Newegg',
@@ -172,6 +180,12 @@ const DELIVERY_MARKETPLACE_DENYLIST = new Set(['instacart', 'shipt', 'doordash',
 
 // Stores excluded by request, not because anything was wrong with them.
 const EXCLUDED_STORES = new Set(['p.c. richard & son', 'pc richard & son', 'pc richard'])
+
+// Membership-only warehouse clubs — their price is real, but only at that
+// price if the shopper already pays for (or buys) a membership. Checked
+// against the already-resolved display name (Costco/Sam's Club/BJ's
+// Wholesale Club), not the raw source.
+const MEMBERSHIP_STORES = new Set(['Costco', "Sam's Club", "BJ's Wholesale Club"])
 
 // A live test found "stockx.com" sail right past a denylist that only
 // listed "stockx" — SerpApi isn't consistent about whether a source is the
@@ -339,8 +353,15 @@ export async function searchProductPrices(query) {
         if (r.rating == null && r.reviews == null) return false
         return true
       })
-      .map((r) => ({
-        store: resolveStore(r.source),
+      .map((r) => {
+        const store = resolveStore(r.source)
+        return {
+        store,
+        // These three chains require a paid membership to buy at the
+        // listed price — real, checkable from the store name alone, not a
+        // guess, so it's surfaced rather than showing a membership price
+        // as if it were open to everyone.
+        membershipRequired: MEMBERSHIP_STORES.has(store),
         title: r.title,
         price: r.extracted_price,
         oldPrice: typeof r.extracted_old_price === 'number' ? r.extracted_old_price : null,
@@ -363,7 +384,8 @@ export async function searchProductPrices(query) {
         // in-stock flag or quantity — no retailer publishes exact stock
         // counts through Google Shopping (or anywhere else scrapeable), so
         // this is never shown rather than guessed or invented.
-      }))
+        }
+      })
       .sort((a, b) => a.price - b.price)
       .slice(0, MAX_MATCHES)
 
