@@ -12,7 +12,11 @@
  * brand-direct stores, per explicit instruction. RETAILER_DISPLAY_NAMES is
  * the actual gate now (not just a display-name cleanup) — expand it with
  * more big/recognizable names as real searches turn them up, but don't
- * open the gate itself back up.
+ * open the gate itself back up. That list was later trimmed further, per
+ * explicit instruction, to only genuinely major/"billion-dollar" companies
+ * — real smaller regional chains (ShopRite, Hy-Vee, Coborn's, Fareway,
+ * Brookshire's, Finish Line, Crate & Barrel, etc.) are deliberately left
+ * off even though they're legitimate stores, not scams.
  */
 
 const SERPAPI_URL = 'https://serpapi.com/search.json'
@@ -49,44 +53,25 @@ const RETAILER_DISPLAY_NAMES = {
   'rite aid': 'Rite Aid',
   heb: 'H-E-B',
   'h-e-b': 'H-E-B',
-  // Grocery — built from real queries across common grocery items (milk,
-  // eggs, bread, produce, etc.); left out the small farm-direct/one-off
-  // sellers that turned up alongside these (real, but not the "big,
-  // recognizable company" bar this list is meant to hold to).
+  // Grocery — only major national/mega-regional chains (Fortune 500 scale
+  // or the private-company equivalent). Real smaller regional chains
+  // (ShopRite, Hy-Vee, Coborn's, Dierbergs, Lowes Foods, Fareway,
+  // Brookshire's, FreshDirect, etc.) turned up in testing but were pulled
+  // per explicit instruction to hold this list to only major companies —
+  // not every legitimate real store belongs here, just the big ones.
+  kroger: 'Kroger',
+  safeway: 'Safeway',
+  albertsons: 'Albertsons',
+  publix: 'Publix',
+  aldi: 'Aldi',
+  "trader joe's": "Trader Joe's",
+  wegmans: 'Wegmans',
+  "bj's wholesale club": "BJ's Wholesale Club",
   'whole foods market': 'Whole Foods Market',
   'whole foods': 'Whole Foods Market',
   sprouts: 'Sprouts Farmers Market',
   'sprouts farmers market': 'Sprouts Farmers Market',
-  shoprite: 'ShopRite',
-  'hy-vee': 'Hy-Vee',
-  hyvee: 'Hy-Vee',
-  "bj's wholesale club": "BJ's Wholesale Club",
-  freshdirect: 'FreshDirect',
-  'save mart': 'Save Mart',
-  "raley's": "Raley's",
-  'dierbergs markets': 'Dierbergs Markets',
-  fareway: 'Fareway',
-  'fareway.com': 'Fareway',
-  "coborn's": "Coborn's",
-  'coborns.com': "Coborn's",
-  'fairway market': 'Fairway Market',
-  'fairwaymarket.com': 'Fairway Market',
-  "brookshire's": "Brookshire's",
-  'brookshires.com': "Brookshire's",
-  'thrive market': 'Thrive Market',
-  'vitacost.com': 'Vitacost',
-  vitacost: 'Vitacost',
-  'gordon food service store': 'Gordon Food Service',
-  foodmaxx: 'FoodMaxx',
-  'food bazaar supermarket': 'Food Bazaar',
-  'lowes foods': 'Lowes Foods',
-  'rosauers supermarkets': "Rosauer's",
-  "yoke's fresh market": "Yoke's Fresh Market",
-  'king arthur baking': 'King Arthur Baking',
-  'king arthur': 'King Arthur Baking',
   'perdue farms': 'Perdue Farms',
-  "d'artagnan": "D'Artagnan",
-  'wild fork foods': 'Wild Fork Foods',
   // Home improvement / home goods
   'home depot': 'Home Depot',
   'the home depot': 'Home Depot',
@@ -94,8 +79,6 @@ const RETAILER_DISPLAY_NAMES = {
   "lowe's": "Lowe's",
   wayfair: 'Wayfair',
   ikea: 'IKEA',
-  'bed bath & beyond': 'Bed Bath & Beyond',
-  'crate & barrel': 'Crate & Barrel',
   'pottery barn': 'Pottery Barn',
   'west elm': 'West Elm',
   'williams-sonoma': 'Williams-Sonoma',
@@ -105,24 +88,14 @@ const RETAILER_DISPLAY_NAMES = {
   // Electronics
   newegg: 'Newegg',
   'newegg.com': 'Newegg',
-  "b&h photo-video-audio": 'B&H Photo Video',
-  'b&h photo video': 'B&H Photo Video',
-  'p.c. richard & son': 'P.C. Richard & Son',
-  'pc richard & son': 'P.C. Richard & Son',
-  'pc richard': 'P.C. Richard & Son',
-  'abc warehouse': 'ABC Warehouse',
   gamestop: 'GameStop',
   // Sporting goods / shoes / apparel
   "dick's sporting goods": "Dick's Sporting Goods",
   'dicks sporting goods': "Dick's Sporting Goods",
   "academy sports + outdoors": 'Academy Sports + Outdoors',
-  'finish line': 'Finish Line',
   'foot locker': 'Foot Locker',
   'champs sports': 'Champs Sports',
   'jd sports': 'JD Sports',
-  'shoe palace': 'Shoe Palace',
-  'snipes usa': 'SNIPES',
-  snipes: 'SNIPES',
   dsw: 'DSW',
   zappos: 'Zappos',
   nike: 'Nike',
@@ -139,8 +112,6 @@ const RETAILER_DISPLAY_NAMES = {
   petco: 'Petco',
   petsmart: 'PetSmart',
   michaels: "Michaels",
-  'jo-ann': "JOANN",
-  joann: 'JOANN',
   'hobby lobby': 'Hobby Lobby',
   'bass pro shops': 'Bass Pro Shops',
   "cabela's": "Cabela's",
@@ -163,7 +134,6 @@ const RETAILER_DISPLAY_NAMES = {
   dell: 'Dell',
   lenovo: 'Lenovo',
   logitech: 'Logitech',
-  gopro: 'GoPro',
   garmin: 'Garmin',
   fitbit: 'Fitbit',
   nintendo: 'Nintendo',
