@@ -78,6 +78,7 @@ export default function PriceFinder() {
   const [liveLoading, setLiveLoading] = useState(false)
   const [selected, setSelected] = useState(null) // the tapped match, or null
   const [suggestionsOpen, setSuggestionsOpen] = useState(false)
+  const [category, setCategory] = useState('') // '' | 'Shoes' | 'Clothing'
   const [gender, setGender] = useState('')
   const [size, setSize] = useState('')
   const [color, setColor] = useState('')
@@ -144,6 +145,11 @@ export default function PriceFinder() {
   // 250-search/month quota per refinement).
   function buildEffectiveQuery(base) {
     const parts = [base.trim()]
+    // Only adds "Shoes"/"Clothing" when the search doesn't already name a
+    // specific item (e.g. skip it for "Nike hoodie" — "hoodie" already
+    // says enough) — otherwise a bare brand/style search like "Jordan"
+    // stays ambiguous between the sneakers and the apparel line.
+    if (category && !base.toLowerCase().includes(category.toLowerCase())) parts.push(category)
     if (gender) parts.push(gender)
     if (size.trim()) parts.push(`size ${size.trim()}`)
     if (color.trim()) parts.push(color.trim())
@@ -234,30 +240,60 @@ export default function PriceFinder() {
           <div className="price-finder-refine">
             <select
               className="price-finder-refine__field"
-              value={gender}
-              onChange={(e) => setGender(e.target.value)}
-              aria-label="Gender"
+              value={category}
+              onChange={(e) => {
+                const next = e.target.value
+                setCategory(next)
+                // Gender/size/color only mean something once a category is
+                // picked — clear them instead of leaving stale values that
+                // no longer show on screen but would still fold into the
+                // next search.
+                if (!next) {
+                  setGender('')
+                  setSize('')
+                  setColor('')
+                }
+              }}
+              aria-label="Category"
             >
-              <option value="">Men's / Women's / Kids'</option>
-              <option value="Men's">Men's</option>
-              <option value="Women's">Women's</option>
-              <option value="Kids'">Kids'</option>
+              <option value="">Shoes or clothing?</option>
+              <option value="Shoes">Shoes</option>
+              <option value="Clothing">Clothing</option>
             </select>
-            <input
-              type="text"
-              className="price-finder-refine__field"
-              placeholder="Size (e.g. M, 10.5, 32x34)"
-              value={size}
-              onChange={(e) => setSize(e.target.value)}
-            />
-            <input
-              type="text"
-              className="price-finder-refine__field"
-              placeholder="Color"
-              value={color}
-              onChange={(e) => setColor(e.target.value)}
-            />
+            {category && (
+              <>
+                <select
+                  className="price-finder-refine__field"
+                  value={gender}
+                  onChange={(e) => setGender(e.target.value)}
+                  aria-label="Gender"
+                >
+                  <option value="">Men's / Women's / Kids'</option>
+                  <option value="Men's">Men's</option>
+                  <option value="Women's">Women's</option>
+                  <option value="Kids'">Kids'</option>
+                </select>
+                <input
+                  type="text"
+                  className="price-finder-refine__field"
+                  placeholder={category === 'Shoes' ? 'Size (e.g. 10.5)' : 'Size (e.g. M, 32x34)'}
+                  value={size}
+                  onChange={(e) => setSize(e.target.value)}
+                />
+                <input
+                  type="text"
+                  className="price-finder-refine__field"
+                  placeholder="Color"
+                  value={color}
+                  onChange={(e) => setColor(e.target.value)}
+                />
+              </>
+            )}
           </div>
+          <button type="submit" className="btn btn--primary btn--block">
+            <IconSearch width={16} height={16} />
+            Search
+          </button>
         </form>
         {suggestionsOpen && suggestions.length > 0 && (
           <div className="price-finder-suggestions">
