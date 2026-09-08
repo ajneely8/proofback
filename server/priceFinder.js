@@ -147,6 +147,7 @@ const RESALE_MARKETPLACE_DENYLIST = new Set([
   'depop', 'vinted', 'offerup', 'facebook marketplace', 'craigslist', 'tiktok shop', 'letgo', 'gumtree',
   'ebid', 'flip', 'kidizen', 'etsy', 'rebag', 'the realreal', 'therealreal', 'vestiaire collective',
   'worthy', 'gazelle', 'decluttr', 'unclaimed baggage', 'winmark', 'once upon a child', 'plato\'s closet',
+  'flight club', 'stadium goods', 'stadiumgoods',
 ])
 
 // Rent-to-own retailers quote a weekly/monthly rental rate as their
@@ -158,6 +159,18 @@ const RENT_TO_OWN_DENYLIST = new Set(['rent-a-center', "aaron's", 'aarons', 'aci
 
 // Stores excluded by request, not because anything was wrong with them.
 const EXCLUDED_STORES = new Set(['p.c. richard & son', 'pc richard & son', 'pc richard'])
+
+// A live test found "stockx.com" sail right past a denylist that only
+// listed "stockx" — SerpApi isn't consistent about whether a source is the
+// bare name or a domain, so every denylist check strips a common TLD
+// suffix before comparing instead of relying on exact string equality.
+function stripTld(key) {
+  return key.replace(/\.(com|net|org|io|co|us)$/, '')
+}
+
+function matchesDenylist(key, denylist) {
+  return denylist.has(key) || denylist.has(stripTld(key))
+}
 
 // Google Shopping tags a manufacturer's own first-party storefront with a
 // literal "<Brand> Official" source (confirmed live for "Dyson Official").
@@ -173,9 +186,9 @@ function resolveStore(rawSource) {
   // name before the dash.
   if (source.includes(' - ')) return null
 
-  if (RESALE_MARKETPLACE_DENYLIST.has(key)) return null
-  if (RENT_TO_OWN_DENYLIST.has(key)) return null
-  if (EXCLUDED_STORES.has(key)) return null
+  if (matchesDenylist(key, RESALE_MARKETPLACE_DENYLIST)) return null
+  if (matchesDenylist(key, RENT_TO_OWN_DENYLIST)) return null
+  if (matchesDenylist(key, EXCLUDED_STORES)) return null
 
   if (/ official$/i.test(source)) {
     const brand = source.replace(/ official$/i, '').trim()
@@ -223,11 +236,24 @@ function escapeRegExp(s) {
 // literally appear in the title; a query with no such token (a bare
 // category search, or just a brand name) is trusted as-is, same as
 // Google Shopping's own relevance ranking already handles it.
+//
+// A shoe size works the same way "65 inch" did for TVs: adding "size
+// 10.5" to a query made the literal "10.5" required, but a live test
+// showed real retailers' shopping-feed titles are per-style, not
+// per-exact-size ("Nike Men's Air Force 1 07 LV8" never mentions a size at
+// all) — so real matches for the exact style were rejected wholesale. The
+// word "size" and whatever value follows it are dropped before checking,
+// the same way "inch" is excused for a TV's dimensions above.
 function titleMatchesQuery(title, query) {
-  const tokens = query
-    .toLowerCase()
-    .split(/\s+/)
-    .filter((w) => w.length > 1 && !QUERY_STOPWORDS.has(w))
+  const raw = query.toLowerCase().split(/\s+/)
+  const tokens = []
+  for (let i = 0; i < raw.length; i++) {
+    if (raw[i] === 'size') {
+      i++ // also skip the value right after "size" (e.g. "10.5")
+      continue
+    }
+    if (raw[i].length > 1 && !QUERY_STOPWORDS.has(raw[i])) tokens.push(raw[i])
+  }
   const modelTokens = tokens.filter((w) => /\d/.test(w))
   if (!modelTokens.length) return true
   const hay = (title || '').toLowerCase()

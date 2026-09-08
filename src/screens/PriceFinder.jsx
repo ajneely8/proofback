@@ -78,6 +78,9 @@ export default function PriceFinder() {
   const [liveLoading, setLiveLoading] = useState(false)
   const [selected, setSelected] = useState(null) // the tapped match, or null
   const [suggestionsOpen, setSuggestionsOpen] = useState(false)
+  const [gender, setGender] = useState('')
+  const [size, setSize] = useState('')
+  const [color, setColor] = useState('')
 
   // Search-as-you-type help. Past searches and products the user's
   // actually bought come first (most relevant to them specifically), then
@@ -132,6 +135,21 @@ export default function PriceFinder() {
     }
   }
 
+  // Folds gender/size/color into the query text itself (e.g. "Nike Air
+  // Force 1 Men's size 10.5 black") rather than a separate filter request —
+  // testing confirmed real retailers' titles do carry these (Google
+  // Shopping's own facet panel offers Men's/Women's/Kids' for exactly this
+  // reason), so this gets genuinely more specific real matches without a
+  // second API call (a live facets round-trip would cost more of the
+  // 250-search/month quota per refinement).
+  function buildEffectiveQuery(base) {
+    const parts = [base.trim()]
+    if (gender) parts.push(gender)
+    if (size.trim()) parts.push(`size ${size.trim()}`)
+    if (color.trim()) parts.push(color.trim())
+    return parts.filter(Boolean).join(' ')
+  }
+
   function runSearch(text) {
     const q = text.trim()
     if (!q) return
@@ -145,13 +163,13 @@ export default function PriceFinder() {
   function handleSubmit(e) {
     e.preventDefault()
     setSuggestionsOpen(false)
-    runSearch(query)
+    runSearch(buildEffectiveQuery(query))
   }
 
   function handleSuggestionSelect(text) {
     setQuery(text)
     setSuggestionsOpen(false)
-    runSearch(text)
+    runSearch(buildEffectiveQuery(text))
   }
 
   function handleRemove(id) {
@@ -198,19 +216,48 @@ export default function PriceFinder() {
       </div>
 
       <div className="price-finder-search-wrap">
-        <form className="search-field" onSubmit={handleSubmit}>
-          <IconSearch />
-          <input
-            type="text"
-            placeholder="Search for a product…"
-            value={query}
-            onChange={(e) => {
-              setQuery(e.target.value)
-              setSuggestionsOpen(true)
-            }}
-            onFocus={() => setSuggestionsOpen(true)}
-            onBlur={() => setTimeout(() => setSuggestionsOpen(false), 120)}
-          />
+        <form onSubmit={handleSubmit}>
+          <div className="search-field">
+            <IconSearch />
+            <input
+              type="text"
+              placeholder="Search for a product…"
+              value={query}
+              onChange={(e) => {
+                setQuery(e.target.value)
+                setSuggestionsOpen(true)
+              }}
+              onFocus={() => setSuggestionsOpen(true)}
+              onBlur={() => setTimeout(() => setSuggestionsOpen(false), 120)}
+            />
+          </div>
+          <div className="price-finder-refine">
+            <select
+              className="price-finder-refine__field"
+              value={gender}
+              onChange={(e) => setGender(e.target.value)}
+              aria-label="Gender"
+            >
+              <option value="">Men's / Women's / Kids'</option>
+              <option value="Men's">Men's</option>
+              <option value="Women's">Women's</option>
+              <option value="Kids'">Kids'</option>
+            </select>
+            <input
+              type="text"
+              className="price-finder-refine__field"
+              placeholder="Size (e.g. 10.5)"
+              value={size}
+              onChange={(e) => setSize(e.target.value)}
+            />
+            <input
+              type="text"
+              className="price-finder-refine__field"
+              placeholder="Color"
+              value={color}
+              onChange={(e) => setColor(e.target.value)}
+            />
+          </div>
         </form>
         {suggestionsOpen && suggestions.length > 0 && (
           <div className="price-finder-suggestions">

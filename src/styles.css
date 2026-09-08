@@ -903,6 +903,30 @@ a {
   position: relative;
 }
 
+.price-finder-refine {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.price-finder-refine__field {
+  flex: 1;
+  min-width: 100px;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+  font-size: 13px;
+  font-family: inherit;
+  color: var(--text-primary);
+}
+
+.price-finder-refine__field:focus {
+  outline: none;
+  border-color: var(--accent-navy);
+}
+
 .price-finder-suggestions {
   position: absolute;
   top: 100%;
