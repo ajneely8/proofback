@@ -169,6 +169,9 @@ export default function Purchases() {
               {selectMode ? 'Cancel' : 'Select'}
             </button>
           )}
+          <Link to="/price-watch" className="page-header__action">
+            Price Watch
+          </Link>
           <Link to="/insights" className="page-header__action">
             Insights
           </Link>

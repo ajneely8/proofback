@@ -738,6 +738,85 @@ a {
   background: var(--accent-warn);
 }
 
+/* ---------- Price Watch ---------- */
+
+.price-watch-summary {
+  display: block;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 16px;
+  margin-bottom: 16px;
+  background: var(--bg-app);
+}
+
+.price-watch-summary__label {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-tertiary);
+  margin-bottom: 4px;
+}
+
+.price-watch-summary__amount {
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--accent-green);
+  letter-spacing: -0.01em;
+}
+
+.price-watch-summary__caption {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+
+.price-watch-counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  margin-top: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.price-watch-row {
+  width: 100%;
+  text-align: left;
+  border: none;
+  background: none;
+  padding: 0;
+}
+
+.price-watch-status {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+}
+
+.price-watch-status--not_checked {
+  color: var(--text-tertiary);
+}
+
+.price-watch-status--dropped {
+  color: var(--accent-green);
+}
+
+.price-watch-status--increased {
+  color: var(--accent-warn);
+}
+
+.price-watch-status--no_change {
+  color: var(--text-tertiary);
+}
+
+.price-watch-status--lower_found {
+  color: var(--accent-navy);
+}
+
 /* ---------- Digital Receipt Inbox ---------- */
 
 .inbox-counts {

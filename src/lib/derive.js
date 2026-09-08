@@ -643,9 +643,84 @@ export function getAlerts(purchases, settings = DEFAULT_SETTINGS) {
           : `Your protection information for ${productLabel(p)} is incomplete.`,
       })
     }
+
+    // Real, but dormant: nothing populates purchase.priceWatch yet (see
+    // getPriceWatchItem below — no live price source is connected), so this
+    // never actually fires today. It's wired up correctly for the moment
+    // one is, rather than needing this added later.
+    if (p.priceWatch?.status === 'dropped' && p.priceWatch.currentPrice != null) {
+      alerts.push({
+        id: `${p.id}-alert-price-drop`,
+        purchase: p,
+        type: 'price_drop',
+        urgent: false,
+        daysLeft: null,
+        message: `The price on your ${productLabel(p)} dropped to ${formatMoney(p.priceWatch.currentPrice)} — you could save ${formatMoney(p.price - p.priceWatch.currentPrice)}.`,
+      })
+    }
   })
 
   return alerts.sort((a, b) => (a.daysLeft ?? 999) - (b.daysLeft ?? 999))
+}
+
+// ---------- Price Watch ----------
+// Auto-tracks eligible purchases (real, from data already captured on
+// every scan). Current price / history / store comparison / drop status
+// all read from an optional purchase.priceWatch — nothing writes that yet
+// since no live price-comparison source is connected (see the Price Watch
+// plan). Until something does, every one of those fields honestly reads as
+// "not checked" rather than showing an invented number — never claim a
+// price is lower unless it can actually be verified.
+const PRICE_WATCH_EXCLUDED_CATEGORIES = new Set(['Dining', 'Grocery'])
+
+export function isPriceWatchEligible(purchase) {
+  return !PRICE_WATCH_EXCLUDED_CATEGORIES.has(purchase.category)
+}
+
+export function getPriceWatchItem(purchase) {
+  const pw = purchase.priceWatch
+  if (!pw) {
+    return {
+      purchase,
+      status: 'not_checked',
+      currentPrice: null,
+      checkedAt: null,
+      lowestFound: null,
+      highestFound: null,
+      history: [],
+      comparisons: [],
+      potentialSavings: 0,
+    }
+  }
+  const potentialSavings =
+    pw.currentPrice != null && pw.currentPrice < purchase.price
+      ? Math.round((purchase.price - pw.currentPrice) * 100) / 100
+      : 0
+  return {
+    purchase,
+    status: pw.status || 'not_checked',
+    currentPrice: pw.currentPrice ?? null,
+    checkedAt: pw.checkedAt ?? null,
+    lowestFound: pw.lowestFound ?? null,
+    highestFound: pw.highestFound ?? null,
+    history: Array.isArray(pw.history) ? pw.history : [],
+    comparisons: Array.isArray(pw.comparisons) ? pw.comparisons : [],
+    potentialSavings,
+  }
+}
+
+export function getPriceWatchItems(purchases) {
+  return [...purchases]
+    .filter(isPriceWatchEligible)
+    .sort((a, b) => (a.purchaseDate < b.purchaseDate ? 1 : -1))
+    .map(getPriceWatchItem)
+}
+
+export function getPriceWatchSummary(items) {
+  const potentialSavings = Math.round(items.reduce((sum, i) => sum + i.potentialSavings, 0) * 100) / 100
+  const priceDrops = items.filter((i) => i.status === 'dropped').length
+  const lowerPricesFound = items.filter((i) => i.status === 'lower_found').length
+  return { potentialSavings, trackedCount: items.length, priceDrops, lowerPricesFound }
 }
 
 // Everything the Purchase Dashboard's stat tiles need, computed once over

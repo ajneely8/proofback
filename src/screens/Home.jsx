@@ -8,6 +8,8 @@ import {
   getWarrantyState,
   getAlerts,
   getDashboardStats,
+  getPriceWatchItems,
+  getPriceWatchSummary,
   groupCasesByReceipt,
   caseActionLabel,
   formatMoney,
@@ -44,6 +46,7 @@ export default function Home() {
     .filter((a) => a.urgent || (a.daysLeft != null && a.daysLeft <= 7))
     .slice(0, 3)
   const recentPurchases = getDashboardStats(purchases, settings).recentlyAdded
+  const priceWatchSummary = getPriceWatchSummary(getPriceWatchItems(purchases))
 
   return (
     <div className="screen">
@@ -100,6 +103,16 @@ export default function Home() {
           </Link>
         </div>
       </section>
+
+      {priceWatchSummary.trackedCount > 0 && (
+        <Link to="/price-watch" className="price-watch-summary">
+          <div>
+            <div className="price-watch-summary__label">Price Watch — Potential Savings</div>
+            <div className="price-watch-summary__amount">{formatMoney(priceWatchSummary.potentialSavings)}</div>
+            <div className="price-watch-summary__caption">{priceWatchSummary.trackedCount} products tracked</div>
+          </div>
+        </Link>
+      )}
 
       {namedAlerts.length > 0 && (
         <section className="section">

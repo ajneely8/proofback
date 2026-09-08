@@ -14,6 +14,8 @@ import Auth from './screens/Auth.jsx'
 import Home from './screens/Home.jsx'
 import Purchases from './screens/Purchases.jsx'
 import Insights from './screens/Insights.jsx'
+import PriceWatch from './screens/PriceWatch.jsx'
+import PriceWatchDetail from './screens/PriceWatchDetail.jsx'
 import PurchaseDetail from './screens/PurchaseDetail.jsx'
 import ReceiptGroup from './screens/ReceiptGroup.jsx'
 import EvidencePackage from './screens/EvidencePackage.jsx'
@@ -110,6 +112,8 @@ export default function App() {
               <Route path="/" element={<Home />} />
               <Route path="/purchases" element={<Purchases />} />
               <Route path="/insights" element={<Insights />} />
+              <Route path="/price-watch" element={<PriceWatch />} />
+              <Route path="/price-watch/:id" element={<PriceWatchDetail />} />
               <Route path="/purchases/:id" element={<PurchaseDetail />} />
               <Route path="/receipt/:groupKey" element={<ReceiptGroup />} />
               <Route path="/purchases/:id/evidence" element={<EvidencePackage />} />
