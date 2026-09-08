@@ -156,6 +156,9 @@ const RESALE_MARKETPLACE_DENYLIST = new Set([
 // from a financing plan.
 const RENT_TO_OWN_DENYLIST = new Set(['rent-a-center', "aaron's", 'aarons', 'acima', 'progressive leasing'])
 
+// Stores excluded by request, not because anything was wrong with them.
+const EXCLUDED_STORES = new Set(['p.c. richard & son', 'pc richard & son', 'pc richard'])
+
 // Google Shopping tags a manufacturer's own first-party storefront with a
 // literal "<Brand> Official" source (confirmed live for "Dyson Official").
 function resolveStore(rawSource) {
@@ -172,6 +175,7 @@ function resolveStore(rawSource) {
 
   if (RESALE_MARKETPLACE_DENYLIST.has(key)) return null
   if (RENT_TO_OWN_DENYLIST.has(key)) return null
+  if (EXCLUDED_STORES.has(key)) return null
 
   if (/ official$/i.test(source)) {
     const brand = source.replace(/ official$/i, '').trim()
