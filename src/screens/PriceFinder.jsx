@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { usePurchases } from '../lib/PurchasesContext.jsx'
 import { useAuth } from '../lib/AuthContext.jsx'
@@ -77,11 +77,44 @@ export default function PriceFinder() {
   const [live, setLive] = useState(null) // { status, matches, checkedAt } | null
   const [liveLoading, setLiveLoading] = useState(false)
   const [selected, setSelected] = useState(null) // the tapped match, or null
+  const [realLink, setRealLink] = useState(null) // the selected match's actual merchant page, once found
   const [suggestionsOpen, setSuggestionsOpen] = useState(false)
   const [category, setCategory] = useState('') // '' | 'Shoes' | 'Clothing'
   const [gender, setGender] = useState('')
   const [size, setSize] = useState('')
   const [color, setColor] = useState('')
+
+  // selected.link is a Google search-results redirect, not the merchant's
+  // own product page — the real one costs a separate SerpApi request (see
+  // getProductLink in server/priceFinder.js), so it's only looked up once
+  // someone actually opens a product's detail sheet, not for every result
+  // in a search (which would multiply the 250-search/month quota usage by
+  // however many results a search returns). Falls back to the Google link
+  // — always clickable — if the lookup fails or is still in flight.
+  useEffect(() => {
+    if (!selected?.pageToken) {
+      setRealLink(null)
+      return
+    }
+    let cancelled = false
+    setRealLink(null)
+    fetch('/api/price-finder-product-link', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+      },
+      body: JSON.stringify({ pageToken: selected.pageToken, store: selected.store }),
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (!cancelled) setRealLink(data.link || null)
+      })
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
+  }, [selected])
 
   // Search-as-you-type help. Past searches and products the user's
   // actually bought come first (most relevant to them specifically), then
@@ -465,10 +498,20 @@ export default function PriceFinder() {
               <strong>Not verified — check the store</strong>
             </div>
             {selected.snippet && <p className="field-hint field-hint--block">{selected.snippet}</p>}
-            {selected.link && (
-              <a className="btn btn--primary btn--block" href={selected.link} target="_blank" rel="noopener noreferrer">
+            {(realLink || selected.link) && (
+              <a
+                className="btn btn--primary btn--block"
+                href={realLink || selected.link}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
                 View at {selected.store}
               </a>
+            )}
+            {!realLink && selected.pageToken && (
+              <p className="field-hint field-hint--block" style={{ textAlign: 'center', marginTop: 6 }}>
+                Finding the direct product page…
+              </p>
             )}
           </div>
         </div>

@@ -4,25 +4,25 @@
  * api/price-finder-search.js (Vercel serverless function), same split as
  * server/scanReceipt.js and server/checkRecall.js.
  *
- * Every real company selling the product is shown, not just a hand-picked
- * list of major retailers — per explicit instruction to make this behave
- * like an actual Google product search. What's still filtered out: used/
- * refurbished listings (a different product than a new one), third-party
- * marketplace sellers riding on a bigger platform's storefront (e.g.
- * "Walmart - TheRightOne" is a random seller, not Walmart itself), and a
- * denylist of known resale/auction marketplaces (eBay, Poshmark, StockX,
- * etc.) — none of those are a store "having" the product in the sense this
- * feature means. Anything else Google Shopping names as the source is
- * trusted and shown as itself.
+ * This briefly opened up to any store Google Shopping named (blocking only
+ * known resale marketplaces and third-party marketplace sellers), but that
+ * let through small/unfamiliar/foreign storefronts (a Croatian electronics
+ * site, a bearings-parts supplier, etc.) that don't belong next to real
+ * purchase decisions — reverted back to only known major retailers and
+ * brand-direct stores, per explicit instruction. RETAILER_DISPLAY_NAMES is
+ * the actual gate now (not just a display-name cleanup) — expand it with
+ * more big/recognizable names as real searches turn them up, but don't
+ * open the gate itself back up.
  */
 
 const SERPAPI_URL = 'https://serpapi.com/search.json'
 const MAX_MATCHES = 30
 
-// Not a gate anymore (see resolveStore) — just cleans up display names for
-// stores commonly seen in inconsistent casing/punctuation (e.g. "bestbuy"
-// or "kohl's.com" both becoming "Best Buy"/"Kohl's"). A source not listed
-// here is still shown, using SerpApi's own name for it as-is.
+// The actual gate (see resolveStore): only a store listed here — a known
+// big/recognizable retailer or brand-direct store — is ever shown. Keys are
+// the lowercased forms SerpApi's `source` field commonly takes (handles
+// inconsistent casing/punctuation, e.g. "bestbuy" or "kohl's.com" both
+// becoming "Best Buy"/"Kohl's"); values are the clean display name.
 const RETAILER_DISPLAY_NAMES = {
   // General / big-box
   walmart: 'Walmart',
@@ -190,12 +190,17 @@ function resolveStore(rawSource) {
   if (matchesDenylist(key, RENT_TO_OWN_DENYLIST)) return null
   if (matchesDenylist(key, EXCLUDED_STORES)) return null
 
+  // A manufacturer's own first-party storefront is trusted regardless of
+  // whether the brand is individually hand-listed below — "Official" is
+  // Google Shopping's own signal for this, not a guess.
   if (/ official$/i.test(source)) {
     const brand = source.replace(/ official$/i, '').trim()
     return brand || null
   }
 
-  return RETAILER_DISPLAY_NAMES[key] || source
+  // Only a store on the known-big-retailer list below gets shown —
+  // anything else (regardless of how plausible it looks) is left out.
+  return RETAILER_DISPLAY_NAMES[key] || null
 }
 
 function isConfigured() {
@@ -325,7 +330,12 @@ export async function searchProductPrices(query) {
         title: r.title,
         price: r.extracted_price,
         oldPrice: typeof r.extracted_old_price === 'number' ? r.extracted_old_price : null,
+        // r.product_link is a Google search-results redirect, not the
+        // merchant's own product page — kept as an immediate, always-
+        // working fallback while the real link (see getProductLink below)
+        // is looked up lazily once someone actually opens this product.
         link: r.product_link || null,
+        pageToken: r.immersive_product_page_token || null,
         rating: typeof r.rating === 'number' ? r.rating : null,
         reviews: typeof r.reviews === 'number' ? r.reviews : null,
         thumbnail: r.thumbnail || null,
@@ -349,5 +359,39 @@ export async function searchProductPrices(query) {
     // Network error, timeout, or an unparseable response — fail quietly,
     // same as checkRecall.js.
     return { status: 'error', query: term, matches: [], checkedAt }
+  }
+}
+
+/**
+ * Looks up the real merchant product page for one search result, via
+ * SerpApi's google_immersive_product engine (the page_token for this comes
+ * from the original shopping result — see pageToken above). Deliberately
+ * NOT called for every result in a search: that would cost one extra
+ * SerpApi request per result (up to MAX_MATCHES of them) against the same
+ * 250-search/month quota the search itself uses. Called once, lazily, only
+ * when a specific product's detail sheet is actually opened.
+ *
+ * pageToken: from a match's `pageToken` field. store: that match's `store`,
+ * used to pick the right entry out of product_results.stores (the same
+ * underlying product can be sold by several stores; a live test showed a
+ * single result's immersive page lists all of them, not just the one
+ * originally clicked). Returns { link: string | null }. Never throws.
+ */
+export async function getProductLink(pageToken, store) {
+  if (!isConfigured() || !pageToken) return { link: null }
+  try {
+    const url = `${SERPAPI_URL}?engine=google_immersive_product&page_token=${encodeURIComponent(pageToken)}&api_key=${process.env.SERPAPI_API_KEY}`
+    const res = await fetch(url, { signal: AbortSignal.timeout(8000) })
+    if (!res.ok) return { link: null }
+
+    const data = await res.json()
+    const stores = data.product_results?.stores
+    if (!Array.isArray(stores) || !stores.length) return { link: null }
+
+    const wanted = (store || '').trim().toLowerCase()
+    const found = stores.find((s) => (s.name || '').trim().toLowerCase() === wanted)
+    return { link: (found || stores[0])?.link || null }
+  } catch {
+    return { link: null }
   }
 }
