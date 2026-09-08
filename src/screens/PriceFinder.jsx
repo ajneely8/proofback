@@ -14,15 +14,13 @@ const LIVE_ERROR_MESSAGES = {
   no_verified_results: "Unable to verify current prices for this product at major retailers.",
 }
 
-// The retailer's own icon for this result, falling back to a guessed store
-// logo, same as purchaseLogoCandidates does for a saved purchase's store —
-// used both as the corner badge on a product photo and standalone in the
-// detail sheet.
+// The retailer's real logo, guessed from its domain (Google favicon, then
+// Clearbit) — the same approach Thumb.jsx uses for a saved purchase's
+// store. Deliberately NOT SerpApi's source_icon: that field turned out to
+// be a generic Google Shopping merchant badge (the same plain price-tag
+// glyph for every "Best Buy" result), not the retailer's actual logo.
 function StoreLogo({ match, className }) {
-  const candidates = useMemo(() => {
-    const guessed = logoCandidatesFor(match.store)
-    return match.sourceIcon && !guessed.includes(match.sourceIcon) ? [match.sourceIcon, ...guessed] : guessed
-  }, [match.store, match.sourceIcon])
+  const candidates = useMemo(() => logoCandidatesFor(match.store), [match.store])
   const [index, setIndex] = useState(0)
 
   if (index >= candidates.length) return null

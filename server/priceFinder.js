@@ -95,7 +95,10 @@ export async function searchProductPrices(query) {
         rating: typeof r.rating === 'number' ? r.rating : null,
         reviews: typeof r.reviews === 'number' ? r.reviews : null,
         thumbnail: r.thumbnail || null,
-        sourceIcon: r.source_icon || null,
+        // Not r.source_icon: SerpApi's icon there is a generic Google
+        // Shopping merchant badge (e.g. a plain price-tag glyph for every
+        // "Best Buy" result), not the retailer's actual logo — the client
+        // guesses a real one from the store's domain instead.
         delivery: r.delivery || null,
         snippet: r.snippet || null,
         // SerpApi's shopping results don't reliably carry an explicit

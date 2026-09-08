@@ -99,16 +99,19 @@ function guessStoreDomain(store) {
 }
 
 /**
- * Clearbit's logo API serves a company's logo directly from its domain —
- * https://logo.clearbit.com/nike.com — with no key or request needed on our
- * end; the browser just loads the URL as an <img src>. Since it's a direct
- * image URL rather than a search result, there's nothing to fetch or
- * validate server-side: an unrecognized domain simply 404s in the browser,
- * which the client already treats as "no logo" for that item.
+ * unavatar.io serves a company's logo directly from its domain —
+ * https://unavatar.io/nike.com — with no key or request needed on our end;
+ * the browser just loads the URL as an <img src>. `fallback=false` makes it
+ * 404 on a miss instead of a generic placeholder avatar, which the client
+ * already treats as "no logo" for that item (same as src/lib/logo.js's
+ * client-side guess, which this mirrors). Was Clearbit's direct logo
+ * endpoint until that was pulled entirely — the domain no longer resolves
+ * at all, so every purchase saved with it would carry a permanently dead
+ * logoUrl.
  */
 function logoUrlFor(name) {
   const domain = guessStoreDomain(name)
-  return domain ? `https://logo.clearbit.com/${domain}?size=160` : null
+  return domain ? `https://unavatar.io/${domain}?fallback=false` : null
 }
 
 // null means "never returnable" — no deadline gets computed at all, not

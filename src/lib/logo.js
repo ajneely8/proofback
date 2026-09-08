@@ -39,23 +39,27 @@ function guessDomain(name) {
   return guess ? `${guess}.com` : null
 }
 
-// Google's favicon service goes first — it's been stable for over a decade
-// and virtually always resolves, even though the result is a small icon
-// rather than a full logo. Clearbit's logo endpoint is tried second: when it
-// works it's a nicer, bigger brand mark, but it's proven too unreliable
-// (slow, rate-limited, or outright unreachable depending on network) to lead
-// with. Returns [] (not null) when there's no name to guess a domain from at
-// all, so callers can just check .length.
+// unavatar.io tries several logo providers per domain and serves whichever
+// actually has a real brand mark — it goes first because it usually returns
+// the retailer's full wordmark (e.g. Best Buy's actual "BEST BUY" logo),
+// not just a bare favicon. `fallback=false` makes it 404 on a miss instead
+// of a generic placeholder avatar, so a real miss still falls through to
+// the next candidate instead of silently showing the wrong image. Google's
+// favicon service is the fallback after that: it's been stable for over a
+// decade and virtually always resolves, even though the result is just a
+// small icon (Best Buy's, for instance, is literally just their yellow tag
+// mark with no wordmark). Clearbit's own direct logo endpoint used to be
+// tried too, but it's been pulled entirely — the domain no longer resolves
+// at all — so it's not listed as a candidate. Returns [] (not null) when
+// there's no name to guess a domain from at all, so callers can just check
+// .length.
 export function logoCandidatesFor(name) {
   const domain = guessDomain(name)
   if (!domain) return []
-  return [
-    `https://www.google.com/s2/favicons?domain=${domain}&sz=128`,
-    `https://logo.clearbit.com/${domain}?size=160`,
-  ]
+  return [`https://unavatar.io/${domain}?fallback=false`, `https://www.google.com/s2/favicons?domain=${domain}&sz=128`]
 }
 
-// Candidates computed from brand/store lead (Google favicon, then Clearbit)
+// Candidates computed from brand/store lead (unavatar, then Google favicon)
 // so this always tries the more reliable source first, regardless of which
 // one a scan happened to save. A purchase's own logoUrl is appended as a
 // last resort in case it points somewhere the domain guess wouldn't.
