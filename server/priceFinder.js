@@ -49,6 +49,44 @@ const RETAILER_DISPLAY_NAMES = {
   'rite aid': 'Rite Aid',
   heb: 'H-E-B',
   'h-e-b': 'H-E-B',
+  // Grocery — built from real queries across common grocery items (milk,
+  // eggs, bread, produce, etc.); left out the small farm-direct/one-off
+  // sellers that turned up alongside these (real, but not the "big,
+  // recognizable company" bar this list is meant to hold to).
+  'whole foods market': 'Whole Foods Market',
+  'whole foods': 'Whole Foods Market',
+  sprouts: 'Sprouts Farmers Market',
+  'sprouts farmers market': 'Sprouts Farmers Market',
+  shoprite: 'ShopRite',
+  'hy-vee': 'Hy-Vee',
+  hyvee: 'Hy-Vee',
+  "bj's wholesale club": "BJ's Wholesale Club",
+  freshdirect: 'FreshDirect',
+  'save mart': 'Save Mart',
+  "raley's": "Raley's",
+  'dierbergs markets': 'Dierbergs Markets',
+  fareway: 'Fareway',
+  'fareway.com': 'Fareway',
+  "coborn's": "Coborn's",
+  'coborns.com': "Coborn's",
+  'fairway market': 'Fairway Market',
+  'fairwaymarket.com': 'Fairway Market',
+  "brookshire's": "Brookshire's",
+  'brookshires.com': "Brookshire's",
+  'thrive market': 'Thrive Market',
+  'vitacost.com': 'Vitacost',
+  vitacost: 'Vitacost',
+  'gordon food service store': 'Gordon Food Service',
+  foodmaxx: 'FoodMaxx',
+  'food bazaar supermarket': 'Food Bazaar',
+  'lowes foods': 'Lowes Foods',
+  'rosauers supermarkets': "Rosauer's",
+  "yoke's fresh market": "Yoke's Fresh Market",
+  'king arthur baking': 'King Arthur Baking',
+  'king arthur': 'King Arthur Baking',
+  'perdue farms': 'Perdue Farms',
+  "d'artagnan": "D'Artagnan",
+  'wild fork foods': 'Wild Fork Foods',
   // Home improvement / home goods
   'home depot': 'Home Depot',
   'the home depot': 'Home Depot',
@@ -157,6 +195,11 @@ const RESALE_MARKETPLACE_DENYLIST = new Set([
 // from a financing plan.
 const RENT_TO_OWN_DENYLIST = new Set(['rent-a-center', "aaron's", 'aarons', 'acima', 'progressive leasing'])
 
+// Grocery-delivery aggregators list many different real stores' own
+// inventory under one "source" name at a marked-up delivery price — not a
+// single store selling the product at its own shelf price.
+const DELIVERY_MARKETPLACE_DENYLIST = new Set(['instacart', 'shipt', 'doordash', 'uber eats', 'gopuff'])
+
 // Stores excluded by request, not because anything was wrong with them.
 const EXCLUDED_STORES = new Set(['p.c. richard & son', 'pc richard & son', 'pc richard'])
 
@@ -188,6 +231,7 @@ function resolveStore(rawSource) {
 
   if (matchesDenylist(key, RESALE_MARKETPLACE_DENYLIST)) return null
   if (matchesDenylist(key, RENT_TO_OWN_DENYLIST)) return null
+  if (matchesDenylist(key, DELIVERY_MARKETPLACE_DENYLIST)) return null
   if (matchesDenylist(key, EXCLUDED_STORES)) return null
 
   // A manufacturer's own first-party storefront is trusted regardless of
