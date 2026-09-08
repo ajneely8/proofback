@@ -21,6 +21,24 @@
 
 const SERPAPI_URL = 'https://serpapi.com/search.json'
 const MAX_MATCHES = 30
+const REQUEST_TIMEOUT_MS = 15000
+
+// Live testing surfaced real, reproducible TimeoutErrors at the old 8s
+// timeout even though the same request finished in ~200ms when tried
+// directly — SerpApi (or the path to it) is occasionally just slower than
+// that from here. Retrying once, after a genuine timeout or network
+// failure specifically (not an HTTP error response, which is real and
+// shouldn't be retried), turns an intermittent "couldn't reach the
+// service" into a successful search most of the time.
+async function fetchWithRetry(url) {
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      return await fetch(url, { signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) })
+    } catch (err) {
+      if (attempt === 1) throw err
+    }
+  }
+}
 
 // The actual gate (see resolveStore): only a store listed here — a known
 // big/recognizable retailer or brand-direct store — is ever shown. Keys are
@@ -321,7 +339,7 @@ export async function searchProductPrices(query) {
 
   try {
     const url = `${SERPAPI_URL}?engine=google_shopping&q=${encodeURIComponent(term)}&api_key=${process.env.SERPAPI_API_KEY}`
-    const res = await fetch(url, { signal: AbortSignal.timeout(8000) })
+    const res = await fetchWithRetry(url)
     if (!res.ok) return { status: 'error', query: term, matches: [], checkedAt }
 
     const data = await res.json()
@@ -399,8 +417,8 @@ export async function searchProductPrices(query) {
     if (!matches.length) return { status: 'no_verified_results', query: term, matches: [], checkedAt }
     return { status: 'results', query: term, matches, checkedAt }
   } catch {
-    // Network error, timeout, or an unparseable response — fail quietly,
-    // same as checkRecall.js.
+    // Network error, timeout (even after the retry above), or an
+    // unparseable response — fail quietly, same as checkRecall.js.
     return { status: 'error', query: term, matches: [], checkedAt }
   }
 }
@@ -424,7 +442,7 @@ export async function getProductLink(pageToken, store) {
   if (!isConfigured() || !pageToken) return { link: null }
   try {
     const url = `${SERPAPI_URL}?engine=google_immersive_product&page_token=${encodeURIComponent(pageToken)}&api_key=${process.env.SERPAPI_API_KEY}`
-    const res = await fetch(url, { signal: AbortSignal.timeout(8000) })
+    const res = await fetchWithRetry(url)
     if (!res.ok) return { link: null }
 
     const data = await res.json()
