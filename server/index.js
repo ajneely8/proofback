@@ -8,6 +8,7 @@
 import express from 'express'
 import { scanReceipt, scanReceiptWarnings } from './scanReceipt.js'
 import { checkRecall } from './checkRecall.js'
+import { searchProductPrices } from './priceFinder.js'
 import { getAuthedUser, isAuthConfigured } from './auth.js'
 import { checkScanAllowed, recordScanUsed, FREE_PURCHASE_LIMIT } from './scanLimit.js'
 import { isTierConfigured } from './stripeClient.js'
@@ -62,6 +63,22 @@ app.post('/api/check-recall', async (req, res) => {
     }
   }
   const result = await checkRecall(req.body?.query)
+  res.status(200).json(result)
+})
+
+app.post('/api/price-finder-search', async (req, res) => {
+  // Anonymous visitors (using their free-scan trial, see src/App.jsx) can
+  // use Price Finder too — only reject a request that sent a broken/expired
+  // token, same pattern as /api/scan-receipt, not simply because none was
+  // sent.
+  if (isAuthConfigured() && req.headers.authorization) {
+    const user = await getAuthedUser(req.headers.authorization)
+    if (!user) {
+      res.status(401).json({ error: 'unauthorized' })
+      return
+    }
+  }
+  const result = await searchProductPrices(req.body?.query)
   res.status(200).json(result)
 })
 

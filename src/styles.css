@@ -888,6 +888,71 @@ a {
   line-height: 1;
 }
 
+.price-finder-owned {
+  margin-bottom: 16px;
+}
+
+.price-finder-table {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.price-finder-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 2px 12px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-app);
+}
+
+.price-finder-row:last-child {
+  border-bottom: none;
+}
+
+.price-finder-row--lowest {
+  background: var(--accent-green-bg);
+}
+
+.price-finder-row__store {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.price-finder-row__tag {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--accent-green);
+}
+
+.price-finder-row__title {
+  grid-column: 1;
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+
+.price-finder-row__price {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  align-self: center;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.price-finder-row--lowest .price-finder-row__price {
+  color: var(--accent-green);
+}
+
 /* ---------- Digital Receipt Inbox ---------- */
 
 .inbox-counts {
