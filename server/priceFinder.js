@@ -4,34 +4,26 @@
  * api/price-finder-search.js (Vercel serverless function), same split as
  * server/scanReceipt.js and server/checkRecall.js.
  *
- * Google Shopping's raw results are NOT limited to major retailers — a live
- * test query returned eBay, Poshmark, and third-party marketplace sellers
- * (e.g. "Walmart - TheRightOne") mixed in with genuine Walmart/Best Buy/etc.
- * listings, plus a used unit with no price-comparable new one. So the real
- * work here isn't calling the API, it's filtering its output down to
- * listings this app can actually stand behind: a known major retailer,
- * selling new (not used/refurbished), with a real extracted price. Anything
- * that doesn't clear that bar is left out rather than shown as if it were
- * comparable — never invent a retailer price, and never let two different
- * products/conditions masquerade as the same comparison.
+ * Every real company selling the product is shown, not just a hand-picked
+ * list of major retailers — per explicit instruction to make this behave
+ * like an actual Google product search. What's still filtered out: used/
+ * refurbished listings (a different product than a new one), third-party
+ * marketplace sellers riding on a bigger platform's storefront (e.g.
+ * "Walmart - TheRightOne" is a random seller, not Walmart itself), and a
+ * denylist of known resale/auction marketplaces (eBay, Poshmark, StockX,
+ * etc.) — none of those are a store "having" the product in the sense this
+ * feature means. Anything else Google Shopping names as the source is
+ * trusted and shown as itself.
  */
 
 const SERPAPI_URL = 'https://serpapi.com/search.json'
-const MAX_MATCHES = 20
+const MAX_MATCHES = 30
 
-// Normalized major-retailer and brand-direct-store names this app will
-// actually show a price for — matched case-insensitively against SerpApi's
-// `source` field. Keys are the lowercased forms `source` commonly takes;
-// values are the clean display name. A `source` with anything appended
-// after it (e.g. "Walmart - TheRightOne", a marketplace seller, not Walmart
-// itself) is rejected by the exact-match check below, not fuzzy-matched in
-// — except the explicit "<brand> Official" pattern handled separately by
-// resolveStore(), since that specific suffix is Google Shopping's own
-// signal for a manufacturer's first-party store, not a marketplace seller.
-// This list was built from real query results across several product
-// categories (electronics, apparel, appliances, home goods) — expand it
-// with more names as real searches turn up other legitimate retailers.
-const RETAILER_ALLOWLIST = {
+// Not a gate anymore (see resolveStore) — just cleans up display names for
+// stores commonly seen in inconsistent casing/punctuation (e.g. "bestbuy"
+// or "kohl's.com" both becoming "Best Buy"/"Kohl's"). A source not listed
+// here is still shown, using SerpApi's own name for it as-is.
+const RETAILER_DISPLAY_NAMES = {
   // General / big-box
   walmart: 'Walmart',
   target: 'Target',
@@ -145,20 +137,48 @@ const RETAILER_ALLOWLIST = {
   skechers: 'Skechers',
 }
 
+// Resale/auction/peer-to-peer marketplaces — real companies, but not a
+// "store selling this product" in the sense this feature means: prices
+// there are set by individual sellers, not the platform, and items are
+// frequently used even when not flagged as such. Built from live testing
+// plus well-known resale platforms; expand as more turn up.
+const RESALE_MARKETPLACE_DENYLIST = new Set([
+  'ebay', 'poshmark', 'mercari', 'whatnot', 'bonanza', 'stockx', 'goat', 'swappa', 'thredup', 'grailed',
+  'depop', 'vinted', 'offerup', 'facebook marketplace', 'craigslist', 'tiktok shop', 'letgo', 'gumtree',
+  'ebid', 'flip', 'kidizen', 'etsy', 'rebag', 'the realreal', 'therealreal', 'vestiaire collective',
+  'worthy', 'gazelle', 'decluttr', 'unclaimed baggage', 'winmark', 'once upon a child', 'plato\'s closet',
+])
+
+// Rent-to-own retailers quote a weekly/monthly rental rate as their
+// "price" (a live test showed Rent-A-Center listing $23.99 for a TV
+// priced $999+ everywhere else) — not the item's purchase price, and not
+// caught by the installment-field check since it's structured differently
+// from a financing plan.
+const RENT_TO_OWN_DENYLIST = new Set(['rent-a-center', "aaron's", 'aarons', 'acima', 'progressive leasing'])
+
 // Google Shopping tags a manufacturer's own first-party storefront with a
-// literal "<Brand> Official" source (confirmed live for "Dyson Official") —
-// a real, specific signal distinct from a marketplace-seller suffix like
-// "Walmart - TheRightOne", so it's trusted even for brands not individually
-// hand-listed above.
+// literal "<Brand> Official" source (confirmed live for "Dyson Official").
 function resolveStore(rawSource) {
   const source = (rawSource || '').trim()
+  if (!source) return null
   const key = source.toLowerCase()
-  if (Object.prototype.hasOwnProperty.call(RETAILER_ALLOWLIST, key)) return RETAILER_ALLOWLIST[key]
+
+  // A third-party seller riding on a bigger platform's marketplace (e.g.
+  // "Walmart - TheRightOne", "Bonanza - Some Little Shop") isn't the
+  // platform itself selling — the seller after the dash is unverified,
+  // so the whole listing is rejected rather than credited to the platform
+  // name before the dash.
+  if (source.includes(' - ')) return null
+
+  if (RESALE_MARKETPLACE_DENYLIST.has(key)) return null
+  if (RENT_TO_OWN_DENYLIST.has(key)) return null
+
   if (/ official$/i.test(source)) {
     const brand = source.replace(/ official$/i, '').trim()
     return brand || null
   }
-  return null
+
+  return RETAILER_DISPLAY_NAMES[key] || source
 }
 
 function isConfigured() {
@@ -230,14 +250,37 @@ export async function searchProductPrices(query) {
     const data = await res.json()
     const results = Array.isArray(data.shopping_results) ? data.shopping_results : []
 
-    const matches = results
+    const candidates = results.filter((r) => {
+      if (r.second_hand_condition) return false // used/refurbished — a different product
+      if (USED_TITLE_PATTERN.test(r.title || '')) return false // caught by title even when the field above isn't set
+      if (r.installment) return false // a "$29/mo" financing price, not the item's actual price
+      if (typeof r.extracted_price !== 'number') return false // no verifiable price
+      if (!titleMatchesQuery(r.title, term)) return false // a different product than what was searched
+      return !!resolveStore(r.source)
+    })
+
+    // Two quality checks now that any real store name is accepted, not
+    // just a curated list — a live test opening that up returned a $22.45
+    // listing for a $650 vacuum (from a store whose other listings for the
+    // same item were $585-$744) and a bearings-parts supplier selling the
+    // same vacuum, neither of which showed up on a curated list because
+    // they were never trustworthy, not because they were merely unknown.
+    const prices = candidates.map((r) => r.extracted_price).sort((a, b) => a - b)
+    const median = prices.length ? prices[Math.floor(prices.length / 2)] : null
+
+    const matches = candidates
       .filter((r) => {
-        if (r.second_hand_condition) return false // used/refurbished — a different product
-        if (USED_TITLE_PATTERN.test(r.title || '')) return false // caught by title even when the field above isn't set
-        if (r.installment) return false // a "$29/mo" financing price, not the item's actual price
-        if (typeof r.extracted_price !== 'number') return false // no verifiable price
-        if (!titleMatchesQuery(r.title, term)) return false // a different product than what was searched
-        return !!resolveStore(r.source)
+        // An implausibly-cheap outlier vs. everyone else pricing the same
+        // product — only checked with enough listings to trust the
+        // median, and only against being too LOW (a high price isn't
+        // itself suspicious the way a "too good to be true" one is).
+        if (median && prices.length >= 3 && r.extracted_price < median * 0.3) return false
+        // No rating AND no review count at all — every legitimate listing
+        // in testing had at least one of these; a store with neither read
+        // as an automated reseller with no real track record rather than
+        // an actual storefront.
+        if (r.rating == null && r.reviews == null) return false
+        return true
       })
       .map((r) => ({
         store: resolveStore(r.source),
