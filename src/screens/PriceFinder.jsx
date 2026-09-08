@@ -1,9 +1,10 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { usePurchases } from '../lib/PurchasesContext.jsx'
 import { useAuth } from '../lib/AuthContext.jsx'
 import { searchPurchasesForPriceFinder, formatMoney, formatDate, productLabel } from '../lib/derive.js'
 import { loadRecentSearches, addRecentSearch, removeRecentSearch, clearRecentSearches } from '../lib/priceFinderHistory.js'
+import { logoCandidatesFor } from '../lib/logo.js'
 import { IconChevronLeft, IconSearch } from '../components/Icons.jsx'
 import Thumb from '../components/Thumb.jsx'
 
@@ -11,6 +12,38 @@ const LIVE_ERROR_MESSAGES = {
   not_configured: "Live price search isn't set up yet.",
   error: "Couldn't reach the price-search service right now — try again in a moment.",
   no_verified_results: "Unable to verify current prices for this product at major retailers.",
+}
+
+// Product photo (real, from the search result) with the retailer's own icon
+// badged in the corner — falls back to a guessed store logo, then an
+// initial, exactly like Thumb.jsx does for a saved purchase's store.
+function PriceFinderThumb({ match }) {
+  const [photoOk, setPhotoOk] = useState(true)
+  const logoCandidates = useMemo(() => {
+    const guessed = logoCandidatesFor(match.store)
+    return match.sourceIcon && !guessed.includes(match.sourceIcon) ? [match.sourceIcon, ...guessed] : guessed
+  }, [match.store, match.sourceIcon])
+  const [logoIndex, setLogoIndex] = useState(0)
+
+  return (
+    <div className="price-finder-thumb">
+      <div className="thumb thumb--md">
+        {photoOk && match.thumbnail ? (
+          <img src={match.thumbnail} alt="" onError={() => setPhotoOk(false)} />
+        ) : (
+          <span className="price-finder-thumb__fallback">{(match.store || '?').charAt(0)}</span>
+        )}
+      </div>
+      {logoIndex < logoCandidates.length && (
+        <img
+          className="price-finder-thumb__logo"
+          src={logoCandidates[logoIndex]}
+          alt=""
+          onError={() => setLogoIndex((i) => i + 1)}
+        />
+      )}
+    </div>
+  )
 }
 
 export default function PriceFinder() {
@@ -154,21 +187,26 @@ export default function PriceFinder() {
                   savings: <strong className="text-accent">{formatMoney(highest.price - lowest.price)}</strong>
                 </p>
               )}
-              <div className="price-finder-table">
+              <div className="list">
                 {liveMatches.map((m, i) => (
                   <a
                     key={i}
-                    className={'price-finder-row' + (i === 0 ? ' price-finder-row--lowest' : '')}
+                    className={'list-row price-finder-list-row' + (i === 0 ? ' price-finder-list-row--lowest' : '')}
                     href={m.link || undefined}
                     target="_blank"
                     rel="noopener noreferrer"
                   >
-                    <div className="price-finder-row__store">
-                      {m.store}
-                      {i === 0 && <span className="price-finder-row__tag">Lowest</span>}
+                    <PriceFinderThumb match={m} />
+                    <div className="list-row__main">
+                      <div className="list-row__title">{m.title}</div>
+                      <div className="list-row__line">
+                        {m.store}
+                        {i === 0 && <span className="price-finder-row__tag"> · Lowest</span>}
+                      </div>
                     </div>
-                    <div className="price-finder-row__title">{m.title}</div>
-                    <div className="price-finder-row__price">{formatMoney(m.price)}</div>
+                    <div className="list-row__trailing">
+                      <div className="list-row__price">{formatMoney(m.price)}</div>
+                    </div>
                   </a>
                 ))}
               </div>

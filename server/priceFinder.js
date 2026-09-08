@@ -93,6 +93,8 @@ export async function searchProductPrices(query) {
         link: r.product_link || null,
         rating: typeof r.rating === 'number' ? r.rating : null,
         reviews: typeof r.reviews === 'number' ? r.reviews : null,
+        thumbnail: r.thumbnail || null,
+        sourceIcon: r.source_icon || null,
         // SerpApi's shopping results don't reliably carry an explicit
         // in-stock flag — omit the claim entirely rather than assume.
       }))
