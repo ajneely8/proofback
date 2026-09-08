@@ -692,10 +692,15 @@ export function getPriceWatchItem(purchase) {
       potentialSavings: 0,
     }
   }
-  const potentialSavings =
-    pw.currentPrice != null && pw.currentPrice < purchase.price
-      ? Math.round((purchase.price - pw.currentPrice) * 100) / 100
-      : 0
+  const comparisons = Array.isArray(pw.comparisons) ? pw.comparisons : []
+  // Whichever real signal shows the bigger honest opportunity — a tracked
+  // price drop on the same item, or a verified cheaper price at another
+  // store — so this number never contradicts a Best Deal callout sitting
+  // right next to it on the same page.
+  const dropSavings = pw.currentPrice != null && pw.currentPrice < purchase.price ? purchase.price - pw.currentPrice : 0
+  const bestComparisonPrice = comparisons.filter((c) => c.verified && c.price < purchase.price).map((c) => c.price)
+  const comparisonSavings = bestComparisonPrice.length ? purchase.price - Math.min(...bestComparisonPrice) : 0
+  const potentialSavings = Math.round(Math.max(dropSavings, comparisonSavings) * 100) / 100
   return {
     purchase,
     status: pw.status || 'not_checked',
@@ -704,7 +709,7 @@ export function getPriceWatchItem(purchase) {
     lowestFound: pw.lowestFound ?? null,
     highestFound: pw.highestFound ?? null,
     history: Array.isArray(pw.history) ? pw.history : [],
-    comparisons: Array.isArray(pw.comparisons) ? pw.comparisons : [],
+    comparisons,
     potentialSavings,
   }
 }
@@ -1161,4 +1166,20 @@ export function applySearchFilter(purchases, filter) {
     }
     return true
   })
+}
+
+// Price Finder's search: ProofBack has no external product catalog to
+// search against (see the Price Finder plan), so "searching for a
+// product" can only ever mean searching the purchases already on this
+// account — real data, no fabricated matches. Same order-independent
+// word matching as applySearchFilter's keyword branch above.
+export function searchPurchasesForPriceFinder(query, purchases) {
+  const words = (query || '').toLowerCase().trim().split(/\s+/).filter(Boolean)
+  if (!words.length) return []
+  return purchases
+    .filter((p) => {
+      const hay = [p.product, p.brand, p.modelNumber, p.orderNumber].filter(Boolean).join(' ').toLowerCase()
+      return words.every((w) => hay.includes(w))
+    })
+    .sort((a, b) => (a.purchaseDate < b.purchaseDate ? 1 : -1))
 }

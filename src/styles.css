@@ -553,6 +553,12 @@ a {
   margin-bottom: 4px;
 }
 
+.section__title--row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
 .list {
   display: flex;
   flex-direction: column;
@@ -815,6 +821,71 @@ a {
 
 .price-watch-status--lower_found {
   color: var(--accent-navy);
+}
+
+.best-deal {
+  border: 1px solid var(--accent-green);
+  background: var(--accent-green-bg);
+  border-radius: var(--radius-lg);
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.best-deal__label {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--accent-green);
+  margin-bottom: 4px;
+}
+
+.best-deal__price {
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--accent-green);
+}
+
+.best-deal__store {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-top: 2px;
+}
+
+.best-deal__savings {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-top: 6px;
+}
+
+/* ---------- Price Finder ---------- */
+
+.recent-search-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.recent-search-row__query {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  text-align: left;
+}
+
+.recent-search-row__remove {
+  background: none;
+  border: none;
+  padding: 4px 8px;
+  font-size: 16px;
+  color: var(--text-tertiary);
+  line-height: 1;
 }
 
 /* ---------- Digital Receipt Inbox ---------- */

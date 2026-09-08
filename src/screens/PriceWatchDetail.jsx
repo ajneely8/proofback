@@ -30,6 +30,12 @@ export default function PriceWatchDetail() {
   const item = getPriceWatchItem(purchase)
   const returnDaysLeft = daysUntil(purchase.returnDeadline)
   const priceMax = Math.max(1, purchase.price, ...item.history.map((h) => h.price))
+  // Only ever real: a Best Deal only shows up once there's an actual
+  // verified comparison cheaper than what was paid — never estimated,
+  // never invented.
+  const bestDeal = item.comparisons
+    .filter((c) => c.verified && c.price < purchase.price)
+    .sort((a, b) => a.price - b.price)[0]
 
   return (
     <div className="screen">
@@ -49,12 +55,35 @@ export default function PriceWatchDetail() {
         </div>
       </div>
 
+      {bestDeal && (
+        <div className="best-deal">
+          <div className="best-deal__label">Best Deal</div>
+          <div className="best-deal__price">{formatMoney(bestDeal.price)}</div>
+          <div className="best-deal__store">{bestDeal.store}</div>
+          <div className="best-deal__savings">
+            You save {formatMoney(purchase.price - bestDeal.price)} vs. what you paid
+          </div>
+        </div>
+      )}
+
       <section className="detail-card">
-        <div className="detail-card__label">Price</div>
+        <div className="detail-card__label">You Purchased This</div>
         <div className="detail-card__row">
-          <span>Original price</span>
+          <span>Purchased for</span>
           <strong>{formatMoney(purchase.price)}</strong>
         </div>
+        <div className="detail-card__row">
+          <span>Store</span>
+          <strong>{purchase.store}</strong>
+        </div>
+        <div className="detail-card__row">
+          <span>Purchase date</span>
+          <strong>{formatDate(purchase.purchaseDate)}</strong>
+        </div>
+      </section>
+
+      <section className="detail-card">
+        <div className="detail-card__label">Price</div>
         <div className="detail-card__row">
           <span>Current price</span>
           <strong className={item.status === 'dropped' ? 'text-accent' : ''}>
