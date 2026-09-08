@@ -187,6 +187,12 @@ const EXCLUDED_STORES = new Set(['p.c. richard & son', 'pc richard & son', 'pc r
 // Wholesale Club), not the raw source.
 const MEMBERSHIP_STORES = new Set(['Costco', "Sam's Club", "BJ's Wholesale Club"])
 
+// A user-chosen shortlist of preferred retailers — highlighted in results,
+// not reordered above the actual cheapest price (that would make the
+// "Cheapest" tag lie about which row is really the lowest price). Checked
+// against the already-resolved display name, same as MEMBERSHIP_STORES.
+const PRIORITY_STORES = new Set(['H-E-B', 'Walmart', 'Kroger', 'Target', 'Costco', "Sam's Club"])
+
 // A live test found "stockx.com" sail right past a denylist that only
 // listed "stockx" — SerpApi isn't consistent about whether a source is the
 // bare name or a domain, so every denylist check strips a common TLD
@@ -362,6 +368,7 @@ export async function searchProductPrices(query) {
         // guess, so it's surfaced rather than showing a membership price
         // as if it were open to everyone.
         membershipRequired: MEMBERSHIP_STORES.has(store),
+        isPriorityRetailer: PRIORITY_STORES.has(store),
         title: r.title,
         price: r.extracted_price,
         oldPrice: typeof r.extracted_old_price === 'number' ? r.extracted_old_price : null,

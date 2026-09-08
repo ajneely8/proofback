@@ -37,7 +37,11 @@ function PriceFinderRankRow({ match, rank, isLowest, diffFromLowest, onSelect })
   const hasDiscount = match.oldPrice && match.oldPrice > match.price
 
   return (
-    <button type="button" className="list-row price-finder-rank-row" onClick={onSelect}>
+    <button
+      type="button"
+      className={'list-row price-finder-rank-row' + (match.isPriorityRetailer ? ' price-finder-rank-row--priority' : '')}
+      onClick={onSelect}
+    >
       <div className="price-finder-rank-row__num">{rank}</div>
       <div className="thumb thumb--md">
         {photoOk && match.thumbnail ? (
@@ -47,7 +51,14 @@ function PriceFinderRankRow({ match, rank, isLowest, diffFromLowest, onSelect })
         )}
       </div>
       <div className="list-row__main">
-        <div className="list-row__title">{match.store}</div>
+        <div className="list-row__title">
+          {match.store}
+          {match.isPriorityRetailer && (
+            <span className="price-finder-priority-badge" title="One of your preferred retailers">
+              ★
+            </span>
+          )}
+        </div>
         <div className="list-row__line">{match.title}</div>
         {match.membershipRequired && (
           <div className="list-row__line price-finder-membership-note">Membership price</div>

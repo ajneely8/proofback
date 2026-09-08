@@ -1082,6 +1082,19 @@ a {
   font-style: italic;
 }
 
+/* A user-chosen shortlist of preferred retailers — highlighted so they
+   stand out at a glance, but never reordered above the actual cheapest
+   price (the "Cheapest" tag always has to mean the true lowest one). */
+.price-finder-rank-row--priority {
+  background: var(--accent-navy-bg);
+}
+
+.price-finder-priority-badge {
+  color: var(--accent-navy);
+  margin-left: 5px;
+  font-size: 12px;
+}
+
 .price-finder-sheet-backdrop {
   position: fixed;
   inset: 0;
