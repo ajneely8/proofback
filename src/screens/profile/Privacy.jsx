@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { usePurchases } from '../../lib/PurchasesContext.jsx'
 import { isSupabaseConfigured } from '../../lib/supabaseClient.js'
-import { IconChevronLeft, IconShield, IconLock, IconMail, IconCard } from '../../components/Icons.jsx'
+import { IconChevronLeft, IconShield, IconLock, IconMail } from '../../components/Icons.jsx'
 
 const SECTIONS = [
   {
@@ -21,11 +21,6 @@ const SECTIONS = [
     body: isSupabaseConfigured
       ? "Your purchases are stored in ProofBack's Supabase database, scoped to your account with Row Level Security — the database itself enforces that only you (or server code acting on your explicit request) can read or write your rows, not just the app's own logic."
       : "Accounts aren't set up on this deployment yet, so your purchases are stored only in this browser's local storage — nothing leaves this device.",
-  },
-  {
-    Icon: IconCard,
-    title: 'Payment information',
-    body: 'If you subscribe to Pro or Family, card details are entered directly on Stripe\'s own hosted checkout page — they never pass through ProofBack\'s servers or database. ProofBack only ever sees whether a subscription is active, never your card number.',
   },
 ]
 

@@ -3,7 +3,7 @@
  * requests with an Authorization: Bearer <CRON_SECRET> header matching the
  * CRON_SECRET env var, which this checks so the endpoint can't be spammed
  * by anyone who finds the URL — sending email costs money and a random
- * trigger would email every Premium user early/repeatedly.
+ * trigger would email every user early/repeatedly.
  */
 import { sendReminderDigests } from '../server/emailReminders.js'
 

@@ -72,19 +72,15 @@ export async function sendReminderDigests() {
   if (usersError) return { sent: 0, error: usersError.message }
 
   const { data: settingsRows } = await admin.from('user_settings').select('user_id, data')
-  // 'premium' was an older tier name from before Stripe billing was wired
-  // up (see src/data/mockData.js's VALID_PLANS) — real subscriptions only
-  // ever write 'pro' or 'family' now, so checking for the old name here
-  // would silently exclude every real paying customer.
-  const premiumUserIds = new Set(
-    (settingsRows || []).filter((r) => r.data?.plan === 'pro' || r.data?.plan === 'family').map((r) => r.user_id)
-  )
   const settingsByUser = Object.fromEntries((settingsRows || []).map((r) => [r.user_id, r.data]))
 
+  // Used to be Pro/Family only, back when there were paid tiers — ProofBack
+  // is fully free now (no Stripe, no plan gating), so every user with an
+  // email gets the digest.
   let sent = 0
   const results = []
   for (const user of usersPage.users) {
-    if (!premiumUserIds.has(user.id) || !user.email) continue
+    if (!user.email) continue
 
     const { data: purchaseRows } = await admin.from('purchases').select('data').eq('user_id', user.id)
     const purchases = (purchaseRows || []).map((r) => r.data)

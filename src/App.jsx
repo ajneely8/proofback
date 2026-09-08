@@ -1,11 +1,10 @@
 import { useState } from 'react'
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
-import { PurchasesProvider, usePurchases } from './lib/PurchasesContext.jsx'
-import { SettingsProvider, useSettings } from './lib/SettingsContext.jsx'
+import { PurchasesProvider } from './lib/PurchasesContext.jsx'
+import { SettingsProvider } from './lib/SettingsContext.jsx'
 import { useAuth } from './lib/AuthContext.jsx'
 import { isSupabaseConfigured } from './lib/supabaseClient.js'
 import { hasOnboarded, getAnonScanCount, ANON_FREE_SCAN_LIMIT } from './lib/storage.js'
-import { normalizePlan, FREE_PURCHASE_LIMIT } from './data/mockData.js'
 import BottomNav from './components/BottomNav.jsx'
 import NotificationWatcher from './components/NotificationWatcher.jsx'
 import ThemeEffect from './components/ThemeEffect.jsx'
@@ -40,28 +39,6 @@ function Shell({ children, showNav = true }) {
       {showNav && <BottomNav />}
     </div>
   )
-}
-
-// A logged-in Free-plan account that's used up its free scans gets the
-// Subscription screen instead of the app, full stop — no bottom nav, no
-// route lets them past it (whatever they navigate to still renders this),
-// until they upgrade. Anonymous visitors are handled separately, above,
-// by the free-scan-then-signup gate — this is specifically "you have an
-// account, now you have to pay to keep going."
-function PaywallGate({ children }) {
-  const { user } = useAuth()
-  const { settings } = useSettings()
-  const { purchases, loading } = usePurchases()
-
-  if (!loading && user && normalizePlan(settings.plan) === 'free' && purchases.length >= FREE_PURCHASE_LIMIT) {
-    return (
-      <Shell showNav={false}>
-        <Subscription locked />
-      </Shell>
-    )
-  }
-
-  return children
 }
 
 export default function App() {
@@ -106,38 +83,36 @@ export default function App() {
       <PurchasesProvider>
         <ThemeEffect />
         <NotificationWatcher />
-        <PaywallGate>
-          <Shell>
-            <Routes>
-              <Route path="/" element={<Home />} />
-              {/* Purchases is now merged into Home (see Home.jsx) — kept as
-                  its own route so existing links like /purchases?filter=Active
-                  still work, but it renders the same combined screen. */}
-              <Route path="/purchases" element={<Home />} />
-              <Route path="/insights" element={<Insights />} />
-              <Route path="/price-watch" element={<PriceWatch />} />
-              <Route path="/price-watch/:id" element={<PriceWatchDetail />} />
-              <Route path="/price-finder" element={<PriceFinder />} />
-              <Route path="/purchases/:id" element={<PurchaseDetail />} />
-              <Route path="/receipt/:groupKey" element={<ReceiptGroup />} />
-              <Route path="/purchases/:id/evidence" element={<EvidencePackage />} />
-              <Route path="/add" element={<AddPurchase />} />
-              <Route path="/alerts" element={<Alerts />} />
-              <Route path="/inbox" element={<ReceiptInbox />} />
-              <Route path="/profile" element={<Profile />} />
-              <Route path="/profile/account" element={<Account />} />
-              <Route path="/profile/notifications" element={<Notifications />} />
-              <Route path="/profile/email" element={<EmailConnections />} />
-              <Route path="/profile/accounts" element={<ConnectedAccounts />} />
-              <Route path="/profile/privacy" element={<Privacy />} />
-              <Route path="/profile/subscription" element={<Subscription />} />
-              <Route path="/profile/help" element={<Help />} />
-              <Route path="/profile/terms" element={<Terms />} />
-              <Route path="/profile/history" element={<History />} />
-              <Route path="*" element={<Navigate to="/" replace />} />
-            </Routes>
-          </Shell>
-        </PaywallGate>
+        <Shell>
+          <Routes>
+            <Route path="/" element={<Home />} />
+            {/* Purchases is now merged into Home (see Home.jsx) — kept as
+                its own route so existing links like /purchases?filter=Active
+                still work, but it renders the same combined screen. */}
+            <Route path="/purchases" element={<Home />} />
+            <Route path="/insights" element={<Insights />} />
+            <Route path="/price-watch" element={<PriceWatch />} />
+            <Route path="/price-watch/:id" element={<PriceWatchDetail />} />
+            <Route path="/price-finder" element={<PriceFinder />} />
+            <Route path="/purchases/:id" element={<PurchaseDetail />} />
+            <Route path="/receipt/:groupKey" element={<ReceiptGroup />} />
+            <Route path="/purchases/:id/evidence" element={<EvidencePackage />} />
+            <Route path="/add" element={<AddPurchase />} />
+            <Route path="/alerts" element={<Alerts />} />
+            <Route path="/inbox" element={<ReceiptInbox />} />
+            <Route path="/profile" element={<Profile />} />
+            <Route path="/profile/account" element={<Account />} />
+            <Route path="/profile/notifications" element={<Notifications />} />
+            <Route path="/profile/email" element={<EmailConnections />} />
+            <Route path="/profile/accounts" element={<ConnectedAccounts />} />
+            <Route path="/profile/privacy" element={<Privacy />} />
+            <Route path="/profile/subscription" element={<Subscription />} />
+            <Route path="/profile/help" element={<Help />} />
+            <Route path="/profile/terms" element={<Terms />} />
+            <Route path="/profile/history" element={<History />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </Shell>
       </PurchasesProvider>
     </SettingsProvider>
   )

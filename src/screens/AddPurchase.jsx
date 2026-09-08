@@ -2,8 +2,6 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useLocation, Link } from 'react-router-dom'
 import { usePurchases } from '../lib/PurchasesContext.jsx'
 import { useAuth } from '../lib/AuthContext.jsx'
-import { useSettings } from '../lib/SettingsContext.jsx'
-import { FREE_PURCHASE_LIMIT, normalizePlan } from '../data/mockData.js'
 import { IconCamera, IconUpload, IconChevronLeft, IconCheck, IconBarcode } from '../components/Icons.jsx'
 import ProductImage from '../components/ProductImage.jsx'
 import BarcodeScanner, { isBarcodeScanSupported } from '../components/BarcodeScanner.jsx'
@@ -190,7 +188,9 @@ const ERROR_MESSAGES = {
   rate_limited: "You've hit the API rate limit. Wait a moment and try again.",
   model_overloaded: "Claude is overloaded right now. Wait a moment and try again — this isn't something on our end.",
   connection_error: "Couldn't connect to the scanning service right now. Wait a moment and try again.",
-  scan_limit_reached: "You've used all your free scans this month. Upgrade to Premium in Profile for unlimited scans, or use Enter Manually instead.",
+  // Unreachable now that server/scanLimit.js always allows — kept in case
+  // a scan limit comes back alongside a future payment system.
+  scan_limit_reached: 'Scanning is temporarily unavailable. Try Enter Manually instead.',
 }
 
 export default function AddPurchase() {
@@ -216,7 +216,6 @@ export default function AddPurchase() {
   const [attachStatus, setAttachStatus] = useState(null)
   const [savedInfo, setSavedInfo] = useState(null) // { firstId, groupId, count }
   const { session } = useAuth()
-  const { settings } = useSettings()
   const navigate = useNavigate()
   const location = useLocation()
   const inboxEntryId = location.state?.inboxEntryId || null
@@ -550,17 +549,12 @@ export default function AddPurchase() {
     extracted.items.every((item) => item.product && item.price !== '' && !isNaN(Number(item.price))) &&
     (!needsReview || reviewChecked)
 
-  // How many scans are left under whatever plan applies right now — a
-  // signed-out visitor's free-scan allowance (ANON_FREE_SCAN_LIMIT), a
-  // logged-in Free plan's purchase cap (mirrors the "X of 10 purchases
-  // used" count already shown on the Subscription screen), or unlimited
-  // for Pro/Family.
-  const plan = normalizePlan(settings.plan)
+  // A signed-out visitor still has the free-scan-then-signup allowance
+  // (ANON_FREE_SCAN_LIMIT, see src/App.jsx) — everyone with an account gets
+  // unlimited scans now that ProofBack has no paid tiers.
   const scanStatusText = !session
     ? `${Math.max(0, ANON_FREE_SCAN_LIMIT - getAnonScanCount())} of ${ANON_FREE_SCAN_LIMIT} free scans left`
-    : plan === 'free'
-      ? `${Math.max(0, FREE_PURCHASE_LIMIT - purchases.length)} of ${FREE_PURCHASE_LIMIT} free scans left`
-      : 'Unlimited scans'
+    : 'Unlimited scans'
 
   return (
     <div className="screen">
