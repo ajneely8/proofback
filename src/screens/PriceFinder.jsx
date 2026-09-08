@@ -80,6 +80,34 @@ export default function PriceFinder() {
   const [live, setLive] = useState(null) // { status, matches, checkedAt } | null
   const [liveLoading, setLiveLoading] = useState(false)
   const [selected, setSelected] = useState(null) // the tapped match, or null
+  const [suggestionsOpen, setSuggestionsOpen] = useState(false)
+
+  // Search-as-you-type help, built entirely from the user's own real data
+  // (no extra API call per keystroke, which would burn through SerpApi's
+  // free-tier quota fast) — past searches first, then products they've
+  // actually bought, so finishing a query someone's already typed the start
+  // of is usually just a tap away.
+  const suggestions = useMemo(() => {
+    const q = query.trim().toLowerCase()
+    if (!q) return []
+    const seen = new Set()
+    const fromRecent = []
+    for (const r of recent) {
+      const key = r.query.toLowerCase()
+      if (key === q || seen.has(key) || !key.includes(q)) continue
+      seen.add(key)
+      fromRecent.push(r.query)
+    }
+    const fromPurchases = []
+    for (const p of purchases) {
+      const label = productLabel(p)
+      const key = label.toLowerCase()
+      if (key === q || seen.has(key) || !key.includes(q)) continue
+      seen.add(key)
+      fromPurchases.push(label)
+    }
+    return [...fromRecent, ...fromPurchases].slice(0, 6)
+  }, [query, recent, purchases])
 
   async function runLiveSearch(q) {
     setLiveLoading(true)
@@ -114,7 +142,14 @@ export default function PriceFinder() {
 
   function handleSubmit(e) {
     e.preventDefault()
+    setSuggestionsOpen(false)
     runSearch(query)
+  }
+
+  function handleSuggestionSelect(text) {
+    setQuery(text)
+    setSuggestionsOpen(false)
+    runSearch(text)
   }
 
   function handleRemove(id) {
@@ -147,15 +182,42 @@ export default function PriceFinder() {
         </p>
       </div>
 
-      <form className="search-field" onSubmit={handleSubmit}>
-        <IconSearch />
-        <input
-          type="text"
-          placeholder="Search for a product…"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-        />
-      </form>
+      <div className="price-finder-search-wrap">
+        <form className="search-field" onSubmit={handleSubmit}>
+          <IconSearch />
+          <input
+            type="text"
+            placeholder="Search for a product…"
+            value={query}
+            onChange={(e) => {
+              setQuery(e.target.value)
+              setSuggestionsOpen(true)
+            }}
+            onFocus={() => setSuggestionsOpen(true)}
+            onBlur={() => setTimeout(() => setSuggestionsOpen(false), 120)}
+          />
+        </form>
+        {suggestionsOpen && suggestions.length > 0 && (
+          <div className="price-finder-suggestions">
+            {suggestions.map((text) => (
+              <button
+                key={text}
+                type="button"
+                className="price-finder-suggestions__item"
+                // onMouseDown (not onClick) fires before the input's onBlur,
+                // so the suggestion is still in the DOM to be clicked.
+                onMouseDown={(e) => {
+                  e.preventDefault()
+                  handleSuggestionSelect(text)
+                }}
+              >
+                <IconSearch width={14} height={14} />
+                <span>{text}</span>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
 
       {(ownedResults !== null || live !== null || liveLoading) && (
         <section className="section">
