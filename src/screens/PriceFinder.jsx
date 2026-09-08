@@ -246,7 +246,7 @@ export default function PriceFinder() {
             <input
               type="text"
               className="price-finder-refine__field"
-              placeholder="Size (e.g. 10.5)"
+              placeholder="Size (e.g. M, 10.5, 32x34)"
               value={size}
               onChange={(e) => setSize(e.target.value)}
             />
